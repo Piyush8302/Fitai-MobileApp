@@ -26,8 +26,10 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "scheme": "fitai",
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ]
   }
 }

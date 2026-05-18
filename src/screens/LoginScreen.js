@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,34 +7,69 @@ import InputField from '../components/InputField';
 import GradientButton from '../components/GradientButton';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_WEB_CLIENT_ID = '501212222055-10earp0vg4ecv3k7427kkg67soooqd3m.apps.googleusercontent.com';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleGoogleLogin = async () => {
-    try {
-      // Using expo-auth-session for Google OAuth
-      const { Google } = require('expo-auth-session/providers');
-      // For now, we use a simulated Google login flow
-      // In production, integrate with @react-native-google-signin/google-signin
-      Alert.alert(
-        'Google Login',
-        'To enable Google Login, configure Google OAuth credentials in app.json.\n\nFor testing, use email/password login.',
-        [
-          { text: 'OK' },
-          { text: 'Setup Guide', onPress: () => console.log('Google setup guide') },
-        ]
-      );
-    } catch (e) {
-      // If expo-auth-session not installed, show setup instructions
-      Alert.alert(
-        'Google Login Setup Required',
-        'Install google-signin package:\n\nnpx expo install @react-native-google-signin/google-signin\n\nThen add your Google OAuth Client ID in app.json',
-        [{ text: 'OK' }]
-      );
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+  });
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      handleGoogleToken(authentication.accessToken);
     }
+  }, [response]);
+
+  const handleGoogleToken = async (accessToken) => {
+    setLoading(true);
+    try {
+      // Get user info from Google
+      const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const googleUser = await userInfoRes.json();
+
+      // Send to our backend
+      const res = await api.post(ENDPOINTS.GOOGLE_LOGIN, {
+        email: googleUser.email,
+        name: googleUser.name,
+        avatar: googleUser.picture,
+        googleId: googleUser.id,
+      });
+
+      if (res.success) {
+        await AsyncStorage.setItem('token', res.token);
+        await AsyncStorage.setItem('user', JSON.stringify(res.user));
+        api.setToken(res.token);
+
+        if (res.user.isProfileComplete) {
+          navigation.replace('Main');
+        } else {
+          navigation.replace('ProfileSetup');
+        }
+      } else {
+        Alert.alert('Login Failed', res.message || 'Google login failed');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Google login failed. Please try again.');
+      console.log('Google login error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = () => {
+    promptAsync();
   };
 
   const handleLogin = async () => {
