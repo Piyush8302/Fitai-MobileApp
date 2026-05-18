@@ -33,6 +33,7 @@ import ExerciseLibraryScreen from '../screens/ExerciseLibraryScreen';
 import AchievementsScreen from '../screens/AchievementsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -126,6 +127,7 @@ const AppNavigator = () => (
       <Stack.Screen name="Achievements" component={AchievementsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
     </Stack.Navigator>
   </NavigationContainer>
 );
