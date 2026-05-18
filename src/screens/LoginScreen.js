@@ -13,6 +13,30 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const handleGoogleLogin = async () => {
+    try {
+      // Using expo-auth-session for Google OAuth
+      const { Google } = require('expo-auth-session/providers');
+      // For now, we use a simulated Google login flow
+      // In production, integrate with @react-native-google-signin/google-signin
+      Alert.alert(
+        'Google Login',
+        'To enable Google Login, configure Google OAuth credentials in app.json.\n\nFor testing, use email/password login.',
+        [
+          { text: 'OK' },
+          { text: 'Setup Guide', onPress: () => console.log('Google setup guide') },
+        ]
+      );
+    } catch (e) {
+      // If expo-auth-session not installed, show setup instructions
+      Alert.alert(
+        'Google Login Setup Required',
+        'Install google-signin package:\n\nnpx expo install @react-native-google-signin/google-signin\n\nThen add your Google OAuth Client ID in app.json',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter email and password');
@@ -76,7 +100,7 @@ const LoginScreen = ({ navigation }) => {
             secureTextEntry
           />
 
-          <TouchableOpacity style={styles.forgotBtn}>
+          <TouchableOpacity style={styles.forgotBtn} onPress={() => navigation.navigate('ForgotPassword')}>
             <Text style={styles.forgotText}>Forgot Password?</Text>
           </TouchableOpacity>
 
@@ -89,17 +113,13 @@ const LoginScreen = ({ navigation }) => {
             {loading && <ActivityIndicator color="#fff" />}
           </GradientButton>
 
-          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotRow}>
-            <Text style={styles.forgotText}>Forgot Password?</Text>
-          </TouchableOpacity>
-
           <View style={styles.divider}>
             <View style={styles.line} />
             <Text style={styles.orText}>OR</Text>
             <View style={styles.line} />
           </View>
 
-          <TouchableOpacity style={styles.socialBtn}>
+          <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleLogin}>
             <Ionicons name="logo-google" size={22} color="#DB4437" />
             <Text style={styles.socialText}>Continue with Google</Text>
           </TouchableOpacity>
