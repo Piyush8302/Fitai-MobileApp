@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,8 +7,8 @@ import InputField from '../components/InputField';
 import GradientButton from '../components/GradientButton';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -19,27 +19,47 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: GOOGLE_WEB_CLIENT_ID,
-  });
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
 
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { authentication } = response;
-      handleGoogleToken(authentication.accessToken);
+      const redirectUri = AuthSession.makeRedirectUri({ scheme: 'fitai', path: 'auth' });
+
+      const authUrl =
+        `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${GOOGLE_WEB_CLIENT_ID}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&response_type=token` +
+        `&scope=${encodeURIComponent('profile email')}`;
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+
+      if (result.type === 'success' && result.url) {
+        // Extract access_token from the URL hash
+        const params = new URLSearchParams(result.url.split('#')[1]);
+        const accessToken = params.get('access_token');
+
+        if (accessToken) {
+          await handleGoogleToken(accessToken);
+        } else {
+          Alert.alert('Error', 'Could not get access token from Google');
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Google login failed. Please try again.');
+      console.log('Google login error:', error);
+    } finally {
+      setLoading(false);
     }
-  }, [response]);
+  };
 
   const handleGoogleToken = async (accessToken) => {
-    setLoading(true);
     try {
-      // Get user info from Google
       const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const googleUser = await userInfoRes.json();
 
-      // Send to our backend
       const res = await api.post(ENDPOINTS.GOOGLE_LOGIN, {
         email: googleUser.email,
         name: googleUser.name,
@@ -62,14 +82,8 @@ const LoginScreen = ({ navigation }) => {
       }
     } catch (error) {
       Alert.alert('Error', 'Google login failed. Please try again.');
-      console.log('Google login error:', error);
-    } finally {
-      setLoading(false);
+      console.log('Google token error:', error);
     }
-  };
-
-  const handleGoogleLogin = () => {
-    promptAsync();
   };
 
   const handleLogin = async () => {
