@@ -27,7 +27,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
       } else {
         Alert.alert('Error', res.message || 'Failed to send OTP');
       }
-    } catch (e) { Alert.alert('Error', 'Something went wrong'); }
+    } catch (e) { Alert.alert('Error', e?.message || 'Network error. Check your connection.'); }
     setLoading(false);
   };
 
