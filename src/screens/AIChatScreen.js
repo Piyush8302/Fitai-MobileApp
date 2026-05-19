@@ -24,6 +24,13 @@ const AIChatScreen = ({ navigation }) => {
     'Healthy breakfast ideas?',
   ]);
 
+  const followUpSuggestions = [
+    ['Tell me more', 'Give me a diet plan', 'Any exercises for this?', 'Indian alternatives?'],
+    ['How many calories?', 'Best time to eat?', 'Home workout for this?', 'Weekly plan?'],
+    ['Vegetarian options?', 'How much water?', 'Supplements needed?', 'Common mistakes?'],
+    ['Beginner friendly?', 'How long to see results?', 'Morning vs evening?', 'Any side effects?'],
+  ];
+
   // Load token + suggestions on mount
   useEffect(() => {
     (async () => {
@@ -105,11 +112,14 @@ const AIChatScreen = ({ navigation }) => {
             </View>
           )}
 
-          {messages.length <= 1 && (
+          {!loading && (
             <View style={styles.suggestions}>
-              <Text style={styles.sugTitle}>Quick Questions</Text>
+              <Text style={styles.sugTitle}>{messages.length <= 1 ? 'Quick Questions' : 'Ask Follow-up'}</Text>
               <View style={styles.sugGrid}>
-                {suggestions.map((q, i) => (
+                {(messages.length <= 1
+                  ? suggestions
+                  : followUpSuggestions[Math.floor(Math.random() * followUpSuggestions.length)]
+                ).map((q, i) => (
                   <TouchableOpacity key={i} style={styles.sugChip} onPress={() => sendMessage(q)}>
                     <Text style={styles.sugText}>{q}</Text>
                   </TouchableOpacity>

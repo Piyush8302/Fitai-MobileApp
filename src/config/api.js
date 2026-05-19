@@ -1,21 +1,5 @@
-import { Platform } from 'react-native';
-
-// Change this to your backend URL
-// For Android Emulator: 10.0.2.2
-// For iOS Simulator: localhost
-// For Real Device: Your PC's IP address (e.g., 192.168.0.130)
-const DEV_API = Platform.select({
-  android: 'http://10.0.2.2:5000',
-  ios: 'http://localhost:5000',
-  default: 'http://localhost:5000',
-});
-
-// For real device, use your PC IP:
-// const DEV_API = 'http://192.168.0.130:5000';
-
-const PROD_API = 'https://fitai-backend-icbh.onrender.com';
-
-export const API_BASE_URL = __DEV__ ? DEV_API : PROD_API;
+// Always use the live Render backend (works on emulator + real device)
+export const API_BASE_URL = 'https://fitai-backend-icbh.onrender.com';
 
 // API Endpoints
 export const ENDPOINTS = {
@@ -92,6 +76,7 @@ export const ENDPOINTS = {
   NOTIFICATIONS: '/api/notifications',
   NOTIFICATIONS_UNREAD: '/api/notifications/unread-count',
   NOTIFICATIONS_READ_ALL: '/api/notifications/read-all',
+  SAVE_PUSH_TOKEN: '/api/notifications/push-token',
 
   // Auth - Password
   CHANGE_PASSWORD: '/api/auth/change-password',

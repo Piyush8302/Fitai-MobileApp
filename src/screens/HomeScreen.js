@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
+import { WEEKLY_WORKOUT_PLAN, EXERCISES } from '../constants/data';
 import ProgressRing from '../components/ProgressRing';
 import GradientCard from '../components/GradientCard';
 import api, { ENDPOINTS } from '../config/api';
@@ -12,7 +13,7 @@ const { width } = Dimensions.get('window');
 
 const HomeScreen = ({ navigation }) => {
   const [user, setUser] = useState({ name: 'User', weight: 70, targetWeight: 65, fitnessGoal: 'weight_loss' });
-  const [tracking, setTracking] = useState({ caloriesConsumed: 0, waterIntake: 0, steps: 0, workoutMinutes: 0, caloriesGoal: 2000, waterGoal: 8, stepsGoal: 10000 });
+  const [tracking, setTracking] = useState({ caloriesConsumed: 0, waterIntake: 0, steps: 0, workoutMinutes: 0, caloriesGoal: 2000, waterGoal: 8, stepsGoal: 10000, mealsLogged: [] });
 
   const loadData = useCallback(async () => {
     try {
@@ -35,6 +36,13 @@ const HomeScreen = ({ navigation }) => {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadData();
+    });
+    return unsubscribe;
+  }, [navigation, loadData]);
 
   const getGreeting = () => {
     const h = new Date().getHours();
@@ -186,51 +194,78 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </GradientCard>
 
-        {/* Today's Workout */}
+        {/* Today's Workout - Dynamic */}
         <Text style={styles.sectionTitle}>Today's Workout</Text>
-        <GradientCard onPress={() => navigation.navigate('Workout')} style={styles.workoutCard}>
-          <View style={styles.workoutHeader}>
-            <View>
-              <Text style={styles.workoutTitle}>Chest + Triceps 🫁</Text>
-              <Text style={styles.workoutSub}>Monday • 8 exercises • 45 min</Text>
-            </View>
-            <TouchableOpacity style={styles.startBtn} onPress={() => navigation.navigate('Workout')}>
-              <LinearGradient colors={COLORS.gradient1} style={styles.startBtnGrad}>
-                <Ionicons name="play" size={18} color={COLORS.white} />
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.workoutExercises}>
-            {['Push Ups', 'Bench Press', 'Incline DB Press', 'Cable Cross'].map((ex, i) => (
-              <View key={i} style={styles.exerciseChip}>
-                <Text style={styles.exerciseChipText}>{ex}</Text>
+        {(() => {
+          const dayIndex = new Date().getDay();
+          const dayMap = [6, 0, 1, 2, 3, 4, 5];
+          const todayPlan = WEEKLY_WORKOUT_PLAN[dayMap[dayIndex]];
+          const focusToCategory = {
+            'Chest + Triceps': 'chest', 'Back + Biceps': 'back', 'Legs + Core': 'legs',
+            'Shoulders + Arms': 'shoulders', 'Cardio + Abs': 'cardio', 'Full Body': 'fullbody',
+          };
+          const catId = focusToCategory[todayPlan.focus];
+          const exercises = catId && EXERCISES[catId] ? EXERCISES[catId].slice(0, 4).map(e => e.name) : [];
+          const isRest = todayPlan.focus === 'Rest Day';
+          return (
+            <GradientCard onPress={() => navigation.navigate('Workout')} style={styles.workoutCard}>
+              <View style={styles.workoutHeader}>
+                <View>
+                  <Text style={styles.workoutTitle}>{todayPlan.focus} {todayPlan.icon}</Text>
+                  <Text style={styles.workoutSub}>{todayPlan.day} {isRest ? '• Recovery & Stretch' : `• ${exercises.length + 4} exercises • 45 min`}</Text>
+                </View>
+                {!isRest && (
+                  <TouchableOpacity style={styles.startBtn} onPress={() => navigation.navigate('Workout')}>
+                    <LinearGradient colors={COLORS.gradient1} style={styles.startBtnGrad}>
+                      <Ionicons name="play" size={18} color={COLORS.white} />
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
               </View>
-            ))}
-          </View>
-        </GradientCard>
+              {!isRest && exercises.length > 0 && (
+                <View style={styles.workoutExercises}>
+                  {exercises.map((ex, i) => (
+                    <View key={i} style={styles.exerciseChip}>
+                      <Text style={styles.exerciseChipText}>{ex}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {isRest && (
+                <Text style={{ fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 8 }}>
+                  Take it easy today. Light stretching, yoga, or a short walk recommended.
+                </Text>
+              )}
+            </GradientCard>
+          );
+        })()}
 
-        {/* Today's Meals */}
+        {/* Today's Meals - Real Data */}
         <Text style={styles.sectionTitle}>Today's Meals</Text>
         <View style={styles.mealRow}>
-          {[
-            { time: 'Breakfast', meal: 'Oats + Banana', cal: 320, icon: '🥣', done: true },
-            { time: 'Lunch', meal: 'Dal Rice', cal: 450, icon: '🍛', done: false },
-            { time: 'Dinner', meal: 'Chicken Salad', cal: 350, icon: '🥗', done: false },
-          ].map((m, i) => (
-            <TouchableOpacity key={i} style={styles.mealCard} onPress={() => navigation.navigate('Diet')}>
-              <LinearGradient colors={[COLORS.darkCard, COLORS.darkSurface]} style={styles.mealGradient}>
-                <Text style={styles.mealIcon}>{m.icon}</Text>
-                <Text style={styles.mealTime}>{m.time}</Text>
-                <Text style={styles.mealName}>{m.meal}</Text>
-                <Text style={styles.mealCal}>{m.cal} kcal</Text>
-                {m.done && (
-                  <View style={styles.doneBadge}>
-                    <Ionicons name="checkmark" size={12} color={COLORS.white} />
-                  </View>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          ))}
+          {(() => {
+            const mealTypes = ['breakfast', 'lunch', 'dinner'];
+            const mealIcons = { breakfast: '🥣', lunch: '🍛', dinner: '🥗', snack: '🍪' };
+            const logged = tracking?.mealsLogged || [];
+            return mealTypes.map((type, i) => {
+              const found = logged.find(m => m.mealType === type);
+              return (
+                <TouchableOpacity key={i} style={styles.mealCard} onPress={() => navigation.navigate('Tracking')}>
+                  <LinearGradient colors={[COLORS.darkCard, COLORS.darkSurface]} style={styles.mealGradient}>
+                    <Text style={styles.mealIcon}>{mealIcons[type]}</Text>
+                    <Text style={styles.mealTime}>{type.charAt(0).toUpperCase() + type.slice(1)}</Text>
+                    <Text style={styles.mealName}>{found ? (found.items?.map(it => it.name).join(', ') || 'Logged') : 'Not yet'}</Text>
+                    <Text style={styles.mealCal}>{found ? `${found.totalCalories} kcal` : '-- kcal'}</Text>
+                    {found && (
+                      <View style={styles.doneBadge}>
+                        <Ionicons name="checkmark" size={12} color={COLORS.white} />
+                      </View>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              );
+            });
+          })()}
         </View>
 
         {/* Motivational Quote */}

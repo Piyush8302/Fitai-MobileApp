@@ -14,7 +14,7 @@ const GoalSelectionScreen = ({ navigation }) => {
   const goalScreens = {
     weight_loss: 'WeightLoss',
     weight_gain: 'WeightGain',
-    muscle_build: 'Workout',
+    muscle_building: 'Workout',
     fat_loss: 'WeightLoss',
     height_growth: 'HeightGrowth',
     maintenance: 'Workout',

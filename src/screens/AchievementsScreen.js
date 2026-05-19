@@ -40,30 +40,43 @@ const AchievementsScreen = ({ navigation }) => {
     } catch (e) { console.log(e); }
   };
 
-  const renderAchievement = ({ item }) => (
-    <View style={[styles.achievementCard, !item.isUnlocked && styles.lockedCard]}>
-      <LinearGradient
-        colors={item.isUnlocked ? [COLORS.primary + '20', COLORS.darkCard] : [COLORS.darkCard, COLORS.darkSurface]}
-        style={styles.achievementGradient}
-      >
-        <Text style={styles.icon}>{item.icon}</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, !item.isUnlocked && styles.lockedTitle]}>{item.title}</Text>
-          <Text style={styles.description}>{item.description}</Text>
-          {item.isUnlocked && item.unlockedAt && (
-            <Text style={styles.unlockedDate}>
-              🎉 Unlocked {new Date(item.unlockedAt).toLocaleDateString()}
-            </Text>
+  const renderAchievement = ({ item }) => {
+    const progress = item.progress || { current: 0, target: 1 };
+    const pct = item.progressPercent || 0;
+
+    return (
+      <View style={[styles.achievementCard, !item.isUnlocked && styles.lockedCard]}>
+        <LinearGradient
+          colors={item.isUnlocked ? [COLORS.primary + '20', COLORS.darkCard] : [COLORS.darkCard, COLORS.darkSurface]}
+          style={styles.achievementGradient}
+        >
+          <Text style={styles.icon}>{item.icon}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.title, !item.isUnlocked && styles.lockedTitle]}>{item.title}</Text>
+            <Text style={styles.description}>{item.description}</Text>
+            {item.isUnlocked && item.unlockedAt ? (
+              <Text style={styles.unlockedDate}>
+                Unlocked {new Date(item.unlockedAt).toLocaleDateString()}
+              </Text>
+            ) : (
+              <>
+                <View style={styles.achProgressBar}>
+                  <View style={[styles.achProgressFill, { width: `${Math.min(pct, 100)}%` }]} />
+                </View>
+                <Text style={styles.achProgressText}>{progress.current}/{progress.target} ({pct}%)</Text>
+                {item.howTo && <Text style={styles.howToText}>{item.howTo}</Text>}
+              </>
+            )}
+          </View>
+          {item.isUnlocked ? (
+            <View style={styles.unlockedBadge}><Text style={styles.unlockedText}>✓</Text></View>
+          ) : (
+            <View style={styles.lockedBadge}><Text style={styles.lockedText}>🔒</Text></View>
           )}
-        </View>
-        {item.isUnlocked ? (
-          <View style={styles.unlockedBadge}><Text style={styles.unlockedText}>✓</Text></View>
-        ) : (
-          <View style={styles.lockedBadge}><Text style={styles.lockedText}>🔒</Text></View>
-        )}
-      </LinearGradient>
-    </View>
-  );
+        </LinearGradient>
+      </View>
+    );
+  };
 
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
@@ -128,6 +141,10 @@ const styles = StyleSheet.create({
   title: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
   lockedTitle: { color: COLORS.textMuted },
   description: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.regular, marginTop: 2 },
+  achProgressBar: { height: 4, backgroundColor: COLORS.darkBorder, borderRadius: 2, marginTop: 6, overflow: 'hidden' },
+  achProgressFill: { height: '100%', backgroundColor: COLORS.primary, borderRadius: 2 },
+  achProgressText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 3 },
+  howToText: { fontSize: SIZES.fontXs, color: COLORS.accent, ...FONTS.medium, marginTop: 2, fontStyle: 'italic' },
   unlockedDate: { fontSize: SIZES.fontXs, color: COLORS.success, marginTop: 4 },
   unlockedBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.success, alignItems: 'center', justifyContent: 'center' },
   unlockedText: { fontSize: 16, color: COLORS.white, ...FONTS.bold },

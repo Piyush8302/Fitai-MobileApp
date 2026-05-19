@@ -176,6 +176,18 @@ const ProfileSetupScreen = ({ navigation }) => {
           title={loading ? 'Saving...' : step === steps.length - 1 ? "Complete Setup" : "Continue"}
           disabled={loading}
           onPress={() => {
+            if (step === 0 && !gender) {
+              Alert.alert('Required', 'Please select your gender to continue');
+              return;
+            }
+            if (step === 3 && !activity) {
+              Alert.alert('Required', 'Please select your activity level');
+              return;
+            }
+            if (step === 4 && !goal) {
+              Alert.alert('Required', 'Please select your fitness goal');
+              return;
+            }
             if (step < steps.length - 1) setStep(step + 1);
             else saveProfile();
           }}

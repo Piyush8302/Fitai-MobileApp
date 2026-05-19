@@ -3,12 +3,12 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 
-const Header = ({ title, onBack, rightIcon, onRightPress, subtitle }) => (
+const Header = ({ title, onBack, rightIcon, onRightPress, subtitle, backIcon }) => (
   <View style={styles.container}>
     <View style={styles.left}>
       {onBack && (
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.white} />
+          {backIcon || <Ionicons name="chevron-back" size={24} color={COLORS.white} />}
         </TouchableOpacity>
       )}
       <View>

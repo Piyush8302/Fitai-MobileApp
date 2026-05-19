@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AppNavigator from './src/navigation/AppNavigator';
+import { registerForPushNotifications, addNotificationListeners } from './src/utils/notifications';
 
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
@@ -23,10 +24,19 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function App() {
+  useEffect(() => {
+    registerForPushNotifications();
+    const cleanup = addNotificationListeners(
+      (notification) => console.log('Notification received:', notification),
+      (response) => console.log('Notification tapped:', response),
+    );
+    return cleanup;
+  }, []);
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0D0D1A' }}>
       <ErrorBoundary>
-        <StatusBar style="light" backgroundColor="#0D0D1A" />
+        <StatusBar style="light" backgroundColor="#0D0D1A" translucent={false} />
         <AppNavigator />
       </ErrorBoundary>
     </GestureHandlerRootView>

@@ -88,15 +88,6 @@ const GymExerciseScreen = ({ navigation }) => {
                 <View style={styles.expanded}>
                   <View style={styles.divider} />
 
-                  {/* Animated Placeholder */}
-                  <View style={styles.animPlaceholder}>
-                    <LinearGradient colors={[COLORS.primary + '10', COLORS.darkBorder + '20']} style={styles.animBox}>
-                      <Text style={styles.animIcon}>🎬</Text>
-                      <Text style={styles.animText}>Exercise Animation</Text>
-                      <Text style={styles.animSub}>Tap to play demo</Text>
-                    </LinearGradient>
-                  </View>
-
                   {/* Correct Posture */}
                   <View style={styles.detailSection}>
                     <View style={styles.detailHeader}>

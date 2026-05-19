@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import InputField from '../components/InputField';
 import GradientButton from '../components/GradientButton';
-import api, { ENDPOINTS } from '../config/api';
+import api, { API_BASE_URL, ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
+import * as ExpoLinking from 'expo-linking';
 
 WebBrowser.maybeCompleteAuthSession();
-
-const GOOGLE_WEB_CLIENT_ID = '501212222055-10earp0vg4ecv3k7427kkg67soooqd3m.apps.googleusercontent.com';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -23,26 +21,41 @@ const LoginScreen = ({ navigation }) => {
     try {
       setLoading(true);
 
-      const redirectUri = AuthSession.makeRedirectUri({ scheme: 'fitai', path: 'auth' });
-
-      const authUrl =
-        `https://accounts.google.com/o/oauth2/v2/auth?` +
-        `client_id=${GOOGLE_WEB_CLIENT_ID}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&response_type=token` +
-        `&scope=${encodeURIComponent('profile email')}`;
-
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      const redirectUrl = ExpoLinking.createURL('auth');
+      const authUrl = `${API_BASE_URL}/api/auth/google/mobile?redirect=${encodeURIComponent(redirectUrl)}`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
 
       if (result.type === 'success' && result.url) {
-        // Extract access_token from the URL hash
-        const params = new URLSearchParams(result.url.split('#')[1]);
-        const accessToken = params.get('access_token');
+        const url = result.url;
+        // Parse query params from the returned URL (handles both fitai:// and exp:// schemes)
+        const qIndex = url.indexOf('?');
+        const queryString = qIndex !== -1 ? url.substring(qIndex + 1) : null;
+        if (queryString) {
+          const params = {};
+          queryString.split('&').forEach(pair => {
+            const eqIndex = pair.indexOf('=');
+            if (eqIndex !== -1) {
+              params[decodeURIComponent(pair.substring(0, eqIndex))] = decodeURIComponent(pair.substring(eqIndex + 1));
+            }
+          });
 
-        if (accessToken) {
-          await handleGoogleToken(accessToken);
-        } else {
-          Alert.alert('Error', 'Could not get access token from Google');
+          if (params.error) {
+            Alert.alert('Error', 'Google login failed. Please try again.');
+            return;
+          }
+
+          if (params.token) {
+            const user = params.user ? JSON.parse(decodeURIComponent(params.user)) : {};
+            await AsyncStorage.setItem('token', params.token);
+            await AsyncStorage.setItem('user', JSON.stringify(user));
+            api.setToken(params.token);
+
+            if (user.isProfileComplete) {
+              navigation.replace('Main');
+            } else {
+              navigation.replace('ProfileSetup');
+            }
+          }
         }
       }
     } catch (error) {
@@ -50,39 +63,6 @@ const LoginScreen = ({ navigation }) => {
       console.log('Google login error:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGoogleToken = async (accessToken) => {
-    try {
-      const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const googleUser = await userInfoRes.json();
-
-      const res = await api.post(ENDPOINTS.GOOGLE_LOGIN, {
-        email: googleUser.email,
-        name: googleUser.name,
-        avatar: googleUser.picture,
-        googleId: googleUser.id,
-      });
-
-      if (res.success) {
-        await AsyncStorage.setItem('token', res.token);
-        await AsyncStorage.setItem('user', JSON.stringify(res.user));
-        api.setToken(res.token);
-
-        if (res.user.isProfileComplete) {
-          navigation.replace('Main');
-        } else {
-          navigation.replace('ProfileSetup');
-        }
-      } else {
-        Alert.alert('Login Failed', res.message || 'Google login failed');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Google login failed. Please try again.');
-      console.log('Google token error:', error);
     }
   };
 
