@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +18,63 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Parse Google auth callback URL and handle login
+  const handleAuthUrl = async (url) => {
+    if (!url) return false;
+    const qIndex = url.indexOf('?');
+    const queryString = qIndex !== -1 ? url.substring(qIndex + 1) : null;
+    if (!queryString) return false;
+
+    const params = {};
+    queryString.split('&').forEach(pair => {
+      const eqIndex = pair.indexOf('=');
+      if (eqIndex !== -1) {
+        params[decodeURIComponent(pair.substring(0, eqIndex))] = decodeURIComponent(pair.substring(eqIndex + 1));
+      }
+    });
+
+    if (params.error) {
+      Alert.alert('Error', 'Google login failed. Please try again.');
+      return true;
+    }
+
+    if (params.token) {
+      const user = params.user ? JSON.parse(decodeURIComponent(params.user)) : {};
+      await AsyncStorage.setItem('token', params.token);
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+      api.setToken(params.token);
+      savePushTokenAfterLogin();
+
+      if (user.isProfileComplete) {
+        navigation.replace('Main');
+      } else {
+        navigation.replace('ProfileSetup');
+      }
+      return true;
+    }
+    return false;
+  };
+
+  // Listen for deep link (fallback for when openAuthSessionAsync misses the redirect)
+  useEffect(() => {
+    const handleDeepLink = async (event) => {
+      const url = event?.url || event;
+      if (url && (url.includes('token=') || url.includes('error='))) {
+        await handleAuthUrl(url);
+        setLoading(false);
+      }
+    };
+
+    const sub = ExpoLinking.addEventListener('url', handleDeepLink);
+
+    // Check if app was opened via deep link
+    ExpoLinking.getInitialURL().then((url) => {
+      if (url) handleDeepLink(url);
+    });
+
+    return () => sub?.remove?.();
+  }, []);
+
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
@@ -27,38 +84,14 @@ const LoginScreen = ({ navigation }) => {
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
 
       if (result.type === 'success' && result.url) {
-        const url = result.url;
-        // Parse query params from the returned URL (handles both fitai:// and exp:// schemes)
-        const qIndex = url.indexOf('?');
-        const queryString = qIndex !== -1 ? url.substring(qIndex + 1) : null;
-        if (queryString) {
-          const params = {};
-          queryString.split('&').forEach(pair => {
-            const eqIndex = pair.indexOf('=');
-            if (eqIndex !== -1) {
-              params[decodeURIComponent(pair.substring(0, eqIndex))] = decodeURIComponent(pair.substring(eqIndex + 1));
-            }
-          });
-
-          if (params.error) {
-            Alert.alert('Error', 'Google login failed. Please try again.');
-            return;
-          }
-
-          if (params.token) {
-            const user = params.user ? JSON.parse(decodeURIComponent(params.user)) : {};
-            await AsyncStorage.setItem('token', params.token);
-            await AsyncStorage.setItem('user', JSON.stringify(user));
-            api.setToken(params.token);
-            savePushTokenAfterLogin();
-
-            if (user.isProfileComplete) {
-              navigation.replace('Main');
-            } else {
-              navigation.replace('ProfileSetup');
-            }
-          }
+        const handled = await handleAuthUrl(result.url);
+        if (!handled) {
+          Alert.alert('Error', 'Google login failed. Please try again.');
         }
+      } else if (result.type === 'cancel' || result.type === 'dismiss') {
+        // User cancelled or browser was dismissed — might have been redirected via deep link
+        // The deep link listener above will handle it
+        console.log('Browser closed, checking for deep link...');
       }
     } catch (error) {
       Alert.alert('Error', 'Google login failed. Please try again.');
