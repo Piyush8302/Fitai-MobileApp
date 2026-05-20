@@ -60,7 +60,8 @@ const ProfileScreen = ({ navigation }) => {
           await AsyncStorage.removeItem('token');
           await AsyncStorage.removeItem('user');
           api.setToken(null);
-          navigation.replace('Login');
+          navigation.getParent()?.reset({ index: 0, routes: [{ name: 'Login' }] }) ||
+            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
         },
       },
     ]);
