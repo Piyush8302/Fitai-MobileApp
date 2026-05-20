@@ -11,6 +11,11 @@ export const ENDPOINTS = {
   GOOGLE_LOGIN: '/api/auth/google',
   GET_ME: '/api/auth/me',
   UPDATE_PROFILE: '/api/auth/profile',
+  REQUEST_EMAIL_CHANGE: '/api/auth/request-email-change',
+  VERIFY_EMAIL_CHANGE: '/api/auth/verify-email-change',
+  REQUEST_PHONE_CHANGE: '/api/auth/request-phone-change',
+  VERIFY_PHONE_CHANGE: '/api/auth/verify-phone-change',
+  UPLOAD_AVATAR: '/api/auth/avatar',
 
   // BMI
   CALCULATE_BMI: '/api/bmi/calculate',

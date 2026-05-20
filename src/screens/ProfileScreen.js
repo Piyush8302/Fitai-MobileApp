@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, Alert, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
@@ -90,7 +90,7 @@ const ProfileScreen = ({ navigation }) => {
 
   const menuItems = [
     { section: 'Account', items: [
-      { icon: 'person-outline', label: 'Edit Profile', screen: 'ProfileSetup' },
+      { icon: 'person-outline', label: 'Edit Profile', screen: 'EditProfile' },
       { icon: 'fitness-outline', label: 'My Goals', screen: 'GoalSelection' },
       { icon: 'card-outline', label: 'Subscription', screen: 'Subscription' },
       { icon: 'notifications-outline', label: 'Notifications', screen: 'Notifications' },
@@ -128,9 +128,13 @@ const ProfileScreen = ({ navigation }) => {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Profile Header */}
         <View style={styles.profileHeader}>
-          <View style={styles.avatarLarge}>
-            <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
-          </View>
+          {user?.avatar && (user.avatar.startsWith('data:') || user.avatar.startsWith('http')) ? (
+            <Image source={{ uri: user.avatar }} style={styles.avatarLargeImg} />
+          ) : (
+            <View style={styles.avatarLarge}>
+              <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
+            </View>
+          )}
           <Text style={styles.userName}>{user?.name || 'User'}</Text>
           <Text style={styles.userEmail}>{user?.email || ''}</Text>
           {user?.phone && <Text style={styles.userPhone}>📱 {user.phone}</Text>}
@@ -241,6 +245,10 @@ const styles = StyleSheet.create({
   avatarLarge: {
     width: 90, height: 90, borderRadius: 45,
     backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
+    marginBottom: 14, borderWidth: 3, borderColor: COLORS.primary + '40',
+  },
+  avatarLargeImg: {
+    width: 90, height: 90, borderRadius: 45,
     marginBottom: 14, borderWidth: 3, borderColor: COLORS.primary + '40',
   },
   avatarText: { fontSize: 36, color: COLORS.white, ...FONTS.bold },

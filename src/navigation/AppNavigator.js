@@ -53,6 +53,7 @@ import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import RateUsScreen from '../screens/RateUsScreen';
 import ShareAppScreen from '../screens/ShareAppScreen';
 import ReferralScreen from '../screens/ReferralScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -60,7 +61,7 @@ const Tab = createBottomTabNavigator();
 const TabIcon = ({ name, focused, color, label }) => (
   <View style={styles.tabItem}>
     <Ionicons name={name} size={22} color={color} />
-    <Text style={[styles.tabLabel, { color }]}>{label}</Text>
+    <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>{label}</Text>
   </View>
 );
 
@@ -152,6 +153,7 @@ const AppNavigator = () => (
       <Stack.Screen name="RateUs" component={RateUsScreen} />
       <Stack.Screen name="ShareApp" component={ShareAppScreen} />
       <Stack.Screen name="Referral" component={ReferralScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
     </Stack.Navigator>
   </NavigationContainer>
 );
@@ -166,8 +168,8 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     paddingTop: 8,
   },
-  tabItem: { alignItems: 'center', justifyContent: 'center' },
-  tabLabel: { fontSize: 10, ...FONTS.medium, marginTop: 4 },
+  tabItem: { alignItems: 'center', justifyContent: 'center', width: 60 },
+  tabLabel: { fontSize: 9, ...FONTS.medium, marginTop: 3, numberOfLines: 1 },
   aiTab: { marginTop: -20 },
   aiTabGrad: {
     width: 52, height: 52, borderRadius: 26,
