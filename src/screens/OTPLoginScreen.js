@@ -7,8 +7,11 @@ import InputField from '../components/InputField';
 import GradientButton from '../components/GradientButton';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { savePushTokenAfterLogin } from '../utils/notifications';
 
 const OTPLoginScreen = ({ navigation }) => {
+  const [mode, setMode] = useState('email'); // 'email' or 'phone'
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -24,17 +27,26 @@ const OTPLoginScreen = ({ navigation }) => {
   };
 
   const handleSendOtp = async () => {
-    if (!phone || phone.length < 10) {
-      Alert.alert('Error', 'Enter a valid 10-digit phone number');
-      return;
+    if (mode === 'email') {
+      if (!email || !email.includes('@')) {
+        Alert.alert('Error', 'Enter a valid email address');
+        return;
+      }
+    } else {
+      if (!phone || phone.length < 10) {
+        Alert.alert('Error', 'Enter a valid 10-digit phone number');
+        return;
+      }
     }
 
     setLoading(true);
     try {
-      const res = await api.post(ENDPOINTS.SEND_OTP, { phone: phone.trim() });
+      const payload = mode === 'email' ? { email: email.trim().toLowerCase() } : { phone: phone.trim() };
+      const res = await api.post(ENDPOINTS.SEND_OTP, payload);
       if (res.success) {
         setOtpSent(true);
-        Alert.alert('OTP Sent', `A 6-digit OTP has been sent to +91 ${phone}${res.otp ? `\n\nDev OTP: ${res.otp}` : ''}`);
+        const target = mode === 'email' ? email : `+91 ${phone}`;
+        Alert.alert('OTP Sent', `A 6-digit OTP has been sent to ${target}${res.otp ? `\n\nDev OTP: ${res.otp}` : ''}`);
       } else {
         Alert.alert('Error', res.message || 'Failed to send OTP');
       }
@@ -54,11 +66,15 @@ const OTPLoginScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      const res = await api.post(ENDPOINTS.VERIFY_OTP, { phone: phone.trim(), otp: otpCode });
+      const payload = mode === 'email'
+        ? { email: email.trim().toLowerCase(), otp: otpCode }
+        : { phone: phone.trim(), otp: otpCode };
+      const res = await api.post(ENDPOINTS.VERIFY_OTP, payload);
       if (res.success) {
         await AsyncStorage.setItem('token', res.token);
         await AsyncStorage.setItem('user', JSON.stringify(res.user));
         api.setToken(res.token);
+        savePushTokenAfterLogin();
 
         if (res.user.isProfileComplete) {
           navigation.replace('Main');
@@ -80,6 +96,12 @@ const OTPLoginScreen = ({ navigation }) => {
     await handleSendOtp();
   };
 
+  const switchMode = () => {
+    setMode(mode === 'email' ? 'phone' : 'email');
+    setOtpSent(false);
+    setOtp(['', '', '', '', '', '']);
+  };
+
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -88,25 +110,59 @@ const OTPLoginScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         <View style={styles.iconCircle}>
-          <Text style={styles.icon}>📱</Text>
+          <Text style={styles.icon}>{mode === 'email' ? '📧' : '📱'}</Text>
         </View>
 
-        <Text style={styles.title}>{otpSent ? 'Enter OTP' : 'Phone Login'}</Text>
+        <Text style={styles.title}>{otpSent ? 'Enter OTP' : 'OTP Login'}</Text>
         <Text style={styles.subtitle}>
-          {otpSent ? `We sent a 6-digit code to +91 ${phone}` : 'Enter your phone number to receive OTP'}
+          {otpSent
+            ? `We sent a 6-digit code to ${mode === 'email' ? email : `+91 ${phone}`}`
+            : `Enter your ${mode === 'email' ? 'email' : 'phone number'} to receive OTP`}
         </Text>
+
+        {/* Mode Toggle */}
+        {!otpSent && (
+          <View style={styles.toggleRow}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, mode === 'email' && styles.toggleActive]}
+              onPress={() => setMode('email')}
+            >
+              <Ionicons name="mail-outline" size={18} color={mode === 'email' ? COLORS.white : COLORS.textMuted} />
+              <Text style={[styles.toggleText, mode === 'email' && styles.toggleTextActive]}>Email</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, mode === 'phone' && styles.toggleActive]}
+              onPress={() => setMode('phone')}
+            >
+              <Ionicons name="call-outline" size={18} color={mode === 'phone' ? COLORS.white : COLORS.textMuted} />
+              <Text style={[styles.toggleText, mode === 'phone' && styles.toggleTextActive]}>Phone</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {!otpSent ? (
           <View style={styles.form}>
-            <InputField
-              label="Phone Number"
-              icon="call-outline"
-              placeholder="Enter 10-digit number"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              maxLength={10}
-            />
+            {mode === 'email' ? (
+              <InputField
+                label="Email Address"
+                icon="mail-outline"
+                placeholder="Enter your email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            ) : (
+              <InputField
+                label="Phone Number"
+                icon="call-outline"
+                placeholder="Enter 10-digit number"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                maxLength={10}
+              />
+            )}
             <GradientButton
               title={loading ? '' : 'Send OTP'}
               onPress={handleSendOtp}
@@ -148,6 +204,14 @@ const OTPLoginScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         )}
+
+        {otpSent && (
+          <TouchableOpacity style={styles.switchRow} onPress={switchMode}>
+            <Text style={styles.switchText}>
+              Try with {mode === 'email' ? 'Phone' : 'Email'} instead
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </LinearGradient>
   );
@@ -167,7 +231,18 @@ const styles = StyleSheet.create({
   },
   icon: { fontSize: 44 },
   title: { fontSize: SIZES.fontTitle, color: COLORS.white, ...FONTS.bold, textAlign: 'center' },
-  subtitle: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'center', marginTop: 8, marginBottom: 32, lineHeight: 22 },
+  subtitle: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'center', marginTop: 8, marginBottom: 24, lineHeight: 22 },
+  toggleRow: {
+    flexDirection: 'row', backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius,
+    padding: 4, marginBottom: 24, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  toggleBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 12, borderRadius: SIZES.radius - 2, gap: 8,
+  },
+  toggleActive: { backgroundColor: COLORS.primary },
+  toggleText: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium },
+  toggleTextActive: { color: COLORS.white },
   form: {},
   btn: { marginTop: 16 },
   otpRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
@@ -180,6 +255,8 @@ const styles = StyleSheet.create({
   resendRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
   resendText: { fontSize: SIZES.fontMd, color: COLORS.textMuted },
   resendLink: { fontSize: SIZES.fontMd, color: COLORS.primary, ...FONTS.bold },
+  switchRow: { alignItems: 'center', marginTop: 20 },
+  switchText: { fontSize: SIZES.fontMd, color: COLORS.accent, ...FONTS.medium },
 });
 
 export default OTPLoginScreen;

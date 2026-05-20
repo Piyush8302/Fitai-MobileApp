@@ -9,6 +9,7 @@ import api, { API_BASE_URL, ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import * as ExpoLinking from 'expo-linking';
+import { savePushTokenAfterLogin } from '../utils/notifications';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -49,6 +50,7 @@ const LoginScreen = ({ navigation }) => {
             await AsyncStorage.setItem('token', params.token);
             await AsyncStorage.setItem('user', JSON.stringify(user));
             api.setToken(params.token);
+            savePushTokenAfterLogin();
 
             if (user.isProfileComplete) {
               navigation.replace('Main');
@@ -81,6 +83,7 @@ const LoginScreen = ({ navigation }) => {
         await AsyncStorage.setItem('token', res.token);
         await AsyncStorage.setItem('user', JSON.stringify(res.user));
         api.setToken(res.token);
+        savePushTokenAfterLogin();
 
         // Navigate based on profile status
         if (res.user.isProfileComplete) {

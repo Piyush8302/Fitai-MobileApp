@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { savePushTokenAfterLogin } from '../utils/notifications';
 
 const SplashScreen = ({ navigation }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -22,6 +23,7 @@ const SplashScreen = ({ navigation }) => {
 
         if (token && user) {
           api.setToken(token);
+          savePushTokenAfterLogin();
           const userData = JSON.parse(user);
 
           setTimeout(() => {

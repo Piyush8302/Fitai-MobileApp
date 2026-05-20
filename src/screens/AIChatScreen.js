@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.darkBorder,
   },
   sugText: { fontSize: SIZES.fontSm, color: COLORS.primaryLight, ...FONTS.medium },
-  inputBar: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: COLORS.dark, borderTopWidth: 1, borderTopColor: COLORS.darkBorder },
+  inputBar: { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 80, backgroundColor: COLORS.dark, borderTopWidth: 1, borderTopColor: COLORS.darkBorder },
   inputContainer: { flexDirection: 'row', alignItems: 'flex-end', backgroundColor: COLORS.darkCard, borderRadius: SIZES.radiusLg, borderWidth: 1, borderColor: COLORS.darkBorder, paddingLeft: 16, paddingRight: 6, paddingVertical: 6 },
   input: { flex: 1, fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.medium, maxHeight: 100, paddingVertical: 8 },
   sendBtn: { borderRadius: 20, overflow: 'hidden', marginLeft: 8 },

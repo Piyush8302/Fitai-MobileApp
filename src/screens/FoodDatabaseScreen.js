@@ -168,7 +168,7 @@ const FoodDatabaseScreen = ({ navigation }) => {
 
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
-      <Header title="Food Database" subtitle="Nutrition & Health Info" onBack={() => navigation.goBack()} />
+      <Header title="Food Details" subtitle="Nutrition & Health Info" onBack={() => navigation.goBack()} />
 
       {/* How We Track Banner */}
       <TouchableOpacity style={styles.infoBanner}>
@@ -449,13 +449,13 @@ const styles = StyleSheet.create({
   filterTextActive: { color: COLORS.primary },
 
   // Category
-  catScroll: { marginBottom: 8, maxHeight: 42 },
+  catScroll: { marginBottom: 10, maxHeight: 44 },
   catChip: {
-    backgroundColor: COLORS.darkCard, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6,
+    backgroundColor: COLORS.darkCard, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8,
     borderWidth: 1, borderColor: COLORS.darkBorder, marginRight: 8,
   },
-  catChipActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '15' },
-  catChipText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, textTransform: 'capitalize' },
+  catChipActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '20' },
+  catChipText: { fontSize: SIZES.fontSm, color: COLORS.white, ...FONTS.medium, textTransform: 'capitalize' },
 
   // List
   list: { padding: 16, paddingBottom: 100 },
