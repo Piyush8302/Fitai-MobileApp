@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
@@ -85,8 +85,12 @@ const HomeScreen = ({ navigation }) => {
               <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
               <View style={styles.notifDot} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.avatarBtn}>
-              <Text style={styles.avatarText}>{(user.name || 'U')[0].toUpperCase()}</Text>
+            <TouchableOpacity style={styles.avatarBtn} onPress={() => navigation.navigate('EditProfile')}>
+              {user.avatar && (user.avatar.startsWith('data:') || user.avatar.startsWith('http')) ? (
+                <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
+              ) : (
+                <Text style={styles.avatarText}>{(user.name || 'U')[0].toUpperCase()}</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -301,6 +305,7 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
   },
+  avatarImg: { width: 44, height: 44, borderRadius: 22 },
   avatarText: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
   progressCard: { marginBottom: 24 },
   cardTitle: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, marginBottom: 16 },

@@ -70,7 +70,7 @@ const TrackingScreen = ({ navigation }) => {
     toastAnim.setValue(-100);
     toastOpacity.setValue(0);
     Animated.parallel([
-      Animated.spring(toastAnim, { toValue: 10, useNativeDriver: true, friction: 8 }),
+      Animated.spring(toastAnim, { toValue: 0, useNativeDriver: true, friction: 8 }),
       Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
     toastTimerRef.current = setTimeout(() => {
@@ -1420,7 +1420,7 @@ const styles = StyleSheet.create({
   liveStepDivider: { width: 1, height: 30, backgroundColor: COLORS.darkBorder },
 
   // Toast
-  toastWrap: { position: 'absolute', top: 0, right: 16, left: 16, zIndex: 999, elevation: 999 },
+  toastWrap: { position: 'absolute', top: 60, right: 16, left: 16, zIndex: 999, elevation: 999 },
   toastBox: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 14, paddingVertical: 12,

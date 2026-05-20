@@ -21,6 +21,17 @@ const EditProfileScreen = ({ navigation }) => {
   const [phone, setPhone] = useState('');
   const [avatar, setAvatar] = useState('');
 
+  // Profile setup fields
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState('');
+  const [height, setHeight] = useState('');
+  const [weight, setWeight] = useState('');
+  const [targetWeight, setTargetWeight] = useState('');
+  const [activityLevel, setActivityLevel] = useState('');
+  const [fitnessGoal, setFitnessGoal] = useState('');
+  const [dietPreference, setDietPreference] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+
   // OTP flow states
   const [otpMode, setOtpMode] = useState(null); // 'email' | 'phone' | null
   const [otpValue, setOtpValue] = useState('');
@@ -44,6 +55,14 @@ const EditProfileScreen = ({ navigation }) => {
         setEmail(u.email || '');
         setPhone(u.phone || '');
         setAvatar(u.avatar || '');
+        setAge(u.age ? String(u.age) : '');
+        setGender(u.gender || '');
+        setHeight(u.height ? String(u.height) : '');
+        setWeight(u.weight ? String(u.weight) : '');
+        setTargetWeight(u.targetWeight ? String(u.targetWeight) : '');
+        setActivityLevel(u.activityLevel || '');
+        setFitnessGoal(u.fitnessGoal || '');
+        setDietPreference(u.dietPreference || '');
       }
     } catch (e) {
       console.log('Load user error:', e);
@@ -400,6 +419,141 @@ const EditProfileScreen = ({ navigation }) => {
             </Text>
           </View>
 
+          {/* === Profile Setup Fields === */}
+          <Text style={styles.sectionHeader}>Health & Fitness Profile</Text>
+
+          {/* Age & Gender Row */}
+          <View style={styles.rowFields}>
+            <View style={[styles.fieldCard, { flex: 1, marginRight: 7 }]}>
+              <Text style={styles.fieldLabel}>Age</Text>
+              <TextInput style={styles.fieldInputSmall} value={age} onChangeText={setAge} keyboardType="number-pad" placeholder="25" placeholderTextColor={COLORS.textMuted} />
+            </View>
+            <View style={[styles.fieldCard, { flex: 1, marginLeft: 7 }]}>
+              <Text style={styles.fieldLabel}>Gender</Text>
+              <View style={styles.chipRow}>
+                {['male', 'female', 'other'].map(g => (
+                  <TouchableOpacity key={g} style={[styles.chip, gender === g && styles.chipActive]} onPress={() => setGender(g)}>
+                    <Text style={[styles.chipText, gender === g && styles.chipTextActive]}>{g === 'male' ? '♂' : g === 'female' ? '♀' : '⚧'} {g.charAt(0).toUpperCase() + g.slice(1)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          {/* Height & Weight Row */}
+          <View style={styles.rowFields}>
+            <View style={[styles.fieldCard, { flex: 1, marginRight: 7 }]}>
+              <Text style={styles.fieldLabel}>Height (cm)</Text>
+              <TextInput style={styles.fieldInputSmall} value={height} onChangeText={setHeight} keyboardType="number-pad" placeholder="175" placeholderTextColor={COLORS.textMuted} />
+            </View>
+            <View style={[styles.fieldCard, { flex: 1, marginLeft: 7 }]}>
+              <Text style={styles.fieldLabel}>Weight (kg)</Text>
+              <TextInput style={styles.fieldInputSmall} value={weight} onChangeText={setWeight} keyboardType="number-pad" placeholder="70" placeholderTextColor={COLORS.textMuted} />
+            </View>
+          </View>
+
+          {/* Target Weight */}
+          <View style={styles.fieldCard}>
+            <Text style={styles.fieldLabel}>Target Weight (kg)</Text>
+            <TextInput style={styles.fieldInputSmall} value={targetWeight} onChangeText={setTargetWeight} keyboardType="number-pad" placeholder="65" placeholderTextColor={COLORS.textMuted} />
+          </View>
+
+          {/* Fitness Goal */}
+          <View style={styles.fieldCard}>
+            <Text style={styles.fieldLabel}>Fitness Goal</Text>
+            <View style={styles.chipWrap}>
+              {[
+                { key: 'weight_loss', label: 'Lose Weight' },
+                { key: 'weight_gain', label: 'Gain Weight' },
+                { key: 'muscle_building', label: 'Build Muscle' },
+                { key: 'fat_loss', label: 'Fat Loss' },
+                { key: 'maintenance', label: 'Stay Fit' },
+                { key: 'home_workout', label: 'Home Workout' },
+                { key: 'gym_workout', label: 'Gym Workout' },
+              ].map(g => (
+                <TouchableOpacity key={g.key} style={[styles.chip, fitnessGoal === g.key && styles.chipActive]} onPress={() => setFitnessGoal(g.key)}>
+                  <Text style={[styles.chipText, fitnessGoal === g.key && styles.chipTextActive]}>{g.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Activity Level */}
+          <View style={styles.fieldCard}>
+            <Text style={styles.fieldLabel}>Activity Level</Text>
+            <View style={styles.chipWrap}>
+              {[
+                { key: 'sedentary', label: 'Sedentary' },
+                { key: 'lightly_active', label: 'Light' },
+                { key: 'moderately_active', label: 'Moderate' },
+                { key: 'very_active', label: 'Very Active' },
+                { key: 'extra_active', label: 'Athlete' },
+              ].map(a => (
+                <TouchableOpacity key={a.key} style={[styles.chip, activityLevel === a.key && styles.chipActive]} onPress={() => setActivityLevel(a.key)}>
+                  <Text style={[styles.chipText, activityLevel === a.key && styles.chipTextActive]}>{a.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Diet Preference */}
+          <View style={styles.fieldCard}>
+            <Text style={styles.fieldLabel}>Diet Preference</Text>
+            <View style={styles.chipWrap}>
+              {[
+                { key: 'veg', label: '🥦 Veg' },
+                { key: 'non_veg', label: '🍗 Non-Veg' },
+                { key: 'vegan', label: '🌱 Vegan' },
+                { key: 'eggetarian', label: '🥚 Eggetarian' },
+              ].map(d => (
+                <TouchableOpacity key={d.key} style={[styles.chip, dietPreference === d.key && styles.chipActive]} onPress={() => setDietPreference(d.key)}>
+                  <Text style={[styles.chipText, dietPreference === d.key && styles.chipTextActive]}>{d.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Save Profile Button */}
+          <TouchableOpacity
+            style={styles.saveProfileBtn}
+            onPress={async () => {
+              setSavingProfile(true);
+              try {
+                const updates = {};
+                if (age) updates.age = parseInt(age);
+                if (gender) updates.gender = gender;
+                if (height) updates.height = parseFloat(height);
+                if (weight) updates.weight = parseFloat(weight);
+                if (targetWeight) updates.targetWeight = parseFloat(targetWeight);
+                if (activityLevel) updates.activityLevel = activityLevel;
+                if (fitnessGoal) updates.fitnessGoal = fitnessGoal;
+                if (dietPreference) updates.dietPreference = dietPreference;
+                const res = await api.put(ENDPOINTS.UPDATE_PROFILE, updates);
+                if (res.success) {
+                  setUser(prev => ({ ...prev, ...updates }));
+                  await AsyncStorage.setItem('user', JSON.stringify({ ...user, ...updates }));
+                  Alert.alert('Success', 'Profile updated!');
+                } else {
+                  Alert.alert('Error', res.message || 'Failed to update');
+                }
+              } catch (e) {
+                Alert.alert('Error', 'Network error');
+              } finally {
+                setSavingProfile(false);
+              }
+            }}
+            disabled={savingProfile}
+          >
+            <LinearGradient colors={COLORS.gradient1} style={styles.saveProfileGrad}>
+              {savingProfile ? <ActivityIndicator size="small" color={COLORS.white} /> : (
+                <>
+                  <Ionicons name="checkmark-circle" size={20} color={COLORS.white} />
+                  <Text style={styles.saveProfileText}>Save Profile Changes</Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+
           <View style={{ height: 120 }} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -487,6 +641,31 @@ const styles = StyleSheet.create({
   },
   fieldSaveTxt: { color: COLORS.white, fontSize: SIZES.fontSm, ...FONTS.bold },
   fieldHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: 8, fontStyle: 'italic' },
+
+  // Section header
+  sectionHeader: {
+    fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, marginTop: 20, marginBottom: 14,
+  },
+  rowFields: { flexDirection: 'row', marginBottom: 0 },
+  fieldInputSmall: {
+    fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.medium,
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder,
+  },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  chip: {
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: COLORS.darkSurface, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  chipActive: { backgroundColor: COLORS.primary + '25', borderColor: COLORS.primary },
+  chipText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
+  chipTextActive: { color: COLORS.primary, ...FONTS.bold },
+  saveProfileBtn: { marginTop: 20, borderRadius: SIZES.radius, overflow: 'hidden' },
+  saveProfileGrad: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 14, borderRadius: SIZES.radius,
+  },
+  saveProfileText: { color: COLORS.white, fontSize: SIZES.fontMd, ...FONTS.bold },
 
   // Info Card
   infoCard: {

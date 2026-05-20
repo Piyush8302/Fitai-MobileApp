@@ -145,11 +145,11 @@ const ExerciseLibraryScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  filterScroll: { maxHeight: 50 },
-  filterContent: { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
+  filterScroll: { maxHeight: 52, marginBottom: 8 },
+  filterContent: { paddingHorizontal: 16, gap: 8, alignItems: 'center', paddingVertical: 4 },
   muscleChip: {
     backgroundColor: COLORS.darkCard, borderRadius: 20,
-    paddingHorizontal: 14, paddingVertical: 8,
+    paddingHorizontal: 16, paddingVertical: 10,
     borderWidth: 1, borderColor: COLORS.darkBorder,
   },
   muscleActive: { backgroundColor: COLORS.primary + '30', borderColor: COLORS.primary },
