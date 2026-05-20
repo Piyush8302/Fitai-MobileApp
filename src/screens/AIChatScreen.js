@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
@@ -81,7 +81,7 @@ const AIChatScreen = ({ navigation }) => {
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
       <Header title="AI Health Assistant" subtitle="Ask anything about fitness" onBack={() => navigation.goBack()} rightIcon="ellipsis-vertical" />
 
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={styles.messages}
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.darkBorder,
   },
   sugText: { fontSize: SIZES.fontSm, color: COLORS.primaryLight, ...FONTS.medium },
-  inputBar: { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 80, backgroundColor: COLORS.dark, borderTopWidth: 1, borderTopColor: COLORS.darkBorder },
+  inputBar: { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 24, backgroundColor: COLORS.dark, borderTopWidth: 1, borderTopColor: COLORS.darkBorder },
   inputContainer: { flexDirection: 'row', alignItems: 'flex-end', backgroundColor: COLORS.darkCard, borderRadius: SIZES.radiusLg, borderWidth: 1, borderColor: COLORS.darkBorder, paddingLeft: 16, paddingRight: 6, paddingVertical: 6 },
   input: { flex: 1, fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.medium, maxHeight: 100, paddingVertical: 8 },
   sendBtn: { borderRadius: 20, overflow: 'hidden', marginLeft: 8 },
