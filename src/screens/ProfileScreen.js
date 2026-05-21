@@ -167,15 +167,25 @@ const ProfileScreen = ({ navigation }) => {
         {/* Extra Health Info */}
         {(user?.dailyCalories || user?.proteinNeed) && (
           <View style={styles.healthRow}>
-            {user?.dailyCalories && (
-              <View style={styles.healthItem}>
-                <Text style={styles.healthIcon}>🔥</Text>
-                <View>
-                  <Text style={styles.healthValue}>{user.dailyCalories} kcal</Text>
-                  <Text style={styles.healthLabel}>Daily Calories</Text>
+            {user?.dailyCalories && (() => {
+              const tdee = user.dailyCalories;
+              const bmrVal = user.bmr || Math.round(tdee / 1.55);
+              const g = user.fitnessGoal;
+              const target = (g === 'weight_loss' || g === 'fat_loss') ? bmrVal
+                : g === 'weight_gain' ? Math.round(tdee * 1.2)
+                : g === 'muscle_building' ? Math.round(tdee * 1.15)
+                : (g === 'height_growth' || g === 'gym_workout') ? Math.round(tdee * 1.1)
+                : tdee;
+              return (
+                <View style={styles.healthItem}>
+                  <Text style={styles.healthIcon}>🔥</Text>
+                  <View>
+                    <Text style={styles.healthValue}>{target} kcal</Text>
+                    <Text style={styles.healthLabel}>Target Calories</Text>
+                  </View>
                 </View>
-              </View>
-            )}
+              );
+            })()}
             {user?.proteinNeed && (
               <View style={styles.healthItem}>
                 <Text style={styles.healthIcon}>💪</Text>

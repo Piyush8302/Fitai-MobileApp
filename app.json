@@ -21,7 +21,9 @@
         "backgroundColor": "#0D0D1A"
       },
       "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "adjustResize",
       "package": "com.piyush.fitai",
+      "googleServicesFile": "./google-services.json",
       "backgroundColor": "#0D0D1A",
       "useNextNotificationsApi": true
     },

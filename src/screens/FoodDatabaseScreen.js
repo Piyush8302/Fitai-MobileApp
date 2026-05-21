@@ -18,6 +18,7 @@ const FoodDatabaseScreen = ({ navigation }) => {
   const [showDetail, setShowDetail] = useState(false);
   const [mealType, setMealType] = useState('lunch');
   const [servings, setServings] = useState(1);
+  const [dietPref, setDietPref] = useState(null);
 
   // Toast
   const [toast, setToast] = useState(null);
@@ -46,8 +47,17 @@ const FoodDatabaseScreen = ({ navigation }) => {
     (async () => {
       const token = await AsyncStorage.getItem('token');
       if (token) api.setToken(token);
+      let pref = null;
       try {
-        const res = await api.get(ENDPOINTS.FOOD_CATEGORIES);
+        const profileRes = await api.get(ENDPOINTS.GET_ME);
+        if (profileRes.success) {
+          const u = profileRes.data || profileRes.user;
+          if (u.dietPreference) { pref = u.dietPreference; setDietPref(u.dietPreference); }
+        }
+      } catch (e) { console.log(e); }
+      try {
+        const catParams = pref ? { dietPref: pref } : {};
+        const res = await api.get(ENDPOINTS.FOOD_CATEGORIES, catParams);
         if (res.success) setCategories(res.data);
       } catch (e) { console.log(e); }
     })();
@@ -61,6 +71,7 @@ const FoodDatabaseScreen = ({ navigation }) => {
         if (search) params.q = search;
         if (selectedSource) params.source = selectedSource;
         if (selectedCategory) params.category = selectedCategory;
+        if (dietPref) params.dietPref = dietPref;
         const res = await api.get(ENDPOINTS.FOOD, params);
         if (res.success) setFoods(res.data);
       } catch (e) { console.log(e); }
@@ -68,7 +79,7 @@ const FoodDatabaseScreen = ({ navigation }) => {
     };
     const timer = setTimeout(load, search ? 400 : 0);
     return () => clearTimeout(timer);
-  }, [search, selectedSource, selectedCategory]);
+  }, [search, selectedSource, selectedCategory, dietPref]);
 
   const getHealthScore = (food) => {
     let score = 50;
