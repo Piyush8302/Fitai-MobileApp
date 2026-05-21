@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert, Modal, TextInput, Platform, AppState, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert, Modal, TextInput, Platform, AppState, Animated, KeyboardAvoidingView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Pedometer } from 'expo-sensors';
@@ -261,9 +261,12 @@ const TrackingScreen = ({ navigation }) => {
     try {
       const currentSteps = tracking?.steps || 0;
       const currentBurned = tracking?.caloriesBurned || 0;
+      const currentWorkoutMin = tracking?.workoutMinutes || 0;
       const res = await api.post(ENDPOINTS.LOG_TRACKING, {
         steps: currentSteps + stepCount,
         caloriesBurned: currentBurned + calBurned,
+        workoutMinutes: currentWorkoutMin + min,
+        workoutCompleted: true,
       });
       if (res.success) {
         setTracking(res.data);
@@ -371,23 +374,37 @@ const TrackingScreen = ({ navigation }) => {
       case 'weight_gain':
         return {
           icon: '💪', title: 'Weight Gain Mode', color: '#4CAF50',
-          desc: `Target: gain ${diff > 0 ? diff : 5} kg. Eat ${dailyCal} kcal/day with calorie surplus.`,
-          targetCalories: dailyCal, proteinTarget: Math.round(w * 1.4),
+          desc: `Target: gain ${diff > 0 ? diff : 5} kg. Eat ${Math.round(dailyCal * 1.2)} kcal/day (20% surplus).`,
+          targetCalories: Math.round(dailyCal * 1.2), proteinTarget: Math.round(w * 1.4),
           tips: ['Eat calorie-dense foods', 'Have 5-6 meals per day', 'Include healthy fats & nuts'],
         };
       case 'muscle_building':
         return {
           icon: '🏋️', title: 'Muscle Building Mode', color: COLORS.primary,
-          desc: `Build lean muscle. Eat ${dailyCal} kcal/day with ${Math.round(w * 2.0)}g protein.`,
-          targetCalories: dailyCal, proteinTarget: Math.round(w * 2.0),
+          desc: `Build lean muscle. Eat ${Math.round(dailyCal * 1.15)} kcal/day (15% surplus) with ${Math.round(w * 2.0)}g protein.`,
+          targetCalories: Math.round(dailyCal * 1.15), proteinTarget: Math.round(w * 2.0),
           tips: ['Eat 2g protein per kg bodyweight', 'Progressive overload in gym', 'Sleep 7-8 hours for recovery'],
         };
       case 'height_growth':
         return {
           icon: '📏', title: 'Growth & Posture Focus', color: COLORS.accent,
-          desc: `Balanced nutrition with ${dailyCal} kcal/day. Stretch daily, sleep 8+ hours.`,
-          targetCalories: dailyCal, proteinTarget: Math.round(w * 1.4),
+          desc: `Eat ${Math.round(dailyCal * 1.1)} kcal/day (10% surplus). Stretch daily, sleep 8+ hours.`,
+          targetCalories: Math.round(dailyCal * 1.1), proteinTarget: Math.round(w * 1.4),
           tips: ['Stretch & hang daily', 'Sleep 8+ hours', 'Eat calcium & vitamin D rich foods'],
+        };
+      case 'gym_workout':
+        return {
+          icon: '🏋️', title: 'Gym Performance', color: COLORS.primary,
+          desc: `Fuel your workouts with ${Math.round(dailyCal * 1.1)} kcal/day (10% surplus).`,
+          targetCalories: Math.round(dailyCal * 1.1), proteinTarget: Math.round(w * 1.6),
+          tips: ['Pre & post workout nutrition', 'Stay hydrated during workouts', 'Get enough sleep for recovery'],
+        };
+      case 'home_workout':
+        return {
+          icon: '🏠', title: 'Home Workout Mode', color: COLORS.success,
+          desc: `Balanced nutrition at ${dailyCal} kcal/day. Consistent bodyweight training.`,
+          targetCalories: dailyCal, proteinTarget: Math.round(w * 1.4),
+          tips: ['Stay consistent with exercise', 'Focus on bodyweight movements', 'Eat clean & balanced meals'],
         };
       default:
         return {
@@ -401,8 +418,8 @@ const TrackingScreen = ({ navigation }) => {
 
   // ===== COMPUTED VALUES =====
   const cal = tracking?.caloriesConsumed || 0;
-  const isWtLoss = userProfile?.fitnessGoal === 'weight_loss' || userProfile?.fitnessGoal === 'fat_loss';
-  const calGoal = tracking?.caloriesGoal || (isWtLoss ? (userProfile?.bmr || 1500) : (userProfile?.dailyCalories || 2000));
+  const goalInfo = getGoalInfo();
+  const calGoal = tracking?.caloriesGoal || goalInfo.targetCalories;
   const water = tracking?.waterIntake || 0;
   const waterGoal = tracking?.waterGoal || 8;
   const steps = tracking?.steps || 0;
@@ -412,7 +429,6 @@ const TrackingScreen = ({ navigation }) => {
   const burned = tracking?.caloriesBurned || 0;
   const meals = tracking?.mealsLogged || [];
   const currentMood = tracking?.mood;
-  const goalInfo = getGoalInfo();
 
   const formatSteps = (s) => s >= 1000 ? `${(s / 1000).toFixed(1)}K` : `${s}`;
 
@@ -669,12 +685,12 @@ const TrackingScreen = ({ navigation }) => {
                 <GradientCard colors={['#6C63FF15', '#1A1A2E']}>
                   <View style={styles.profileGrid}>
                     {[
-                      { label: 'Daily Calories', value: `${userProfile.dailyCalories || 2000} kcal`, icon: '🔥' },
-                      { label: 'Protein Need', value: `${userProfile.proteinNeed || 80}g`, icon: '💪' },
+                      { label: 'Target Calories', value: `${goalInfo.targetCalories} kcal`, icon: '🔥' },
+                      { label: 'Protein Need', value: `${goalInfo.proteinTarget}g`, icon: '💪' },
                       { label: 'BMI', value: `${userProfile.bmi || '--'}`, icon: '⚖️' },
                       { label: 'Goal', value: (userProfile.fitnessGoal || 'maintenance').replace(/_/g, ' '), icon: '🎯' },
                       { label: 'Weight', value: `${userProfile.weight || '--'} kg`, icon: '🏋️' },
-                      { label: 'Target', value: `${userProfile.targetWeight || '--'} kg`, icon: '📍' },
+                      { label: 'Target Wt', value: `${userProfile.targetWeight || '--'} kg`, icon: '📍' },
                     ].map((p, i) => (
                       <View key={i} style={styles.profileItem}>
                         <Text style={styles.profileIcon}>{p.icon}</Text>
@@ -776,80 +792,83 @@ const TrackingScreen = ({ navigation }) => {
 
       {/* ===== WALK/RUN MODAL ===== */}
       <Modal visible={showWalkModal} transparent animationType="slide" onRequestClose={() => setShowWalkModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>🚶 Log Activity</Text>
-                <TouchableOpacity onPress={() => setShowWalkModal(false)}>
-                  <Ionicons name="close" size={24} color={COLORS.white} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.typeRow}>
-                {[
-                  { key: 'walk', icon: '🚶', label: 'Walk', kcal: '~55 kcal/km' },
-                  { key: 'run', icon: '🏃', label: 'Run', kcal: '~80 kcal/km' },
-                  { key: 'cycle', icon: '🚴', label: 'Cycle', kcal: '~45 kcal/km' },
-                ].map((t) => (
-                  <TouchableOpacity
-                    key={t.key}
-                    style={[styles.typeBtn, activityType === t.key && styles.typeBtnActive]}
-                    onPress={() => setActivityType(t.key)}
-                  >
-                    <Text style={styles.typeIcon}>{t.icon}</Text>
-                    <Text style={[styles.typeLabel, activityType === t.key && { color: COLORS.primary }]}>{t.label}</Text>
-                    <Text style={styles.typeKcal}>{t.kcal}</Text>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>🚶 Log Activity</Text>
+                  <TouchableOpacity onPress={() => setShowWalkModal(false)}>
+                    <Ionicons name="close" size={24} color={COLORS.white} />
                   </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.inputLabel}>Distance (km)</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="e.g., 2.5"
-                placeholderTextColor={COLORS.textMuted}
-                keyboardType="decimal-pad"
-                value={walkKm}
-                onChangeText={setWalkKm}
-              />
-
-              <Text style={styles.inputLabel}>Duration (minutes) - Optional</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="e.g., 30"
-                placeholderTextColor={COLORS.textMuted}
-                keyboardType="number-pad"
-                value={walkMin}
-                onChangeText={setWalkMin}
-              />
-
-              {walkKm > 0 && (
-                <View style={styles.previewBox}>
-                  <Text style={styles.previewText}>
-                    📊 ~{Math.round(parseFloat(walkKm) * 1300)} steps | ~{Math.round(parseFloat(walkKm) * (activityType === 'run' ? 80 : activityType === 'cycle' ? 45 : 55))} kcal burned
-                  </Text>
                 </View>
-              )}
 
-              <TouchableOpacity style={styles.submitBtn} onPress={logWalkActivity}>
-                <LinearGradient colors={['#4CAF50', '#2E7D32']} style={styles.submitGrad}>
-                  <Text style={styles.submitText}>Log Activity</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </LinearGradient>
+                <View style={styles.typeRow}>
+                  {[
+                    { key: 'walk', icon: '🚶', label: 'Walk', kcal: '~55 kcal/km' },
+                    { key: 'run', icon: '🏃', label: 'Run', kcal: '~80 kcal/km' },
+                    { key: 'cycle', icon: '🚴', label: 'Cycle', kcal: '~45 kcal/km' },
+                  ].map((t) => (
+                    <TouchableOpacity
+                      key={t.key}
+                      style={[styles.typeBtn, activityType === t.key && styles.typeBtnActive]}
+                      onPress={() => setActivityType(t.key)}
+                    >
+                      <Text style={styles.typeIcon}>{t.icon}</Text>
+                      <Text style={[styles.typeLabel, activityType === t.key && { color: COLORS.primary }]}>{t.label}</Text>
+                      <Text style={styles.typeKcal}>{t.kcal}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={styles.inputLabel}>Distance (km)</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g., 2.5"
+                  placeholderTextColor={COLORS.textMuted}
+                  keyboardType="decimal-pad"
+                  value={walkKm}
+                  onChangeText={setWalkKm}
+                />
+
+                <Text style={styles.inputLabel}>Duration (minutes) - Optional</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g., 30"
+                  placeholderTextColor={COLORS.textMuted}
+                  keyboardType="number-pad"
+                  value={walkMin}
+                  onChangeText={setWalkMin}
+                />
+
+                {walkKm > 0 && (
+                  <View style={styles.previewBox}>
+                    <Text style={styles.previewText}>
+                      📊 ~{Math.round(parseFloat(walkKm) * 1300)} steps | ~{Math.round(parseFloat(walkKm) * (activityType === 'run' ? 80 : activityType === 'cycle' ? 45 : 55))} kcal burned
+                    </Text>
+                  </View>
+                )}
+
+                <TouchableOpacity style={styles.submitBtn} onPress={logWalkActivity}>
+                  <LinearGradient colors={['#4CAF50', '#2E7D32']} style={styles.submitGrad}>
+                    <Text style={styles.submitText}>Log Activity</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </LinearGradient>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ===== MEAL MODAL (Enhanced with suggestions) ===== */}
       <Modal visible={showMealModal} transparent animationType="slide" onRequestClose={() => setShowMealModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>🍽 Log Meal</Text>
-                <TouchableOpacity onPress={() => setShowMealModal(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>🍽 Log Meal</Text>
+                  <TouchableOpacity onPress={() => setShowMealModal(false)}>
                   <Ionicons name="close" size={24} color={COLORS.white} />
                 </TouchableOpacity>
               </View>
@@ -949,6 +968,7 @@ const TrackingScreen = ({ navigation }) => {
             </LinearGradient>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ===== SLEEP MODAL ===== */}
@@ -1084,6 +1104,7 @@ const TrackingScreen = ({ navigation }) => {
 
       {/* ===== WEIGHT MODAL ===== */}
       <Modal visible={showWeightModal} transparent animationType="slide" onRequestClose={() => setShowWeightModal(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
@@ -1148,6 +1169,7 @@ const TrackingScreen = ({ navigation }) => {
             </LinearGradient>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Toast Notification */}
