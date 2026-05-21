@@ -9,7 +9,7 @@ import GradientCard from '../components/GradientCard';
 import ProgressRing from '../components/ProgressRing';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { EXERCISES, WORKOUT_CATEGORIES, MEAL_PLAN_SAMPLE } from '../constants/data';
+import { EXERCISES, WORKOUT_CATEGORIES, MEAL_PLAN_SAMPLE, DIET_MEAL_SUGGESTIONS } from '../constants/data';
 
 const { width } = Dimensions.get('window');
 
@@ -891,10 +891,10 @@ const TrackingScreen = ({ navigation }) => {
                 ))}
               </View>
 
-              {/* Quick Food Suggestions */}
+              {/* Quick Food Suggestions - filtered by diet preference */}
               <Text style={styles.inputLabel}>Quick Add</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12, maxHeight: 90 }}>
-                {(MEAL_PLAN_SAMPLE[mealType === 'snack' ? 'snacks' : mealType] || []).map((food, idx) => (
+                {((DIET_MEAL_SUGGESTIONS[userProfile?.dietPreference] || DIET_MEAL_SUGGESTIONS.veg)[mealType === 'snack' ? 'snacks' : mealType] || []).map((food, idx) => (
                   <TouchableOpacity
                     key={idx}
                     style={[styles.foodSuggestion, mealName === food.name && { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10' }]}

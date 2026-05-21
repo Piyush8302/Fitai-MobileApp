@@ -50,6 +50,114 @@ export const MEAL_PLAN_SAMPLE = {
   ],
 };
 
+// Diet-specific meal suggestions
+export const DIET_MEAL_SUGGESTIONS = {
+  veg: {
+    breakfast: [
+      { name: 'Oats with Banana', calories: 320, protein: 12, icon: '🥣' },
+      { name: 'Poha with Peanuts', calories: 280, protein: 8, icon: '🍚' },
+      { name: 'Idli with Sambar', calories: 250, protein: 10, icon: '🥘' },
+      { name: 'Paneer Paratha', calories: 380, protein: 16, icon: '🫓' },
+    ],
+    lunch: [
+      { name: 'Dal Rice + Sabzi', calories: 450, protein: 18, icon: '🍛' },
+      { name: 'Paneer Tikka + Rice', calories: 480, protein: 24, icon: '🧀' },
+      { name: 'Rajma Chawal', calories: 420, protein: 16, icon: '🫘' },
+      { name: 'Chole + Roti', calories: 440, protein: 15, icon: '🍛' },
+    ],
+    dinner: [
+      { name: 'Chapati + Dal Fry', calories: 380, protein: 15, icon: '🫓' },
+      { name: 'Mixed Veg + Rice', calories: 400, protein: 12, icon: '🥘' },
+      { name: 'Palak Paneer + Roti', calories: 420, protein: 20, icon: '🥬' },
+      { name: 'Aloo Gobi + Roti', calories: 350, protein: 10, icon: '🥔' },
+    ],
+    snacks: [
+      { name: 'Protein Shake', calories: 180, protein: 25, icon: '🥤' },
+      { name: 'Mixed Nuts', calories: 200, protein: 6, icon: '🥜' },
+      { name: 'Fruit Bowl', calories: 150, protein: 2, icon: '🍎' },
+      { name: 'Sprouts Chaat', calories: 160, protein: 10, icon: '🥗' },
+    ],
+  },
+  non_veg: {
+    breakfast: [
+      { name: 'Egg Omelette + Toast', calories: 350, protein: 22, icon: '🍳' },
+      { name: 'Boiled Eggs + Bread', calories: 300, protein: 20, icon: '🥚' },
+      { name: 'Oats with Banana', calories: 320, protein: 12, icon: '🥣' },
+      { name: 'Poha with Peanuts', calories: 280, protein: 8, icon: '🍚' },
+    ],
+    lunch: [
+      { name: 'Chicken Curry + Roti', calories: 520, protein: 35, icon: '🍗' },
+      { name: 'Dal Rice + Sabzi', calories: 450, protein: 18, icon: '🍛' },
+      { name: 'Fish Curry + Rice', calories: 480, protein: 30, icon: '🐟' },
+      { name: 'Egg Biryani', calories: 500, protein: 22, icon: '🍚' },
+    ],
+    dinner: [
+      { name: 'Grilled Chicken Salad', calories: 350, protein: 32, icon: '🥗' },
+      { name: 'Fish Curry + Roti', calories: 420, protein: 30, icon: '🐟' },
+      { name: 'Chapati + Dal Fry', calories: 380, protein: 15, icon: '🫓' },
+      { name: 'Chicken Tikka', calories: 400, protein: 38, icon: '🍗' },
+    ],
+    snacks: [
+      { name: 'Protein Shake', calories: 180, protein: 25, icon: '🥤' },
+      { name: 'Boiled Eggs', calories: 140, protein: 12, icon: '🥚' },
+      { name: 'Mixed Nuts', calories: 200, protein: 6, icon: '🥜' },
+      { name: 'Fruit Bowl', calories: 150, protein: 2, icon: '🍎' },
+    ],
+  },
+  vegan: {
+    breakfast: [
+      { name: 'Oats with Banana', calories: 320, protein: 12, icon: '🥣' },
+      { name: 'Poha with Peanuts', calories: 280, protein: 8, icon: '🍚' },
+      { name: 'Idli with Sambar', calories: 250, protein: 10, icon: '🥘' },
+      { name: 'Upma with Veggies', calories: 270, protein: 8, icon: '🥣' },
+    ],
+    lunch: [
+      { name: 'Dal Rice + Sabzi', calories: 450, protein: 18, icon: '🍛' },
+      { name: 'Rajma Chawal', calories: 420, protein: 16, icon: '🫘' },
+      { name: 'Chole + Roti', calories: 440, protein: 15, icon: '🍛' },
+      { name: 'Tofu Curry + Rice', calories: 400, protein: 20, icon: '🥘' },
+    ],
+    dinner: [
+      { name: 'Chapati + Dal Fry', calories: 380, protein: 15, icon: '🫓' },
+      { name: 'Mixed Veg + Rice', calories: 400, protein: 12, icon: '🥘' },
+      { name: 'Soya Chunks Curry', calories: 380, protein: 28, icon: '🥘' },
+      { name: 'Masoor Dal + Roti', calories: 350, protein: 16, icon: '🫓' },
+    ],
+    snacks: [
+      { name: 'Soy Protein Shake', calories: 170, protein: 22, icon: '🥤' },
+      { name: 'Mixed Nuts', calories: 200, protein: 6, icon: '🥜' },
+      { name: 'Fruit Bowl', calories: 150, protein: 2, icon: '🍎' },
+      { name: 'Sprouts Chaat', calories: 160, protein: 10, icon: '🥗' },
+    ],
+  },
+  eggetarian: {
+    breakfast: [
+      { name: 'Egg Omelette + Toast', calories: 350, protein: 22, icon: '🍳' },
+      { name: 'Boiled Eggs + Bread', calories: 300, protein: 20, icon: '🥚' },
+      { name: 'Oats with Banana', calories: 320, protein: 12, icon: '🥣' },
+      { name: 'Poha with Peanuts', calories: 280, protein: 8, icon: '🍚' },
+    ],
+    lunch: [
+      { name: 'Egg Curry + Rice', calories: 460, protein: 22, icon: '🥚' },
+      { name: 'Dal Rice + Sabzi', calories: 450, protein: 18, icon: '🍛' },
+      { name: 'Paneer Tikka + Rice', calories: 480, protein: 24, icon: '🧀' },
+      { name: 'Rajma Chawal', calories: 420, protein: 16, icon: '🫘' },
+    ],
+    dinner: [
+      { name: 'Egg Bhurji + Roti', calories: 380, protein: 20, icon: '🍳' },
+      { name: 'Chapati + Dal Fry', calories: 380, protein: 15, icon: '🫓' },
+      { name: 'Palak Paneer + Roti', calories: 420, protein: 20, icon: '🥬' },
+      { name: 'Mixed Veg + Rice', calories: 400, protein: 12, icon: '🥘' },
+    ],
+    snacks: [
+      { name: 'Boiled Eggs', calories: 140, protein: 12, icon: '🥚' },
+      { name: 'Protein Shake', calories: 180, protein: 25, icon: '🥤' },
+      { name: 'Mixed Nuts', calories: 200, protein: 6, icon: '🥜' },
+      { name: 'Fruit Bowl', calories: 150, protein: 2, icon: '🍎' },
+    ],
+  },
+};
+
 export const WORKOUT_CATEGORIES = [
   { id: 'chest', name: 'Chest', icon: '🫁', color: '#FF6B6B' },
   { id: 'back', name: 'Back', icon: '🔙', color: '#6C63FF' },
