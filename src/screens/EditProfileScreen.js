@@ -530,8 +530,15 @@ const EditProfileScreen = ({ navigation }) => {
                 if (dietPreference) updates.dietPreference = dietPreference;
                 const res = await api.put(ENDPOINTS.UPDATE_PROFILE, updates);
                 if (res.success) {
-                  setUser(prev => ({ ...prev, ...updates }));
-                  await AsyncStorage.setItem('user', JSON.stringify({ ...user, ...updates }));
+                  // Server recalculates BMR, BMI, dailyCalories, proteinNeed via pre-save hook
+                  const serverUser = res.user || { ...user, ...updates };
+                  setUser(serverUser);
+                  // Update local fields from server response
+                  if (serverUser.age) setAge(String(serverUser.age));
+                  if (serverUser.height) setHeight(String(serverUser.height));
+                  if (serverUser.weight) setWeight(String(serverUser.weight));
+                  if (serverUser.targetWeight) setTargetWeight(String(serverUser.targetWeight));
+                  await AsyncStorage.setItem('user', JSON.stringify(serverUser));
                   Alert.alert('Success', 'Profile updated!');
                 } else {
                   Alert.alert('Error', res.message || 'Failed to update');
@@ -554,7 +561,7 @@ const EditProfileScreen = ({ navigation }) => {
             </LinearGradient>
           </TouchableOpacity>
 
-          <View style={{ height: 120 }} />
+          <View style={{ height: 200 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
