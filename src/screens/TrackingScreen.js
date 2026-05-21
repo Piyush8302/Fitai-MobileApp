@@ -170,7 +170,7 @@ const TrackingScreen = ({ navigation }) => {
         const newSteps = currentLive - lastSyncedSteps.current;
         if (newSteps > 0) {
           lastSyncedSteps.current = currentLive;
-          const calBurned = Math.round(newSteps * 0.04);
+          const calBurned = Math.round(newSteps * (0.0004 * (userProfile?.weight || 60) + 0.015));
           setTracking((prev) => {
             const updatedSteps = (prev?.steps || 0) + newSteps;
             const updatedBurned = (prev?.caloriesBurned || 0) + calBurned;
@@ -254,9 +254,15 @@ const TrackingScreen = ({ navigation }) => {
     const min = parseInt(walkMin) || 0;
     if (!km || km <= 0) { Alert.alert('Error', 'Enter valid distance'); return; }
 
-    const caloriesPerKm = activityType === 'run' ? 80 : activityType === 'cycle' ? 45 : 55;
+    // Weight-based calorie burn (MET research: ACSM & ICMR guidelines)
+    const userWeight = userProfile?.weight || 60;
+    const caloriesPerKm = activityType === 'run'
+      ? Math.round(userWeight * 1.03)     // MET ~8-10, ~1.03 kcal/kg/km
+      : activityType === 'cycle'
+        ? Math.round(userWeight * 0.45)    // MET ~6, ~0.45 kcal/kg/km
+        : Math.round(userWeight * 0.72);   // Walking MET ~3.5, ~0.72 kcal/kg/km
     const calBurned = Math.round(km * caloriesPerKm);
-    const stepCount = Math.round(km * 1300);
+    const stepCount = activityType === 'cycle' ? 0 : Math.round(km * 1350);
 
     try {
       const currentSteps = tracking?.steps || 0;
@@ -336,10 +342,15 @@ const TrackingScreen = ({ navigation }) => {
     try {
       const res = await api.put(ENDPOINTS.UPDATE_PROFILE, { weight: w });
       if (res.success) {
-        setUserProfile(prev => ({ ...prev, weight: w }));
-        showToast('⚖️', 'Weight Updated', `Current weight: ${w} kg`);
+        // Server recalculates BMR, BMI, dailyCalories, proteinNeed via pre-save hook
+        const updatedUser = res.user || { ...userProfile, weight: w };
+        setUserProfile(updatedUser);
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+        showToast('⚖️', 'Weight Updated', `${w} kg | BMR: ${updatedUser.bmr || '--'} kcal`);
         setShowWeightModal(false);
         setWeightInput('');
+        // Reload tracking data so calorie goals update
+        loadData();
       }
     } catch (e) { Alert.alert('Error', 'Failed to update weight'); }
   };
@@ -356,62 +367,106 @@ const TrackingScreen = ({ navigation }) => {
     const tw = userProfile.targetWeight || w;
     const diff = Math.abs(tw - w);
 
+    // Research-based calorie & protein targets (ICMR 2020, ACSM, ISSN position papers)
+    // Safe deficit: TDEE - 500 kcal (never below BMR) → ~0.5 kg/week loss
+    // Surplus: +300-500 kcal for lean gain
+    const safeDeficit = Math.max(bmr, dailyCal - 500);
     switch (goal) {
       case 'weight_loss':
         return {
           icon: '🔥', title: 'Weight Loss Mode', color: COLORS.secondary,
-          desc: `Target: lose ${diff > 0 ? diff : 5} kg. Eat ${bmr} kcal/day (your BMR) for safe deficit.`,
-          targetCalories: bmr, proteinTarget: Math.round(w * 1.6),
-          tips: ['Avoid sugary drinks & fried food', 'Eat more protein to stay full', 'Walk 8000+ steps daily'],
+          desc: `Target: lose ${diff > 0 ? diff : 5} kg. Eat ~${safeDeficit} kcal/day (500 kcal deficit, never below BMR ${bmr}).`,
+          targetCalories: safeDeficit, proteinTarget: Math.round(w * 1.6),
+          tips: [
+            `Eat ${Math.round(w * 1.6)}g protein/day to preserve muscle (ISSN)`,
+            'Avoid sugary drinks, maida, fried snacks',
+            'Walk 8000-10000 steps daily for NEAT deficit',
+            'Eat more dal, paneer, eggs, soya for satiety',
+          ],
         };
       case 'fat_loss':
         return {
           icon: '⚡', title: 'Fat Loss Mode', color: '#FF9800',
-          desc: `Target: reduce body fat. Eat ${bmr} kcal/day (your BMR), high protein.`,
-          targetCalories: bmr, proteinTarget: Math.round(w * 1.8),
-          tips: ['Prioritize protein every meal', 'Do HIIT + weight training', 'Reduce refined carbs & sugar'],
+          desc: `Reduce body fat while preserving muscle. Eat ~${safeDeficit} kcal/day with high protein.`,
+          targetCalories: safeDeficit, proteinTarget: Math.round(w * 2.0),
+          tips: [
+            `High protein: ${Math.round(w * 2.0)}g/day (ISSN recommendation)`,
+            'Combine strength training + HIIT cardio',
+            'Reduce refined carbs (maida, white rice, sugar)',
+            'Sleep 7-9 hours — cortisol disrupts fat loss',
+          ],
         };
       case 'weight_gain':
         return {
           icon: '💪', title: 'Weight Gain Mode', color: '#4CAF50',
-          desc: `Target: gain ${diff > 0 ? diff : 5} kg. Eat ${Math.round(dailyCal * 1.2)} kcal/day (20% surplus).`,
-          targetCalories: Math.round(dailyCal * 1.2), proteinTarget: Math.round(w * 1.4),
-          tips: ['Eat calorie-dense foods', 'Have 5-6 meals per day', 'Include healthy fats & nuts'],
+          desc: `Target: gain ${diff > 0 ? diff : 5} kg. Eat ~${Math.round(dailyCal + 400)} kcal/day (+400 surplus for lean gain).`,
+          targetCalories: Math.round(dailyCal + 400), proteinTarget: Math.round(w * 1.6),
+          tips: [
+            'Eat 5-6 meals per day — don\'t skip breakfast',
+            'Include banana shake, peanut butter, ghee, dry fruits',
+            `Eat ${Math.round(w * 1.6)}g protein/day (dal, paneer, chicken, eggs)`,
+            'Strength train 3-4x/week — muscles need stimulus to grow',
+          ],
         };
       case 'muscle_building':
         return {
           icon: '🏋️', title: 'Muscle Building Mode', color: COLORS.primary,
-          desc: `Build lean muscle. Eat ${Math.round(dailyCal * 1.15)} kcal/day (15% surplus) with ${Math.round(w * 2.0)}g protein.`,
-          targetCalories: Math.round(dailyCal * 1.15), proteinTarget: Math.round(w * 2.0),
-          tips: ['Eat 2g protein per kg bodyweight', 'Progressive overload in gym', 'Sleep 7-8 hours for recovery'],
+          desc: `Lean muscle gain. Eat ~${Math.round(dailyCal + 300)} kcal/day (+300 surplus) with ${Math.round(w * 1.8)}g protein.`,
+          targetCalories: Math.round(dailyCal + 300), proteinTarget: Math.round(w * 1.8),
+          tips: [
+            `${Math.round(w * 1.8)}g protein/day — split across 4-5 meals (ISSN)`,
+            'Progressive overload: increase weight/reps weekly',
+            'Post-workout: 20-40g protein within 2 hours',
+            'Sleep 7-9 hours — muscle recovery needs quality sleep',
+          ],
         };
       case 'height_growth':
         return {
           icon: '📏', title: 'Growth & Posture Focus', color: COLORS.accent,
-          desc: `Eat ${Math.round(dailyCal * 1.1)} kcal/day (10% surplus). Stretch daily, sleep 8+ hours.`,
+          desc: `Nutrition for growth. Eat ~${Math.round(dailyCal * 1.1)} kcal/day with calcium & vitamin D.`,
           targetCalories: Math.round(dailyCal * 1.1), proteinTarget: Math.round(w * 1.4),
-          tips: ['Stretch & hang daily', 'Sleep 8+ hours', 'Eat calcium & vitamin D rich foods'],
+          tips: [
+            'Sleep 8-10 hours — growth hormone peaks during deep sleep',
+            'Eat calcium-rich: milk, curd, ragi, paneer (1000mg/day)',
+            'Get 15-20 min sunlight for Vitamin D',
+            'Daily stretching, hanging, swimming help posture & spine',
+          ],
         };
       case 'gym_workout':
         return {
           icon: '🏋️', title: 'Gym Performance', color: COLORS.primary,
-          desc: `Fuel your workouts with ${Math.round(dailyCal * 1.1)} kcal/day (10% surplus).`,
+          desc: `Fuel workouts. Eat ~${Math.round(dailyCal * 1.1)} kcal/day with adequate protein & carbs.`,
           targetCalories: Math.round(dailyCal * 1.1), proteinTarget: Math.round(w * 1.6),
-          tips: ['Pre & post workout nutrition', 'Stay hydrated during workouts', 'Get enough sleep for recovery'],
+          tips: [
+            'Pre-workout: banana + oats 30-60 min before',
+            'Post-workout: protein shake/eggs within 1-2 hours',
+            'Stay hydrated — drink 3-4L water on workout days',
+            'Rest 48 hours between same muscle group training',
+          ],
         };
       case 'home_workout':
         return {
           icon: '🏠', title: 'Home Workout Mode', color: COLORS.success,
-          desc: `Balanced nutrition at ${dailyCal} kcal/day. Consistent bodyweight training.`,
+          desc: `Balanced nutrition at ~${dailyCal} kcal/day with bodyweight training.`,
           targetCalories: dailyCal, proteinTarget: Math.round(w * 1.4),
-          tips: ['Stay consistent with exercise', 'Focus on bodyweight movements', 'Eat clean & balanced meals'],
+          tips: [
+            'Be consistent: 4-5 sessions per week, 30-45 min',
+            'Focus on push-ups, squats, lunges, planks',
+            `Eat ${Math.round(w * 1.4)}g protein/day for recovery`,
+            'Eat whole foods: roti, dal, sabzi, curd, fruits',
+          ],
         };
       default:
         return {
           icon: '🧘', title: 'Maintain & Stay Fit', color: COLORS.success,
-          desc: `Eat ~${dailyCal} kcal/day to maintain your weight with balanced nutrition.`,
+          desc: `Eat ~${dailyCal} kcal/day to maintain weight with balanced nutrition.`,
           targetCalories: dailyCal, proteinTarget: protein,
-          tips: ['Stay consistent with exercise', 'Eat balanced meals', 'Drink 8+ glasses of water'],
+          tips: [
+            'Balanced plate: 50% veggies, 25% protein, 25% carbs',
+            'Walk 7000-10000 steps daily',
+            'Drink 8-10 glasses of water daily',
+            'Sleep 7-8 hours consistently',
+          ],
         };
     }
   };
@@ -532,7 +587,7 @@ const TrackingScreen = ({ navigation }) => {
                     {isPedometerAvailable ? (
                       pedometerActive ? (
                         <Text style={styles.pedometerSub}>
-                          +{liveSteps} steps this session | ~{Math.round(liveSteps * 0.04)} kcal
+                          +{liveSteps} steps this session | ~{Math.round(liveSteps * (0.0004 * (userProfile?.weight || 60) + 0.015))} kcal
                         </Text>
                       ) : (
                         <Text style={styles.pedometerSub}>Tap Start to auto-count your steps</Text>
@@ -571,7 +626,7 @@ const TrackingScreen = ({ navigation }) => {
                   </View>
                   <View style={styles.liveStepDivider} />
                   <View style={styles.liveStepItem}>
-                    <Text style={[styles.liveStepValue, { color: COLORS.warning }]}>{(tracking?.caloriesBurned || 0) + Math.round((liveSteps - (lastSyncedSteps.current || 0)) * 0.04)}</Text>
+                    <Text style={[styles.liveStepValue, { color: COLORS.warning }]}>{(tracking?.caloriesBurned || 0) + Math.round((liveSteps - (lastSyncedSteps.current || 0)) * (0.0004 * (userProfile?.weight || 60) + 0.015))}</Text>
                     <Text style={styles.liveStepLabel}>Calories</Text>
                   </View>
                 </View>
@@ -678,31 +733,6 @@ const TrackingScreen = ({ navigation }) => {
               )}
             </GradientCard>
 
-            {/* ===== PROFILE-BASED INFO ===== */}
-            {userProfile && (
-              <>
-                <Text style={styles.sectionTitle}>👤 Your Profile Targets</Text>
-                <GradientCard colors={['#6C63FF15', '#1A1A2E']}>
-                  <View style={styles.profileGrid}>
-                    {[
-                      { label: 'Target Calories', value: `${goalInfo.targetCalories} kcal`, icon: '🔥' },
-                      { label: 'Protein Need', value: `${goalInfo.proteinTarget}g`, icon: '💪' },
-                      { label: 'BMI', value: `${userProfile.bmi || '--'}`, icon: '⚖️' },
-                      { label: 'Goal', value: (userProfile.fitnessGoal || 'maintenance').replace(/_/g, ' '), icon: '🎯' },
-                      { label: 'Weight', value: `${userProfile.weight || '--'} kg`, icon: '🏋️' },
-                      { label: 'Target Wt', value: `${userProfile.targetWeight || '--'} kg`, icon: '📍' },
-                    ].map((p, i) => (
-                      <View key={i} style={styles.profileItem}>
-                        <Text style={styles.profileIcon}>{p.icon}</Text>
-                        <Text style={styles.profileValue}>{p.value}</Text>
-                        <Text style={styles.profileLabel}>{p.label}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </GradientCard>
-              </>
-            )}
-
             {/* ===== MOOD TRACKER ===== */}
             <Text style={styles.sectionTitle}>😊 How do you feel today?</Text>
             <View style={styles.moodRow}>
@@ -805,9 +835,9 @@ const TrackingScreen = ({ navigation }) => {
 
                 <View style={styles.typeRow}>
                   {[
-                    { key: 'walk', icon: '🚶', label: 'Walk', kcal: '~55 kcal/km' },
-                    { key: 'run', icon: '🏃', label: 'Run', kcal: '~80 kcal/km' },
-                    { key: 'cycle', icon: '🚴', label: 'Cycle', kcal: '~45 kcal/km' },
+                    { key: 'walk', icon: '🚶', label: 'Walk', kcal: `~${Math.round((userProfile?.weight || 60) * 0.72)} kcal/km` },
+                    { key: 'run', icon: '🏃', label: 'Run', kcal: `~${Math.round((userProfile?.weight || 60) * 1.03)} kcal/km` },
+                    { key: 'cycle', icon: '🚴', label: 'Cycle', kcal: `~${Math.round((userProfile?.weight || 60) * 0.45)} kcal/km` },
                   ].map((t) => (
                     <TouchableOpacity
                       key={t.key}
@@ -841,13 +871,19 @@ const TrackingScreen = ({ navigation }) => {
                   onChangeText={setWalkMin}
                 />
 
-                {walkKm > 0 && (
-                  <View style={styles.previewBox}>
-                    <Text style={styles.previewText}>
-                      📊 ~{Math.round(parseFloat(walkKm) * 1300)} steps | ~{Math.round(parseFloat(walkKm) * (activityType === 'run' ? 80 : activityType === 'cycle' ? 45 : 55))} kcal burned
-                    </Text>
-                  </View>
-                )}
+                {walkKm > 0 && (() => {
+                  const km = parseFloat(walkKm) || 0;
+                  const w = userProfile?.weight || 60;
+                  const kcalPerKm = activityType === 'run' ? Math.round(w * 1.03) : activityType === 'cycle' ? Math.round(w * 0.45) : Math.round(w * 0.72);
+                  const estSteps = activityType === 'cycle' ? 0 : Math.round(km * 1350);
+                  return (
+                    <View style={styles.previewBox}>
+                      <Text style={styles.previewText}>
+                        📊 {estSteps > 0 ? `~${estSteps} steps | ` : ''}~{Math.round(km * kcalPerKm)} kcal burned
+                      </Text>
+                    </View>
+                  );
+                })()}
 
                 <TouchableOpacity style={styles.submitBtn} onPress={logWalkActivity}>
                   <LinearGradient colors={['#4CAF50', '#2E7D32']} style={styles.submitGrad}>
@@ -1268,13 +1304,6 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 36, marginBottom: 8 },
   emptyText: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'center' },
   emptyHint: { fontSize: SIZES.fontSm, color: COLORS.textMuted, marginTop: 4, textAlign: 'center' },
-
-  // Profile Targets
-  profileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  profileItem: { width: '30%', flexGrow: 1, alignItems: 'center', paddingVertical: 10 },
-  profileIcon: { fontSize: 22, marginBottom: 4 },
-  profileValue: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold, textTransform: 'capitalize' },
-  profileLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
 
   // Mood
   moodRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
