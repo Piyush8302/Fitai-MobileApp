@@ -44,6 +44,9 @@ const TrackingScreen = ({ navigation }) => {
   const [mealName, setMealName] = useState('');
   const [mealCalories, setMealCalories] = useState('');
   const [mealProtein, setMealProtein] = useState('');
+  const [foodResults, setFoodResults] = useState([]);
+  const [foodSearching, setFoodSearching] = useState(false);
+  const foodSearchTimer = useRef(null);
 
   // Sleep form
   const [sleepHours, setSleepHours] = useState('7');
@@ -282,6 +285,34 @@ const TrackingScreen = ({ navigation }) => {
         setWalkMin('');
       }
     } catch (e) { Alert.alert('Error', 'Failed to log activity'); }
+  };
+
+  // Auto-search food database when user types
+  const searchFoodDB = useCallback((query) => {
+    if (foodSearchTimer.current) clearTimeout(foodSearchTimer.current);
+    if (!query || query.length < 2) { setFoodResults([]); return; }
+    foodSearchTimer.current = setTimeout(async () => {
+      try {
+        setFoodSearching(true);
+        const res = await api.get(`${ENDPOINTS.FOOD}?q=${encodeURIComponent(query)}&limit=6`);
+        if (res.success && res.data) {
+          setFoodResults(res.data);
+        }
+      } catch (e) { /* silent */ }
+      finally { setFoodSearching(false); }
+    }, 300);
+  }, []);
+
+  const selectFood = (food) => {
+    setMealName(food.name);
+    setMealCalories(String(food.calories));
+    setMealProtein(String(food.protein));
+    setFoodResults([]);
+  };
+
+  const handleMealNameChange = (text) => {
+    setMealName(text);
+    searchFoodDB(text);
   };
 
   const logMealEntry = async () => {
@@ -945,20 +976,56 @@ const TrackingScreen = ({ navigation }) => {
               </ScrollView>
 
               <Text style={styles.inputLabel}>What did you eat?</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="e.g., Dal Rice, 2 Roti, Sabzi"
-                placeholderTextColor={COLORS.textMuted}
-                value={mealName}
-                onChangeText={setMealName}
-              />
+              <View style={{ position: 'relative' }}>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Type food name (e.g. roti, rice, paneer)"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={mealName}
+                  onChangeText={handleMealNameChange}
+                />
+                {foodSearching && (
+                  <View style={{ position: 'absolute', right: 12, top: 12 }}>
+                    <Text style={{ color: COLORS.textMuted, fontSize: 11 }}>...</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Auto Search Results */}
+              {foodResults.length > 0 && (
+                <ScrollView style={{ maxHeight: 180, marginTop: -4, marginBottom: 8 }} nestedScrollEnabled>
+                  {foodResults.map((food) => (
+                    <TouchableOpacity
+                      key={food.id}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                        paddingVertical: 10, paddingHorizontal: 14,
+                        backgroundColor: COLORS.darkCard, borderBottomWidth: 1, borderBottomColor: COLORS.border,
+                        borderRadius: 8, marginBottom: 4,
+                      }}
+                      onPress={() => selectFood(food)}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: COLORS.white, fontSize: 13, fontWeight: '600' }}>{food.name}</Text>
+                        <Text style={{ color: COLORS.textMuted, fontSize: 11, marginTop: 2 }}>
+                          {food.serving} {food.hindiName ? `• ${food.hindiName}` : ''}
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={{ color: COLORS.primary, fontSize: 14, fontWeight: '700' }}>{food.calories} kcal</Text>
+                        <Text style={{ color: COLORS.textMuted, fontSize: 10 }}>P: {food.protein}g • C: {food.carbs}g • F: {food.fat}g</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
 
               <View style={styles.inputRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.inputLabel}>Calories (kcal)</Text>
                   <TextInput
-                    style={styles.modalInput}
-                    placeholder="e.g., 450"
+                    style={[styles.modalInput, mealCalories ? { borderColor: COLORS.primary + '40' } : {}]}
+                    placeholder="auto or manual"
                     placeholderTextColor={COLORS.textMuted}
                     keyboardType="number-pad"
                     value={mealCalories}
@@ -969,8 +1036,8 @@ const TrackingScreen = ({ navigation }) => {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.inputLabel}>Protein (g)</Text>
                   <TextInput
-                    style={styles.modalInput}
-                    placeholder="e.g., 20"
+                    style={[styles.modalInput, mealProtein ? { borderColor: COLORS.primary + '40' } : {}]}
+                    placeholder="auto or manual"
                     placeholderTextColor={COLORS.textMuted}
                     keyboardType="decimal-pad"
                     value={mealProtein}
@@ -978,14 +1045,6 @@ const TrackingScreen = ({ navigation }) => {
                   />
                 </View>
               </View>
-
-              <TouchableOpacity
-                style={styles.foodDbLink}
-                onPress={() => { setShowMealModal(false); navigation.navigate('FoodDatabase'); }}
-              >
-                <Ionicons name="search" size={16} color={COLORS.primary} />
-                <Text style={styles.foodDbLinkText}>Search Food Database for exact nutrition</Text>
-              </TouchableOpacity>
 
               {mealName.trim() && mealCalories && (
                 <View style={styles.mealPreview}>
