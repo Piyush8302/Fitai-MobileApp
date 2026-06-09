@@ -149,8 +149,8 @@ const SubscriptionScreen = ({ navigation }) => {
             </Text>
 
             <View style={styles.utrInfoBox}>
-              <Text style={styles.utrInfoLabel}>UPI ID</Text>
-              <Text style={styles.utrInfoValue}>{upiData.upiId}</Text>
+              <Text style={styles.utrInfoLabel}>Paid To</Text>
+              <Text style={styles.utrInfoValue}>FitAI Premium</Text>
               <Text style={styles.utrInfoLabel}>Amount</Text>
               <Text style={styles.utrInfoValue}>₹{upiData.amount}</Text>
               <Text style={styles.utrInfoLabel}>Plan</Text>
