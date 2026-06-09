@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Alert, TextInput, Linking, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
@@ -46,43 +47,40 @@ const SubscriptionScreen = ({ navigation }) => {
     finally { setLoadingStatus(false); }
   };
 
-  // Send UPI collect request via Cashfree
+  // Cashfree Payment Link
   const handlePay = async () => {
-    if (!upiId.trim() || !upiId.includes('@')) {
-      Alert.alert('Invalid UPI ID', 'Enter valid UPI ID like name@ybl, name@oksbi, name@paytm');
-      return;
-    }
     setLoading(true);
+    setShowUpiModal(false);
     try {
-      const res = await api.post(ENDPOINTS.CASHFREE_PAY, {
-        plan: selectedPlan,
-        upiId: upiId.trim(),
-      });
+      const res = await api.post(ENDPOINTS.CASHFREE_PAY, { plan: selectedPlan });
 
       if (!res.success) {
-        Alert.alert('Error', res.message || 'Failed to send payment request');
+        Alert.alert('Error', res.message || 'Failed to create payment');
         setLoading(false);
         return;
       }
 
-      orderIdRef.current = res.data.orderId;
-      setStep('paying');
-      setPaymentStatus('pending');
+      orderIdRef.current = res.data.linkId;
 
-      // Poll for payment status every 4 seconds
+      // Open Cashfree payment page in browser
+      await WebBrowser.openBrowserAsync(res.data.paymentUrl, {
+        toolbarColor: '#0D0D1A',
+        dismissButtonStyle: 'done',
+      });
+
+      // After browser closes, poll for payment status
+      setStep('paying');
       pollingRef.current = setInterval(async () => {
         try {
           const statusRes = await api.get(`${ENDPOINTS.CASHFREE_STATUS}/${orderIdRef.current}`);
           if (statusRes.success && statusRes.data.status === 'active') {
             clearInterval(pollingRef.current);
-            setPaymentStatus('success');
             setStep('done');
-            fetchStatus(); // Refresh premium status
+            fetchStatus();
           }
         } catch (e) {}
-      }, 4000);
+      }, 3000);
 
-      // Stop polling after 5 minutes
       setTimeout(() => {
         if (pollingRef.current) clearInterval(pollingRef.current);
       }, 300000);
@@ -329,49 +327,42 @@ const SubscriptionScreen = ({ navigation }) => {
         </View>
       )}
 
-      {/* UPI ID Modal */}
+      {/* Payment Confirmation Modal */}
       <Modal visible={showUpiModal} transparent animationType="slide" onRequestClose={() => setShowUpiModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowUpiModal(false)} />
-          <View style={styles.modalCard}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Enter Your UPI ID</Text>
-            <Text style={styles.modalSub}>
-              We'll send a payment request of ₹{currentPrice} to your Google Pay / PhonePe
-            </Text>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowUpiModal(false)} />
+        <View style={styles.modalCard}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.modalTitle}>Pay ₹{currentPrice} via UPI</Text>
+          <Text style={styles.modalSub}>
+            A secure Cashfree payment page will open. Pay using Google Pay, PhonePe, or any UPI app.
+          </Text>
 
-            <TextInput
-              style={styles.modalInput}
-              placeholder="e.g. name@ybl, 9999@oksbi, name@paytm"
-              placeholderTextColor={COLORS.textMuted}
-              value={upiId}
-              onChangeText={setUpiId}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoFocus
-            />
-
-            <Text style={styles.modalHint}>
-              💡 Find your UPI ID in Google Pay → Profile, PhonePe → My Profile
-            </Text>
-
-            <TouchableOpacity
-              onPress={() => { setShowUpiModal(false); handlePay(); }}
-              disabled={loading || !upiId.includes('@')}
-              style={[styles.modalBtn, !upiId.includes('@') && { opacity: 0.4 }]}
-            >
-              <LinearGradient colors={COLORS.gradient1} style={styles.ctaGrad}>
-                {loading ? <ActivityIndicator color={COLORS.white} /> : (
-                  <>
-                    <Ionicons name="send" size={18} color={COLORS.white} />
-                    <Text style={styles.ctaText}>Send ₹{currentPrice} Request</Text>
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
+          <View style={styles.modalInfo}>
+            <View style={styles.modalInfoRow}>
+              <Ionicons name="checkmark-circle" size={18} color={COLORS.success} />
+              <Text style={styles.modalInfoText}>Google Pay, PhonePe, Paytm supported</Text>
+            </View>
+            <View style={styles.modalInfoRow}>
+              <Ionicons name="checkmark-circle" size={18} color={COLORS.success} />
+              <Text style={styles.modalInfoText}>Premium auto-activates after payment</Text>
+            </View>
+            <View style={styles.modalInfoRow}>
+              <Ionicons name="shield-checkmark" size={18} color={COLORS.success} />
+              <Text style={styles.modalInfoText}>100% secure — powered by Cashfree</Text>
+            </View>
           </View>
-        </KeyboardAvoidingView>
+
+          <TouchableOpacity onPress={handlePay} disabled={loading} style={styles.modalBtn}>
+            <LinearGradient colors={COLORS.gradient1} style={styles.ctaGrad}>
+              {loading ? <ActivityIndicator color={COLORS.white} /> : (
+                <>
+                  <Ionicons name="wallet" size={18} color={COLORS.white} />
+                  <Text style={styles.ctaText}>Pay ₹{currentPrice}</Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </Modal>
     </LinearGradient>
   );
@@ -460,6 +451,9 @@ const styles = StyleSheet.create({
   },
   modalHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, lineHeight: 18, marginBottom: 20 },
   modalBtn: { borderRadius: SIZES.radius, overflow: 'hidden' },
+  modalInfo: { backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radius, padding: 16, marginBottom: 20, gap: 12 },
+  modalInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  modalInfoText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium, flex: 1 },
 
   // Done / Paying screens
   doneContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 },
