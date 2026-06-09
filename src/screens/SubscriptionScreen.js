@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, Dimensions, Linking,
+  ActivityIndicator, Alert, Dimensions, Linking, TextInput, Clipboard, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +17,11 @@ const SubscriptionScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [subStatus, setSubStatus] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
-  const [step, setStep] = useState('plan'); // plan → verifying → done
+  const [step, setStep] = useState('plan'); // plan → manual → utr → done
+  const [upiData, setUpiData] = useState(null);
+  const [utrInput, setUtrInput] = useState('');
+  const [submittingUtr, setSubmittingUtr] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     loadToken();
@@ -42,43 +46,80 @@ const SubscriptionScreen = ({ navigation }) => {
     finally { setLoadingStatus(false); }
   };
 
-  // Pay via UPI — opens Google Pay / PhonePe directly
-  const handlePayUPI = async () => {
+  // Create payment record on backend
+  const createPayment = async () => {
+    const res = await api.post(ENDPOINTS.UPI_PAY, { plan: selectedPlan });
+    if (!res.success) throw new Error(res.message || 'Could not start payment');
+    return res.data;
+  };
+
+  // Option 1: Open UPI App directly
+  const handlePayUPIApp = async () => {
     if (loading) return;
     setLoading(true);
     try {
-      const res = await api.post(ENDPOINTS.UPI_PAY, { plan: selectedPlan });
-      if (!res.success) {
-        Alert.alert('Error', res.message || 'Could not start payment');
-        setLoading(false);
-        return;
-      }
+      const data = await createPayment();
+      setUpiData(data);
 
-      // Open UPI app
-      const canOpen = await Linking.canOpenURL(res.data.upiUrl);
+      const canOpen = await Linking.canOpenURL(data.upiUrl);
       if (canOpen) {
-        await Linking.openURL(res.data.upiUrl);
-        // User comes back after paying → auto-confirm
-        setTimeout(async () => {
-          try {
-            await api.post(ENDPOINTS.UPI_CONFIRM, {
-              subscriptionId: res.data.subscriptionId,
-              utrNumber: 'UPI_' + Date.now(),
-            });
-          } catch (e) {}
-          setStep('done');
-        }, 1000);
+        await Linking.openURL(data.upiUrl);
+        // After UPI app returns, go to UTR step
+        setStep('utr');
       } else {
-        Alert.alert(
-          'No UPI App Found',
-          'Install Google Pay, PhonePe or Paytm to pay via UPI.',
-          [{ text: 'OK' }]
-        );
+        Alert.alert('No UPI App', 'Install Google Pay, PhonePe or Paytm.', [
+          { text: 'Pay Manually Instead', onPress: () => setStep('manual') },
+          { text: 'Cancel', style: 'cancel' },
+        ]);
       }
     } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      Alert.alert('Error', error.message || 'Something went wrong');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Option 2: Pay manually — show UPI ID
+  const handlePayManual = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const data = await createPayment();
+      setUpiData(data);
+      setStep('manual');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyUpiId = () => {
+    if (upiData?.upiId) {
+      Clipboard.setString(upiData.upiId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  // Submit UTR
+  const handleSubmitUTR = async () => {
+    if (!utrInput.trim()) {
+      Alert.alert('Enter UTR', 'Enter the UTR / Transaction ID from your payment app');
+      return;
+    }
+    setSubmittingUtr(true);
+    try {
+      const res = await api.post(ENDPOINTS.UPI_CONFIRM, {
+        subscriptionId: upiData.subscriptionId,
+        utrNumber: utrInput.trim(),
+      });
+      if (res.success) setStep('done');
+      else Alert.alert('Error', res.message || 'Failed');
+    } catch (e) {
+      Alert.alert('Error', 'Failed to submit. Try again.');
+    } finally {
+      setSubmittingUtr(false);
     }
   };
 
@@ -109,8 +150,98 @@ const SubscriptionScreen = ({ navigation }) => {
   ];
 
   const isPremium = subStatus?.isPremium;
+  const currentPrice = selectedPlan === 'yearly' ? 299 : 29;
 
-  // Payment Submitted Screen
+  // ===== Manual Pay Screen — shows UPI ID to pay =====
+  if (step === 'manual' && upiData) {
+    return (
+      <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
+        <Header title="Pay Manually" onBack={() => setStep('plan')} />
+        <ScrollView contentContainerStyle={[styles.scroll, { alignItems: 'center', paddingTop: 20 }]}>
+          <Text style={styles.manualIcon}>📱</Text>
+          <Text style={styles.manualTitle}>Pay via Your UPI App</Text>
+          <Text style={styles.manualSub}>Open Google Pay, PhonePe or any UPI app and send payment to:</Text>
+
+          <View style={styles.upiBox}>
+            <Text style={styles.upiBoxLabel}>UPI ID</Text>
+            <View style={styles.upiIdRow}>
+              <Text style={styles.upiIdText}>{upiData.upiId}</Text>
+              <TouchableOpacity onPress={copyUpiId} style={styles.copyBtn}>
+                <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={18} color={copied ? COLORS.success : COLORS.primary} />
+                <Text style={[styles.copyText, copied && { color: COLORS.success }]}>{copied ? 'Copied!' : 'Copy'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.upiBoxLabel}>Amount</Text>
+            <Text style={styles.upiAmountText}>₹{upiData.amount}</Text>
+
+            <Text style={styles.upiBoxLabel}>Name</Text>
+            <Text style={styles.upiNameText}>FitAI Premium</Text>
+          </View>
+
+          <TouchableOpacity onPress={() => setStep('utr')} style={styles.paidBtn}>
+            <LinearGradient colors={COLORS.gradient1} style={styles.ctaGrad}>
+              <Ionicons name="checkmark-circle" size={20} color={COLORS.white} />
+              <Text style={styles.ctaText}>I've Paid — Enter UTR</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </ScrollView>
+      </LinearGradient>
+    );
+  }
+
+  // ===== UTR Entry Screen =====
+  if (step === 'utr' && upiData) {
+    return (
+      <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
+        <Header title="Confirm Payment" onBack={() => setStep('plan')} />
+        <ScrollView contentContainerStyle={[styles.scroll, { alignItems: 'center', paddingTop: 20 }]}>
+          <Text style={styles.manualIcon}>✅</Text>
+          <Text style={styles.manualTitle}>Payment Done?</Text>
+          <Text style={styles.manualSub}>Enter the UTR / Transaction ID from your payment app to verify.</Text>
+
+          <View style={styles.upiBox}>
+            <Text style={styles.upiBoxLabel}>Paid To</Text>
+            <Text style={styles.upiNameText}>FitAI Premium</Text>
+            <Text style={styles.upiBoxLabel}>Amount</Text>
+            <Text style={styles.upiAmountText}>₹{upiData.amount}</Text>
+          </View>
+
+          <Text style={[styles.upiBoxLabel, { alignSelf: 'flex-start', marginBottom: 8 }]}>UTR / Transaction ID</Text>
+          <TextInput
+            style={styles.utrInput}
+            placeholder="Enter UTR number"
+            placeholderTextColor={COLORS.textMuted}
+            value={utrInput}
+            onChangeText={setUtrInput}
+            autoCapitalize="characters"
+          />
+
+          <Text style={styles.utrHelp}>
+            💡 Google Pay → Activity → Tap payment → Copy UTR{'\n'}
+            💡 PhonePe → History → Tap payment → Copy Ref ID
+          </Text>
+
+          <TouchableOpacity onPress={handleSubmitUTR} disabled={submittingUtr} style={styles.paidBtn}>
+            <LinearGradient colors={COLORS.gradient1} style={styles.ctaGrad}>
+              {submittingUtr ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={styles.ctaText}>Submit & Verify</Text>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setStep('manual')} style={styles.retryLink}>
+            <Ionicons name="arrow-back" size={16} color={COLORS.primary} />
+            <Text style={styles.retryText}>Show UPI ID Again</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </LinearGradient>
+    );
+  }
+
+  // ===== Success Screen =====
   if (step === 'done') {
     return (
       <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
@@ -134,10 +265,7 @@ const SubscriptionScreen = ({ navigation }) => {
               <Text style={[styles.doneStepText, { color: COLORS.textMuted }]}>Premium activation</Text>
             </View>
           </View>
-          <TouchableOpacity
-            onPress={() => { setStep('plan'); navigation.goBack(); }}
-            style={styles.doneBtn}
-          >
+          <TouchableOpacity onPress={() => { setStep('plan'); navigation.goBack(); }} style={styles.doneBtn}>
             <LinearGradient colors={COLORS.gradient1} style={styles.ctaGrad}>
               <Text style={styles.ctaText}>Go Back to App</Text>
             </LinearGradient>
@@ -147,35 +275,27 @@ const SubscriptionScreen = ({ navigation }) => {
     );
   }
 
-  // Main Plan Selection Screen
+  // ===== Main Plan Selection Screen =====
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
       <Header title="Go Premium" subtitle="Unlock Full Potential" onBack={() => navigation.goBack()} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {/* Hero */}
         <View style={styles.hero}>
           <LinearGradient colors={['#6C63FF20', '#FF6B6B10']} style={styles.heroGlow}>
             <Text style={styles.heroIcon}>{isPremium ? '🎉' : '👑'}</Text>
           </LinearGradient>
-          <Text style={styles.heroTitle}>
-            {isPremium ? "You're Premium!" : 'Upgrade to Premium'}
-          </Text>
+          <Text style={styles.heroTitle}>{isPremium ? "You're Premium!" : 'Upgrade to Premium'}</Text>
           <Text style={styles.heroSub}>
-            {isPremium
-              ? `${subStatus.plan} plan active. ${subStatus.daysLeft} days remaining.`
-              : 'Unlimited AI chat, personalized plans & more'}
+            {isPremium ? `${subStatus.plan} plan active. ${subStatus.daysLeft} days remaining.` : 'Unlimited AI chat, personalized plans & more'}
           </Text>
         </View>
 
-        {/* Active Sub */}
         {isPremium && (
           <View style={styles.activeCard}>
             <LinearGradient colors={['#4CAF5020', '#4CAF5005']} style={styles.activeGrad}>
               <View style={styles.activeRow}>
-                <View style={styles.activeIcon}>
-                  <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
-                </View>
+                <View style={styles.activeIcon}><Ionicons name="checkmark-circle" size={24} color={COLORS.success} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.activeTitle}>Active Premium</Text>
                   <Text style={styles.activeSub}>{subStatus.plan === 'yearly' ? 'Yearly' : 'Monthly'} Plan</Text>
@@ -185,16 +305,10 @@ const SubscriptionScreen = ({ navigation }) => {
                   <Text style={styles.daysLabel}>days left</Text>
                 </View>
               </View>
-              {subStatus.expiry && (
-                <Text style={styles.expiryText}>
-                  Expires: {new Date(subStatus.expiry).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </Text>
-              )}
             </LinearGradient>
           </View>
         )}
 
-        {/* Compare Table */}
         {!isPremium && (
           <>
             <Text style={styles.sectionTitle}>Free vs Premium</Text>
@@ -203,7 +317,6 @@ const SubscriptionScreen = ({ navigation }) => {
                 { feature: 'AI Chat', free: '10/day', premium: 'Unlimited' },
                 { feature: 'Diet Plans', free: 'Basic', premium: 'Personalized' },
                 { feature: 'Analytics', free: 'Basic', premium: 'Advanced' },
-                { feature: 'Support', free: 'Standard', premium: 'Priority' },
                 { feature: 'Ads', free: 'Yes', premium: 'No Ads' },
               ].map((row, i) => (
                 <View key={i} style={styles.compareRow}>
@@ -216,31 +329,16 @@ const SubscriptionScreen = ({ navigation }) => {
                 </View>
               ))}
             </View>
-          </>
-        )}
 
-        {/* Plan Cards */}
-        {!isPremium && (
-          <>
             <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Choose Plan</Text>
             {plans.map((plan) => {
               const isSelected = selectedPlan === plan.id;
               return (
-                <TouchableOpacity
-                  key={plan.id}
-                  style={[styles.planCard, isSelected && styles.planCardSelected]}
-                  onPress={() => setSelectedPlan(plan.id)}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient
-                    colors={isSelected ? ['#6C63FF15', '#6C63FF05'] : [COLORS.darkCard, COLORS.darkSurface]}
-                    style={styles.planGrad}
-                  >
+                <TouchableOpacity key={plan.id} style={[styles.planCard, isSelected && styles.planCardSelected]} onPress={() => setSelectedPlan(plan.id)} activeOpacity={0.8}>
+                  <LinearGradient colors={isSelected ? ['#6C63FF15', '#6C63FF05'] : [COLORS.darkCard, COLORS.darkSurface]} style={styles.planGrad}>
                     {plan.badge && (
                       <View style={styles.badgeContainer}>
-                        <LinearGradient colors={COLORS.gradient2} style={styles.badge}>
-                          <Text style={styles.badgeText}>{plan.badge}</Text>
-                        </LinearGradient>
+                        <LinearGradient colors={COLORS.gradient2} style={styles.badge}><Text style={styles.badgeText}>{plan.badge}</Text></LinearGradient>
                       </View>
                     )}
                     <View style={styles.planHeader}>
@@ -252,9 +350,7 @@ const SubscriptionScreen = ({ navigation }) => {
                           <Text style={styles.planPeriod}>{plan.period}</Text>
                         </View>
                       </View>
-                      <View style={[styles.radio, isSelected && styles.radioSelected]}>
-                        {isSelected && <View style={styles.radioInner} />}
-                      </View>
+                      <View style={[styles.radio, isSelected && styles.radioSelected]}>{isSelected && <View style={styles.radioInner} />}</View>
                     </View>
                     <View style={styles.features}>
                       {plan.features.map((f, i) => (
@@ -276,30 +372,27 @@ const SubscriptionScreen = ({ navigation }) => {
             <Text style={styles.cancelText}>Cancel Subscription</Text>
           </TouchableOpacity>
         )}
-
-        <View style={{ height: 120 }} />
+        <View style={{ height: 140 }} />
       </ScrollView>
 
-      {/* Bottom CTA */}
+      {/* Bottom CTA — Two Options */}
       {!isPremium && (
         <View style={styles.bottom}>
-          <TouchableOpacity onPress={handlePayUPI} disabled={loading} activeOpacity={0.8} style={styles.ctaContainer}>
+          <TouchableOpacity onPress={handlePayUPIApp} disabled={loading} activeOpacity={0.8} style={styles.ctaContainer}>
             <LinearGradient colors={COLORS.gradient1} style={styles.ctaGrad}>
-              {loading ? (
-                <ActivityIndicator color={COLORS.white} />
-              ) : (
+              {loading ? <ActivityIndicator color={COLORS.white} /> : (
                 <>
                   <Ionicons name="wallet-outline" size={20} color={COLORS.white} />
-                  <Text style={styles.ctaText}>
-                    Pay ₹{selectedPlan === 'yearly' ? '299' : '29'} via UPI
-                  </Text>
+                  <Text style={styles.ctaText}>Pay ₹{currentPrice} — Open UPI App</Text>
                 </>
               )}
             </LinearGradient>
           </TouchableOpacity>
-          <Text style={styles.secureText}>
-            Google Pay • PhonePe • Paytm • Any UPI App
-          </Text>
+
+          <TouchableOpacity onPress={handlePayManual} style={styles.manualLink}>
+            <Ionicons name="qr-code-outline" size={14} color={COLORS.primary} />
+            <Text style={styles.manualLinkText}>Pay manually using UPI ID</Text>
+          </TouchableOpacity>
         </View>
       )}
     </LinearGradient>
@@ -324,7 +417,6 @@ const styles = StyleSheet.create({
   activeSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
   daysLeft: { fontSize: SIZES.fontXxl, color: COLORS.success, ...FONTS.extraBold, textAlign: 'right' },
   daysLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'right' },
-  expiryText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 12, borderTopWidth: 1, borderTopColor: COLORS.darkBorder, paddingTop: 12 },
 
   sectionTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginBottom: 14, marginTop: 8 },
   compareTable: { backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder, overflow: 'hidden' },
@@ -356,11 +448,38 @@ const styles = StyleSheet.create({
   cancelBtn: { alignSelf: 'center', marginTop: 24, paddingHorizontal: 20, paddingVertical: 12, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.error + '40' },
   cancelText: { fontSize: SIZES.fontMd, color: COLORS.error, ...FONTS.medium },
 
-  bottom: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 24, paddingBottom: 34, paddingTop: 12, backgroundColor: COLORS.dark + 'F5', borderTopWidth: 1, borderTopColor: COLORS.darkBorder, alignItems: 'center' },
+  // Bottom
+  bottom: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 24, paddingBottom: 30, paddingTop: 12, backgroundColor: COLORS.dark + 'F5', borderTopWidth: 1, borderTopColor: COLORS.darkBorder, alignItems: 'center' },
   ctaContainer: { width: '100%', borderRadius: SIZES.radius, overflow: 'hidden', ...SHADOWS.medium },
   ctaGrad: { paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: SIZES.radius },
   ctaText: { color: COLORS.white, fontSize: SIZES.fontLg, ...FONTS.bold },
-  secureText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 8 },
+  manualLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, padding: 6 },
+  manualLinkText: { color: COLORS.primary, fontSize: SIZES.fontSm, ...FONTS.medium },
+
+  // Manual Pay Screen
+  manualIcon: { fontSize: 48, marginBottom: 12 },
+  manualTitle: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold, marginBottom: 8 },
+  manualSub: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'center', lineHeight: 22, paddingHorizontal: 10, marginBottom: 20 },
+  upiBox: { backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, padding: 20, width: '100%', borderWidth: 1, borderColor: COLORS.darkBorder, marginBottom: 24 },
+  upiBoxLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, textTransform: 'uppercase', marginTop: 10 },
+  upiIdRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  upiIdText: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, letterSpacing: 0.5 },
+  copyBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 6, backgroundColor: COLORS.primary + '15', borderRadius: 8 },
+  copyText: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.medium },
+  upiAmountText: { fontSize: 28, color: COLORS.success, ...FONTS.extraBold, marginBottom: 4 },
+  upiNameText: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold, marginBottom: 4 },
+  paidBtn: { width: '100%', borderRadius: SIZES.radius, overflow: 'hidden' },
+
+  // UTR Screen
+  utrInput: {
+    width: '100%', backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius,
+    borderWidth: 1, borderColor: COLORS.darkBorder, padding: 16,
+    fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold,
+    textAlign: 'center', letterSpacing: 1, marginBottom: 12,
+  },
+  utrHelp: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  retryLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, padding: 10 },
+  retryText: { color: COLORS.primary, fontSize: SIZES.fontMd, ...FONTS.medium },
 
   // Done Screen
   doneContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 },
