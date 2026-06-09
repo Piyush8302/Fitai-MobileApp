@@ -430,10 +430,7 @@ const SubscriptionScreen = ({ navigation }) => {
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={handlePayManual} style={styles.manualLink}>
-            <Ionicons name="qr-code-outline" size={14} color={COLORS.primary} />
-            <Text style={styles.manualLinkText}>Pay manually using UPI ID</Text>
-          </TouchableOpacity>
+          <Text style={styles.secureText}>Google Pay • PhonePe • Paytm • Any UPI App</Text>
         </View>
       )}
     </LinearGradient>
