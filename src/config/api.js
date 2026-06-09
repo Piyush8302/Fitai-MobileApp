@@ -48,6 +48,8 @@ export const ENDPOINTS = {
   SUB_PLANS: '/api/subscription/plans',
   CREATE_ORDER: '/api/subscription/create-order',
   VERIFY_PAYMENT: '/api/subscription/verify-payment',
+  UPI_PAY: '/api/subscription/upi-pay',
+  UPI_CONFIRM: '/api/subscription/upi-confirm',
   MY_SUBSCRIPTION: '/api/subscription/my',
   CANCEL_SUB: '/api/subscription/cancel',
 

@@ -1,35 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, Dimensions,
+  ActivityIndicator, Alert, Dimensions, TextInput, Linking, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import Header from '../components/Header';
-import api, { API_BASE_URL, ENDPOINTS } from '../config/api';
+import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
-const SubscriptionScreen = ({ navigation, route }) => {
+const SubscriptionScreen = ({ navigation }) => {
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [loading, setLoading] = useState(false);
   const [subStatus, setSubStatus] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
+
+  // UPI payment flow states
+  const [step, setStep] = useState('plan'); // plan → paying → utr → done
+  const [upiData, setUpiData] = useState(null);
+  const [utrInput, setUtrInput] = useState('');
+  const [submittingUtr, setSubmittingUtr] = useState(false);
 
   useEffect(() => {
     loadToken();
     fetchStatus();
   }, []);
 
-  // Re-fetch when coming back from checkout
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchStatus();
-    });
-    return unsubscribe;
+    const unsub = navigation.addListener('focus', () => fetchStatus());
+    return unsub;
   }, [navigation]);
 
   const loadToken = async () => {
@@ -41,109 +43,179 @@ const SubscriptionScreen = ({ navigation, route }) => {
     try {
       const res = await api.get(ENDPOINTS.MY_SUBSCRIPTION);
       if (res.success) setSubStatus(res.data);
-    } catch (e) {
-      console.log('Status fetch error:', e);
-    } finally {
-      setLoadingStatus(false);
-    }
+    } catch (e) {}
+    finally { setLoadingStatus(false); }
   };
 
-  const handleSubscribe = async () => {
+  // Step 1: Start UPI payment
+  const handlePayUPI = async () => {
     if (loading) return;
     setLoading(true);
     try {
-      // 1. Create order on backend
-      const res = await api.post(ENDPOINTS.CREATE_ORDER, { plan: selectedPlan });
+      const res = await api.post(ENDPOINTS.UPI_PAY, { plan: selectedPlan });
       if (!res.success) {
-        Alert.alert('Error', res.message || 'Could not create order');
+        Alert.alert('Error', res.message || 'Could not start payment');
         setLoading(false);
         return;
       }
 
-      const { subscriptionId } = res.data;
+      setUpiData(res.data);
 
-      // 2. Open checkout page in WebBrowser
-      const checkoutUrl = `${API_BASE_URL}/api/subscription/checkout/${subscriptionId}`;
-      await WebBrowser.openBrowserAsync(checkoutUrl, {
-        dismissButtonStyle: 'cancel',
-        showTitle: true,
-        toolbarColor: '#0D0D1A',
-      });
-
-      // 3. After browser closes, re-fetch status
-      await fetchStatus();
-
-      if (subStatus?.isPremium) {
-        Alert.alert('Premium Activated!', 'You now have unlimited AI chat and all premium features!', [
-          { text: 'Awesome!', onPress: () => navigation.goBack() },
-        ]);
+      // Open UPI app
+      const canOpen = await Linking.canOpenURL(res.data.upiUrl);
+      if (canOpen) {
+        await Linking.openURL(res.data.upiUrl);
+        setStep('utr');
+      } else {
+        Alert.alert(
+          'No UPI App',
+          'Install Google Pay, PhonePe, or Paytm to pay via UPI.',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => setStep('plan') },
+            { text: 'Enter UTR Manually', onPress: () => setStep('utr') },
+          ]
+        );
       }
     } catch (error) {
-      console.log('Subscribe error:', error);
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Step 2: Submit UTR
+  const handleSubmitUTR = async () => {
+    if (!utrInput.trim()) {
+      Alert.alert('Enter UTR', 'Please enter the UTR / Transaction ID from your payment app');
+      return;
+    }
+    setSubmittingUtr(true);
+    try {
+      const res = await api.post(ENDPOINTS.UPI_CONFIRM, {
+        subscriptionId: upiData.subscriptionId,
+        utrNumber: utrInput.trim(),
+      });
+      if (res.success) {
+        setStep('done');
+      } else {
+        Alert.alert('Error', res.message || 'Failed to submit');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Failed to submit UTR. Please try again.');
+    } finally {
+      setSubmittingUtr(false);
+    }
+  };
+
   const handleCancel = async () => {
-    Alert.alert(
-      'Cancel Subscription',
-      'Are you sure? Your premium will remain active until the expiry date.',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Cancel',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const res = await api.post(ENDPOINTS.CANCEL_SUB);
-              if (res.success) {
-                Alert.alert('Cancelled', res.message);
-                fetchStatus();
-              }
-            } catch (e) {
-              Alert.alert('Error', 'Could not cancel subscription');
-            }
-          },
+    Alert.alert('Cancel Subscription', 'Your premium will remain active until expiry.', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Yes, Cancel', style: 'destructive',
+        onPress: async () => {
+          try {
+            const res = await api.post(ENDPOINTS.CANCEL_SUB);
+            if (res.success) { Alert.alert('Cancelled', res.message); fetchStatus(); }
+          } catch (e) { Alert.alert('Error', 'Could not cancel'); }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const plans = [
     {
-      id: 'monthly',
-      name: 'Premium Monthly',
-      price: 29,
-      period: '/month',
-      badge: null,
-      features: [
-        'Unlimited AI Chat (no daily limit)',
-        'Personalized AI Diet Plans',
-        'Advanced Progress Analytics',
-        'Priority Support',
-        'Ad-Free Experience',
-      ],
+      id: 'monthly', name: 'Monthly', price: 29, period: '/month',
+      features: ['Unlimited AI Chat', 'AI Diet Plans', 'Advanced Analytics', 'Ad-Free', 'Priority Support'],
     },
     {
-      id: 'yearly',
-      name: 'Premium Yearly',
-      price: 249,
-      originalPrice: 348,
-      period: '/year',
-      badge: '28% OFF',
-      features: [
-        'Everything in Monthly',
-        'Yearly Progress Reports',
-        'Exclusive Workout Challenges',
-        'Early Access to New Features',
-      ],
+      id: 'yearly', name: 'Yearly', price: 299, originalPrice: 348, period: '/year', badge: '14% OFF',
+      features: ['Everything in Monthly', 'Yearly Reports', 'Workout Challenges', 'Early Access'],
     },
   ];
 
   const isPremium = subStatus?.isPremium;
 
+  // UTR Confirmation Screen
+  if (step === 'utr' && upiData) {
+    return (
+      <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
+        <Header title="Confirm Payment" onBack={() => setStep('plan')} />
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={styles.utrCard}>
+            <Text style={styles.utrIcon}>✅</Text>
+            <Text style={styles.utrTitle}>Payment Done?</Text>
+            <Text style={styles.utrSub}>
+              If you paid ₹{upiData.amount} via UPI, enter the UTR / Transaction ID below.
+            </Text>
+
+            <View style={styles.utrInfoBox}>
+              <Text style={styles.utrInfoLabel}>UPI ID</Text>
+              <Text style={styles.utrInfoValue}>{upiData.upiId}</Text>
+              <Text style={styles.utrInfoLabel}>Amount</Text>
+              <Text style={styles.utrInfoValue}>₹{upiData.amount}</Text>
+              <Text style={styles.utrInfoLabel}>Plan</Text>
+              <Text style={styles.utrInfoValue}>{upiData.plan === 'yearly' ? 'Yearly' : 'Monthly'}</Text>
+            </View>
+
+            <Text style={styles.inputLabel}>UTR / Transaction ID</Text>
+            <TextInput
+              style={styles.utrInput}
+              placeholder="Enter 12-digit UTR number"
+              placeholderTextColor={COLORS.textMuted}
+              value={utrInput}
+              onChangeText={setUtrInput}
+              keyboardType="default"
+              autoCapitalize="characters"
+            />
+
+            <Text style={styles.utrHelp}>
+              💡 Open Google Pay → Activity → Tap the payment → Copy UTR/Reference ID
+            </Text>
+
+            <TouchableOpacity onPress={handleSubmitUTR} disabled={submittingUtr} style={styles.utrSubmitBtn}>
+              <LinearGradient colors={COLORS.gradient1} style={styles.ctaGrad}>
+                {submittingUtr ? (
+                  <ActivityIndicator color={COLORS.white} />
+                ) : (
+                  <Text style={styles.ctaText}>Submit & Verify</Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handlePayUPI} style={styles.retryLink}>
+              <Ionicons name="refresh" size={16} color={COLORS.primary} />
+              <Text style={styles.retryText}>Pay Again</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </LinearGradient>
+    );
+  }
+
+  // Success Screen
+  if (step === 'done') {
+    return (
+      <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
+        <View style={styles.doneContainer}>
+          <Text style={styles.doneIcon}>🎉</Text>
+          <Text style={styles.doneTitle}>Payment Submitted!</Text>
+          <Text style={styles.doneSub}>
+            Your payment is being verified. Premium will be activated within a few hours.
+          </Text>
+          <TouchableOpacity
+            onPress={() => { setStep('plan'); navigation.goBack(); }}
+            style={[styles.utrSubmitBtn, { marginTop: 30, width: '80%' }]}
+          >
+            <LinearGradient colors={COLORS.gradient1} style={styles.ctaGrad}>
+              <Text style={styles.ctaText}>Go Back</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  // Main Plan Selection Screen
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
       <Header title="Go Premium" subtitle="Unlock Full Potential" onBack={() => navigation.goBack()} />
@@ -155,16 +227,16 @@ const SubscriptionScreen = ({ navigation, route }) => {
             <Text style={styles.heroIcon}>{isPremium ? '🎉' : '👑'}</Text>
           </LinearGradient>
           <Text style={styles.heroTitle}>
-            {isPremium ? 'You\'re Premium!' : 'Upgrade to Premium'}
+            {isPremium ? "You're Premium!" : 'Upgrade to Premium'}
           </Text>
           <Text style={styles.heroSub}>
             {isPremium
-              ? `Your ${subStatus.plan} plan is active. ${subStatus.daysLeft} days remaining.`
-              : 'Unlock unlimited AI chat, personalized plans & more'}
+              ? `${subStatus.plan} plan active. ${subStatus.daysLeft} days remaining.`
+              : 'Unlimited AI chat, personalized plans & more'}
           </Text>
         </View>
 
-        {/* Active Subscription Info */}
+        {/* Active Sub */}
         {isPremium && (
           <View style={styles.activeCard}>
             <LinearGradient colors={['#4CAF5020', '#4CAF5005']} style={styles.activeGrad}>
@@ -174,9 +246,7 @@ const SubscriptionScreen = ({ navigation, route }) => {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.activeTitle}>Active Premium</Text>
-                  <Text style={styles.activeSub}>
-                    {subStatus.plan === 'yearly' ? 'Yearly' : 'Monthly'} Plan
-                  </Text>
+                  <Text style={styles.activeSub}>{subStatus.plan === 'yearly' ? 'Yearly' : 'Monthly'} Plan</Text>
                 </View>
                 <View>
                   <Text style={styles.daysLeft}>{subStatus.daysLeft}</Text>
@@ -192,20 +262,15 @@ const SubscriptionScreen = ({ navigation, route }) => {
           </View>
         )}
 
-        {/* Free vs Premium Comparison */}
+        {/* Compare Table */}
         {!isPremium && (
           <>
             <Text style={styles.sectionTitle}>Free vs Premium</Text>
             <View style={styles.compareTable}>
-              <View style={[styles.compareRow, styles.compareHeader]}>
-                <Text style={[styles.compareFeature, { color: COLORS.white }]}>Feature</Text>
-                <Text style={[styles.compareFree, { color: COLORS.textMuted }]}>Free</Text>
-                <Text style={[styles.comparePremium, { color: COLORS.primary }]}>Premium</Text>
-              </View>
               {[
                 { feature: 'AI Chat', free: '10/day', premium: 'Unlimited' },
-                { feature: 'AI Diet Plans', free: 'Basic', premium: 'Personalized' },
-                { feature: 'Progress Analytics', free: 'Basic', premium: 'Advanced' },
+                { feature: 'Diet Plans', free: 'Basic', premium: 'Personalized' },
+                { feature: 'Analytics', free: 'Basic', premium: 'Advanced' },
                 { feature: 'Support', free: 'Standard', premium: 'Priority' },
                 { feature: 'Ads', free: 'Yes', premium: 'No Ads' },
               ].map((row, i) => (
@@ -246,19 +311,12 @@ const SubscriptionScreen = ({ navigation, route }) => {
                         </LinearGradient>
                       </View>
                     )}
-
                     <View style={styles.planHeader}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.planName, isSelected && { color: COLORS.primary }]}>
-                          {plan.name}
-                        </Text>
+                      <View>
+                        <Text style={[styles.planName, isSelected && { color: COLORS.primary }]}>{plan.name}</Text>
                         <View style={styles.priceRow}>
-                          {plan.originalPrice && (
-                            <Text style={styles.originalPrice}>{plan.originalPrice}</Text>
-                          )}
-                          <Text style={[styles.planPrice, { color: isSelected ? COLORS.primary : COLORS.white }]}>
-                            {plan.price}
-                          </Text>
+                          {plan.originalPrice && <Text style={styles.originalPrice}>₹{plan.originalPrice}</Text>}
+                          <Text style={[styles.planPrice, { color: isSelected ? COLORS.primary : COLORS.white }]}>₹{plan.price}</Text>
                           <Text style={styles.planPeriod}>{plan.period}</Text>
                         </View>
                       </View>
@@ -266,7 +324,6 @@ const SubscriptionScreen = ({ navigation, route }) => {
                         {isSelected && <View style={styles.radioInner} />}
                       </View>
                     </View>
-
                     <View style={styles.features}>
                       {plan.features.map((f, i) => (
                         <View key={i} style={styles.featureRow}>
@@ -282,7 +339,7 @@ const SubscriptionScreen = ({ navigation, route }) => {
           </>
         )}
 
-        {/* Cancel Button for Premium Users */}
+        {/* Cancel */}
         {isPremium && (
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
             <Text style={styles.cancelText}>Cancel Subscription</Text>
@@ -295,26 +352,23 @@ const SubscriptionScreen = ({ navigation, route }) => {
       {/* Bottom CTA */}
       {!isPremium && (
         <View style={styles.bottom}>
-          <TouchableOpacity
-            onPress={handleSubscribe}
-            disabled={loading}
-            activeOpacity={0.8}
-            style={styles.ctaContainer}
-          >
+          <TouchableOpacity onPress={handlePayUPI} disabled={loading} activeOpacity={0.8} style={styles.ctaContainer}>
             <LinearGradient colors={COLORS.gradient1} style={styles.ctaGrad}>
               {loading ? (
-                <ActivityIndicator color={COLORS.white} size="small" />
+                <ActivityIndicator color={COLORS.white} />
               ) : (
                 <>
-                  <Ionicons name="diamond" size={20} color={COLORS.white} />
+                  <Ionicons name="logo-google" size={18} color={COLORS.white} />
                   <Text style={styles.ctaText}>
-                    Subscribe {selectedPlan === 'yearly' ? '249/year' : '29/month'}
+                    Pay ₹{selectedPlan === 'yearly' ? '299' : '29'} via UPI
                   </Text>
                 </>
               )}
             </LinearGradient>
           </TouchableOpacity>
-          <Text style={styles.secureText}>Secured by Razorpay</Text>
+          <Text style={styles.secureText}>
+            Google Pay • PhonePe • Paytm • Any UPI App
+          </Text>
         </View>
       )}
     </LinearGradient>
@@ -325,62 +379,31 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingBottom: 20 },
 
-  // Hero
   hero: { alignItems: 'center', marginBottom: 24, paddingTop: 8 },
-  heroGlow: {
-    width: 80, height: 80, borderRadius: 40,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-  },
+  heroGlow: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   heroIcon: { fontSize: 40 },
   heroTitle: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold },
-  heroSub: {
-    fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium,
-    textAlign: 'center', marginTop: 8, lineHeight: 22, paddingHorizontal: 20,
-  },
+  heroSub: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'center', marginTop: 8, lineHeight: 22, paddingHorizontal: 20 },
 
-  // Active card
-  activeCard: {
-    borderRadius: SIZES.radiusLg, overflow: 'hidden',
-    borderWidth: 1, borderColor: COLORS.success + '40', marginBottom: 20,
-  },
+  activeCard: { borderRadius: SIZES.radiusLg, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.success + '40', marginBottom: 20 },
   activeGrad: { padding: 20, borderRadius: SIZES.radiusLg },
   activeRow: { flexDirection: 'row', alignItems: 'center' },
-  activeIcon: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: COLORS.success + '20',
-    alignItems: 'center', justifyContent: 'center', marginRight: 12,
-  },
+  activeIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.success + '20', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   activeTitle: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
   activeSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
   daysLeft: { fontSize: SIZES.fontXxl, color: COLORS.success, ...FONTS.extraBold, textAlign: 'right' },
   daysLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'right' },
-  expiryText: {
-    fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium,
-    marginTop: 12, borderTopWidth: 1, borderTopColor: COLORS.darkBorder, paddingTop: 12,
-  },
+  expiryText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 12, borderTopWidth: 1, borderTopColor: COLORS.darkBorder, paddingTop: 12 },
 
-  // Compare
   sectionTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginBottom: 14, marginTop: 8 },
-  compareTable: {
-    backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius,
-    borderWidth: 1, borderColor: COLORS.darkBorder, overflow: 'hidden',
-  },
-  compareHeader: { backgroundColor: COLORS.darkSurface },
-  compareRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 12, paddingHorizontal: 14,
-    borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder,
-  },
+  compareTable: { backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder, overflow: 'hidden' },
+  compareRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder },
   compareFeature: { flex: 2, fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium },
   compareFree: { flex: 1, fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'center' },
   premiumCell: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   comparePremium: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.bold, textAlign: 'center' },
 
-  // Plans
-  planCard: {
-    borderRadius: SIZES.radiusLg, overflow: 'hidden',
-    borderWidth: 1.5, borderColor: COLORS.darkBorder, marginBottom: 16,
-  },
+  planCard: { borderRadius: SIZES.radiusLg, overflow: 'hidden', borderWidth: 1.5, borderColor: COLORS.darkBorder, marginBottom: 16 },
   planCardSelected: { borderColor: COLORS.primary },
   planGrad: { padding: 20, borderRadius: SIZES.radiusLg },
   badgeContainer: { alignSelf: 'flex-start', marginBottom: 10 },
@@ -389,47 +412,50 @@ const styles = StyleSheet.create({
   planHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   planName: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4, gap: 4 },
-  originalPrice: {
-    fontSize: SIZES.fontLg, color: COLORS.textMuted, ...FONTS.medium,
-    textDecorationLine: 'line-through',
-  },
+  originalPrice: { fontSize: SIZES.fontLg, color: COLORS.textMuted, ...FONTS.medium, textDecorationLine: 'line-through' },
   planPrice: { fontSize: SIZES.fontTitle, ...FONTS.extraBold },
   planPeriod: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium },
-  radio: {
-    width: 24, height: 24, borderRadius: 12,
-    borderWidth: 2, borderColor: COLORS.darkBorder,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: COLORS.darkBorder, alignItems: 'center', justifyContent: 'center' },
   radioSelected: { borderColor: COLORS.primary },
   radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: COLORS.primary },
   features: { gap: 10 },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   featureText: { fontSize: SIZES.fontMd, color: COLORS.textSecondary, ...FONTS.medium },
 
-  // Cancel
-  cancelBtn: {
-    alignSelf: 'center', marginTop: 24,
-    paddingHorizontal: 20, paddingVertical: 12,
-    borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.error + '40',
-  },
+  cancelBtn: { alignSelf: 'center', marginTop: 24, paddingHorizontal: 20, paddingVertical: 12, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.error + '40' },
   cancelText: { fontSize: SIZES.fontMd, color: COLORS.error, ...FONTS.medium },
 
-  // Bottom CTA
-  bottom: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 24, paddingBottom: 34, paddingTop: 12,
-    backgroundColor: COLORS.dark + 'F5',
-    borderTopWidth: 1, borderTopColor: COLORS.darkBorder,
-    alignItems: 'center',
-  },
+  bottom: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 24, paddingBottom: 34, paddingTop: 12, backgroundColor: COLORS.dark + 'F5', borderTopWidth: 1, borderTopColor: COLORS.darkBorder, alignItems: 'center' },
   ctaContainer: { width: '100%', borderRadius: SIZES.radius, overflow: 'hidden', ...SHADOWS.medium },
-  ctaGrad: {
-    paddingVertical: 16, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'center', gap: 10,
-    borderRadius: SIZES.radius,
-  },
+  ctaGrad: { paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: SIZES.radius },
   ctaText: { color: COLORS.white, fontSize: SIZES.fontLg, ...FONTS.bold },
   secureText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 8 },
+
+  // UTR Screen
+  utrCard: { alignItems: 'center', paddingTop: 20 },
+  utrIcon: { fontSize: 48, marginBottom: 12 },
+  utrTitle: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold, marginBottom: 8 },
+  utrSub: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'center', lineHeight: 22, paddingHorizontal: 20, marginBottom: 20 },
+  utrInfoBox: { backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, padding: 16, width: '100%', marginBottom: 20, borderWidth: 1, borderColor: COLORS.darkBorder },
+  utrInfoLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 8 },
+  utrInfoValue: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold, marginBottom: 4 },
+  inputLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium, alignSelf: 'flex-start', marginBottom: 8 },
+  utrInput: {
+    width: '100%', backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius,
+    borderWidth: 1, borderColor: COLORS.darkBorder, padding: 16,
+    fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold,
+    textAlign: 'center', letterSpacing: 2, marginBottom: 12,
+  },
+  utrHelp: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'center', lineHeight: 18, marginBottom: 24, paddingHorizontal: 10 },
+  utrSubmitBtn: { width: '100%', borderRadius: SIZES.radius, overflow: 'hidden' },
+  retryLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 20, padding: 10 },
+  retryText: { color: COLORS.primary, fontSize: SIZES.fontMd, ...FONTS.medium },
+
+  // Done Screen
+  doneContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 },
+  doneIcon: { fontSize: 64, marginBottom: 20 },
+  doneTitle: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold, marginBottom: 12 },
+  doneSub: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'center', lineHeight: 24 },
 });
 
 export default SubscriptionScreen;
