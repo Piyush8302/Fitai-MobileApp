@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, TextInput, Linking,
+  ActivityIndicator, Alert, TextInput, Linking, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +18,7 @@ const SubscriptionScreen = ({ navigation }) => {
   const [step, setStep] = useState('plan'); // plan → paying → done
   const [upiId, setUpiId] = useState('');
   const [paymentStatus, setPaymentStatus] = useState(''); // pending → success
+  const [showUpiModal, setShowUpiModal] = useState(false);
   const pollingRef = useRef(null);
   const orderIdRef = useRef(null);
 
@@ -299,24 +300,8 @@ const SubscriptionScreen = ({ navigation }) => {
               );
             })}
 
-            {/* UPI ID Input */}
+            {/* UPI Pay Button */}
             <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Pay via UPI</Text>
-            <View style={styles.upiSection}>
-              <Text style={styles.upiLabel}>Enter your UPI ID</Text>
-              <TextInput
-                style={styles.upiInput}
-                placeholder="e.g. name@ybl, name@oksbi, name@paytm"
-                placeholderTextColor={COLORS.textMuted}
-                value={upiId}
-                onChangeText={setUpiId}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <Text style={styles.upiHint}>
-                A payment request of ₹{currentPrice} will be sent to your Google Pay / PhonePe
-              </Text>
-            </View>
           </>
         )}
 
@@ -330,23 +315,64 @@ const SubscriptionScreen = ({ navigation }) => {
 
       {!isPremium && (
         <View style={styles.bottom}>
-          <TouchableOpacity onPress={handlePay} disabled={loading || !upiId.includes('@')} activeOpacity={0.8} style={[styles.ctaContainer, (!upiId.includes('@')) && { opacity: 0.5 }]}>
+          <TouchableOpacity onPress={() => setShowUpiModal(true)} activeOpacity={0.8} style={styles.ctaContainer}>
             <LinearGradient colors={COLORS.gradient1} style={styles.ctaGrad}>
-              {loading ? <ActivityIndicator color={COLORS.white} /> : (
-                <>
-                  <Ionicons name="send" size={18} color={COLORS.white} />
-                  <Text style={styles.ctaText}>Send ₹{currentPrice} Request</Text>
-                </>
-              )}
+              <Ionicons name="send" size={18} color={COLORS.white} />
+              <Text style={styles.ctaText}>Pay ₹{currentPrice} via UPI</Text>
             </LinearGradient>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleDirectUPI} disabled={loading} style={styles.directUpiBtn}>
             <Ionicons name="wallet-outline" size={16} color={COLORS.primary} />
-            <Text style={styles.directUpiText}>Or pay directly via UPI App</Text>
+            <Text style={styles.directUpiText}>Or open UPI App directly</Text>
           </TouchableOpacity>
           <Text style={styles.secureText}>Secured by Cashfree • UPI</Text>
         </View>
       )}
+
+      {/* UPI ID Modal */}
+      <Modal visible={showUpiModal} transparent animationType="slide" onRequestClose={() => setShowUpiModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowUpiModal(false)} />
+          <View style={styles.modalCard}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Enter Your UPI ID</Text>
+            <Text style={styles.modalSub}>
+              We'll send a payment request of ₹{currentPrice} to your Google Pay / PhonePe
+            </Text>
+
+            <TextInput
+              style={styles.modalInput}
+              placeholder="e.g. name@ybl, 9999@oksbi, name@paytm"
+              placeholderTextColor={COLORS.textMuted}
+              value={upiId}
+              onChangeText={setUpiId}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+            />
+
+            <Text style={styles.modalHint}>
+              💡 Find your UPI ID in Google Pay → Profile, PhonePe → My Profile
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => { setShowUpiModal(false); handlePay(); }}
+              disabled={loading || !upiId.includes('@')}
+              style={[styles.modalBtn, !upiId.includes('@') && { opacity: 0.4 }]}
+            >
+              <LinearGradient colors={COLORS.gradient1} style={styles.ctaGrad}>
+                {loading ? <ActivityIndicator color={COLORS.white} /> : (
+                  <>
+                    <Ionicons name="send" size={18} color={COLORS.white} />
+                    <Text style={styles.ctaText}>Send ₹{currentPrice} Request</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </LinearGradient>
   );
 };
@@ -417,6 +443,23 @@ const styles = StyleSheet.create({
   directUpiBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, padding: 8 },
   directUpiText: { color: COLORS.primary, fontSize: SIZES.fontSm, ...FONTS.medium },
   secureText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 6 },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalCard: {
+    backgroundColor: COLORS.darkCard, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: 24, paddingBottom: 40, borderTopWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  modalHandle: { width: 40, height: 4, backgroundColor: COLORS.darkBorder, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginBottom: 8 },
+  modalSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, lineHeight: 20, marginBottom: 20 },
+  modalInput: {
+    backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radius,
+    borderWidth: 1.5, borderColor: COLORS.primary + '60', padding: 16,
+    fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, marginBottom: 12,
+  },
+  modalHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, lineHeight: 18, marginBottom: 20 },
+  modalBtn: { borderRadius: SIZES.radius, overflow: 'hidden' },
 
   // Done / Paying screens
   doneContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 },
