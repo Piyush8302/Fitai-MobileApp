@@ -233,7 +233,7 @@ const AIChatScreen = ({ navigation }) => {
           )}
         </ScrollView>
 
-        <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
+        <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 12) + 65 }]}>
           <View style={[styles.inputContainer, limitReached && { opacity: 0.5 }]}>
             <TextInput
               style={styles.input}
