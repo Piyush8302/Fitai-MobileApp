@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, TextInput,
+  ActivityIndicator, Alert, TextInput, Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -88,6 +88,25 @@ const SubscriptionScreen = ({ navigation }) => {
 
     } catch (error) {
       Alert.alert('Error', 'Something went wrong. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Direct UPI App pay (opens Google Pay / PhonePe)
+  const handleDirectUPI = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const res = await api.post(ENDPOINTS.UPI_PAY, { plan: selectedPlan });
+      if (!res.success) {
+        Alert.alert('Error', res.message || 'Could not start payment');
+        setLoading(false);
+        return;
+      }
+      await Linking.openURL(res.data.upiUrl);
+    } catch (e) {
+      Alert.alert('Error', 'Could not open UPI app. Use "Enter UPI ID" option instead.');
     } finally {
       setLoading(false);
     }
@@ -321,7 +340,11 @@ const SubscriptionScreen = ({ navigation }) => {
               )}
             </LinearGradient>
           </TouchableOpacity>
-          <Text style={styles.secureText}>Secured by Cashfree • UPI Collect</Text>
+          <TouchableOpacity onPress={handleDirectUPI} disabled={loading} style={styles.directUpiBtn}>
+            <Ionicons name="wallet-outline" size={16} color={COLORS.primary} />
+            <Text style={styles.directUpiText}>Or pay directly via UPI App</Text>
+          </TouchableOpacity>
+          <Text style={styles.secureText}>Secured by Cashfree • UPI</Text>
         </View>
       )}
     </LinearGradient>
@@ -391,7 +414,9 @@ const styles = StyleSheet.create({
   ctaContainer: { width: '100%', borderRadius: SIZES.radius, overflow: 'hidden', ...SHADOWS.medium },
   ctaGrad: { paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: SIZES.radius },
   ctaText: { color: COLORS.white, fontSize: SIZES.fontLg, ...FONTS.bold },
-  secureText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 8 },
+  directUpiBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, padding: 8 },
+  directUpiText: { color: COLORS.primary, fontSize: SIZES.fontSm, ...FONTS.medium },
+  secureText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 6 },
 
   // Done / Paying screens
   doneContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 },
