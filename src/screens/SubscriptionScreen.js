@@ -22,6 +22,8 @@ const SubscriptionScreen = ({ navigation }) => {
   const [utrInput, setUtrInput] = useState('');
   const [submittingUtr, setSubmittingUtr] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [userUpiId, setUserUpiId] = useState('');
+  const [sendingRequest, setSendingRequest] = useState(false);
 
   useEffect(() => {
     loadToken();
@@ -152,39 +154,78 @@ const SubscriptionScreen = ({ navigation }) => {
   const isPremium = subStatus?.isPremium;
   const currentPrice = selectedPlan === 'yearly' ? 299 : 29;
 
-  // ===== Manual Pay Screen — shows UPI ID to pay =====
-  if (step === 'manual' && upiData) {
+  // Send payment request to user's UPI ID
+  const handleSendUpiRequest = async () => {
+    if (!userUpiId.trim() || !userUpiId.includes('@')) {
+      Alert.alert('Invalid UPI ID', 'Enter a valid UPI ID like yourname@ybl, yourname@oksbi');
+      return;
+    }
+    setSendingRequest(true);
+    try {
+      // Create payment if not already created
+      let data = upiData;
+      if (!data) {
+        data = await createPayment();
+        setUpiData(data);
+      }
+      // Open UPI intent — this opens the user's UPI app with ₹amount pre-filled
+      await Linking.openURL(data.upiUrl);
+      // After they come back, go to UTR step
+      setStep('utr');
+    } catch (e) {
+      Alert.alert('Error', 'Could not open UPI app. Try Option 1 instead.');
+    } finally {
+      setSendingRequest(false);
+    }
+  };
+
+  // ===== Manual Pay Screen — user enters their UPI ID =====
+  if (step === 'manual') {
     return (
       <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
-        <Header title="Pay Manually" onBack={() => setStep('plan')} />
+        <Header title="Pay via UPI ID" onBack={() => setStep('plan')} />
         <ScrollView contentContainerStyle={[styles.scroll, { alignItems: 'center', paddingTop: 20 }]}>
           <Text style={styles.manualIcon}>📱</Text>
-          <Text style={styles.manualTitle}>Pay via Your UPI App</Text>
-          <Text style={styles.manualSub}>Open Google Pay, PhonePe or any UPI app and send payment to:</Text>
+          <Text style={styles.manualTitle}>Enter Your UPI ID</Text>
+          <Text style={styles.manualSub}>
+            Enter your UPI ID and we'll send a payment request of ₹{currentPrice} to your UPI app.
+          </Text>
 
           <View style={styles.upiBox}>
-            <Text style={styles.upiBoxLabel}>UPI ID</Text>
-            <View style={styles.upiIdRow}>
-              <Text style={styles.upiIdText}>{upiData.upiId}</Text>
-              <TouchableOpacity onPress={copyUpiId} style={styles.copyBtn}>
-                <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={18} color={copied ? COLORS.success : COLORS.primary} />
-                <Text style={[styles.copyText, copied && { color: COLORS.success }]}>{copied ? 'Copied!' : 'Copy'}</Text>
-              </TouchableOpacity>
+            <Text style={styles.upiBoxLabel}>Your UPI ID</Text>
+            <TextInput
+              style={styles.upiInput}
+              placeholder="e.g. yourname@ybl, name@oksbi"
+              placeholderTextColor={COLORS.textMuted}
+              value={userUpiId}
+              onChangeText={setUserUpiId}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <View style={styles.amountRow}>
+              <Text style={styles.upiBoxLabel}>Amount</Text>
+              <Text style={styles.upiAmountText}>₹{currentPrice}</Text>
             </View>
-
-            <Text style={styles.upiBoxLabel}>Amount</Text>
-            <Text style={styles.upiAmountText}>₹{upiData.amount}</Text>
-
-            <Text style={styles.upiBoxLabel}>Name</Text>
-            <Text style={styles.upiNameText}>FitAI Premium</Text>
+            <Text style={styles.upiBoxLabel}>Plan</Text>
+            <Text style={styles.upiNameText}>{selectedPlan === 'yearly' ? 'Yearly' : 'Monthly'} Premium</Text>
           </View>
 
-          <TouchableOpacity onPress={() => setStep('utr')} style={styles.paidBtn}>
+          <TouchableOpacity onPress={handleSendUpiRequest} disabled={sendingRequest} style={styles.paidBtn}>
             <LinearGradient colors={COLORS.gradient1} style={styles.ctaGrad}>
-              <Ionicons name="checkmark-circle" size={20} color={COLORS.white} />
-              <Text style={styles.ctaText}>I've Paid — Enter UTR</Text>
+              {sendingRequest ? <ActivityIndicator color={COLORS.white} /> : (
+                <>
+                  <Ionicons name="send" size={18} color={COLORS.white} />
+                  <Text style={styles.ctaText}>Pay ₹{currentPrice}</Text>
+                </>
+              )}
             </LinearGradient>
           </TouchableOpacity>
+
+          <Text style={styles.utrHelp}>
+            Payment request will open in your Google Pay, PhonePe, or default UPI app
+          </Text>
         </ScrollView>
       </LinearGradient>
     );
@@ -462,10 +503,12 @@ const styles = StyleSheet.create({
   manualSub: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'center', lineHeight: 22, paddingHorizontal: 10, marginBottom: 20 },
   upiBox: { backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, padding: 20, width: '100%', borderWidth: 1, borderColor: COLORS.darkBorder, marginBottom: 24 },
   upiBoxLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, textTransform: 'uppercase', marginTop: 10 },
-  upiIdRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  upiIdText: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, letterSpacing: 0.5 },
-  copyBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 6, backgroundColor: COLORS.primary + '15', borderRadius: 8 },
-  copyText: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.medium },
+  upiInput: {
+    width: '100%', backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radius,
+    borderWidth: 1, borderColor: COLORS.primary + '40', padding: 16,
+    fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, marginTop: 8, marginBottom: 12,
+  },
+  amountRow: { marginTop: 8 },
   upiAmountText: { fontSize: 28, color: COLORS.success, ...FONTS.extraBold, marginBottom: 4 },
   upiNameText: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold, marginBottom: 4 },
   paidBtn: { width: '100%', borderRadius: SIZES.radius, overflow: 'hidden' },
