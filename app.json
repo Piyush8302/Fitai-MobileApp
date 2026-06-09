@@ -25,7 +25,14 @@
       "package": "com.piyush.fitai",
       "googleServicesFile": "./google-services.json",
       "backgroundColor": "#0D0D1A",
-      "useNextNotificationsApi": true
+      "useNextNotificationsApi": true,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [{ "scheme": "upi" }],
+          "category": ["DEFAULT", "BROWSABLE"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
