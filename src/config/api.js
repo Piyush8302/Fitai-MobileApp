@@ -50,6 +50,8 @@ export const ENDPOINTS = {
   VERIFY_PAYMENT: '/api/subscription/verify-payment',
   UPI_PAY: '/api/subscription/upi-pay',
   UPI_CONFIRM: '/api/subscription/upi-confirm',
+  CASHFREE_PAY: '/api/subscription/cashfree-pay',
+  CASHFREE_STATUS: '/api/subscription/cashfree-status',
   MY_SUBSCRIPTION: '/api/subscription/my',
   CANCEL_SUB: '/api/subscription/cancel',
 
