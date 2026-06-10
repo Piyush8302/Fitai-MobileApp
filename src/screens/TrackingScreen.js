@@ -116,17 +116,32 @@ const TrackingScreen = ({ navigation }) => {
   }, [navigation, loadData, loadWeekly]);
 
   // ===== API ACTIONS =====
-  const addWater = async () => {
+  const addWater = async (delta = 1) => {
+    const current = tracking?.waterIntake || 0;
+    if (delta < 0 && current <= 0) return; // can't go below 0
+
+    // Optimistic update — instant UI feedback
+    setTracking(prev => ({
+      ...prev,
+      waterIntake: Math.max(0, (prev?.waterIntake || 0) + delta),
+    }));
+
     try {
-      const res = await api.post(ENDPOINTS.ADD_WATER, { glasses: 1 });
+      const res = await api.post(ENDPOINTS.ADD_WATER, { glasses: delta });
       if (res.success) {
         setTracking(prev => ({
           ...prev,
           waterIntake: res.data.waterIntake,
         }));
-        showToast('💧', 'Water Added', `${(res.data.waterIntake || 0)} glasses total`);
       }
-    } catch (e) { console.log('Water error:', e); }
+    } catch (e) {
+      // Revert on failure
+      setTracking(prev => ({
+        ...prev,
+        waterIntake: current,
+      }));
+      console.log('Water error:', e);
+    }
   };
 
   const logMood = async (selectedMood) => {
@@ -476,18 +491,67 @@ const TrackingScreen = ({ navigation }) => {
               </GradientCard>
             )}
 
+            {/* ===== WATER TRACKER (dedicated card with +/- controls) ===== */}
+            <GradientCard colors={[COLORS.accent + '15', '#1A1A2E']} style={{ marginBottom: 16 }}>
+              <View style={styles.waterHeader}>
+                <View style={styles.waterTitleRow}>
+                  <Text style={styles.waterEmoji}>💧</Text>
+                  <View>
+                    <Text style={styles.waterTitle}>Water Intake</Text>
+                    <Text style={styles.waterSub}>{water * 250} ml of {waterGoal * 250} ml</Text>
+                  </View>
+                </View>
+                <Text style={[styles.waterCount, { color: COLORS.accent }]}>
+                  {water}<Text style={styles.waterCountTotal}>/{waterGoal}</Text>
+                </Text>
+              </View>
+
+              {/* Glass indicators */}
+              <View style={styles.waterGlasses}>
+                {Array.from({ length: Math.max(waterGoal, water) }).map((_, i) => (
+                  <Ionicons
+                    key={i}
+                    name={i < water ? 'water' : 'water-outline'}
+                    size={26}
+                    color={i < water ? COLORS.accent : COLORS.textMuted + '60'}
+                  />
+                ))}
+              </View>
+
+              {/* − / + controls */}
+              <View style={styles.waterControls}>
+                <TouchableOpacity
+                  style={[styles.waterBtn, water <= 0 && styles.waterBtnDisabled]}
+                  onPress={() => addWater(-1)}
+                  disabled={water <= 0}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="remove" size={28} color={water <= 0 ? COLORS.textMuted : COLORS.accent} />
+                </TouchableOpacity>
+                <View style={styles.waterProgressWrap}>
+                  <View style={styles.waterProgressBar}>
+                    <View style={[styles.waterProgressFill, { width: `${Math.min(100, Math.round((water / waterGoal) * 100))}%` }]} />
+                  </View>
+                  <Text style={styles.waterProgressLabel}>
+                    {water >= waterGoal ? '🎉 Daily goal complete!' : `${waterGoal - water} glass${waterGoal - water > 1 ? 'es' : ''} to go`}
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.waterBtn} onPress={() => addWater(1)} activeOpacity={0.7}>
+                  <Ionicons name="add" size={28} color={COLORS.accent} />
+                </TouchableOpacity>
+              </View>
+            </GradientCard>
+
             {/* ===== QUICK ACTIONS (2-column broad cards) ===== */}
             <Text style={styles.sectionTitle}>⚡ Quick Log</Text>
             <View style={styles.quickGrid}>
               {[
-                { icon: '🚶', label: 'Walk / Run', desc: `${formatSteps(steps)} steps today`, color: '#4CAF50', onPress: () => setShowWalkModal(true), value: `${burned} kcal burned` },
                 { icon: '🍽', label: 'Log Meal', desc: `${meals.length} meal${meals.length !== 1 ? 's' : ''} logged`, color: COLORS.warning, onPress: () => setShowMealModal(true), value: `${cal} / ${calGoal} kcal` },
-                { icon: '💧', label: 'Water Intake', desc: `Tap to add 1 glass`, color: COLORS.accent, onPress: addWater, value: `${water} / ${waterGoal} glasses` },
-                { icon: '😴', label: 'Log Sleep', desc: sleep > 0 ? `${sleep}h logged today` : 'Not logged yet', color: '#9C27B0', onPress: () => setShowSleepModal(true), value: sleep > 0 ? `${sleep} / ${sleepGoal}h` : '— / 8h' },
-                { icon: '🍎', label: 'Food Database', desc: 'Search nutrition info', color: '#FF6B6B', onPress: () => navigation.navigate('FoodDatabase'), value: 'Browse & Log' },
+                { icon: '🚶', label: 'Walk / Run', desc: `${formatSteps(steps)} steps today`, color: '#4CAF50', onPress: () => setShowWalkModal(true), value: `${burned} kcal burned` },
                 { icon: '🏋️', label: 'Log Exercise', desc: 'Pick from exercises', color: COLORS.primary, onPress: () => setShowExerciseModal(true), value: `${burned} kcal total` },
+                { icon: '😴', label: 'Log Sleep', desc: sleep > 0 ? `${sleep}h logged today` : 'Not logged yet', color: '#9C27B0', onPress: () => setShowSleepModal(true), value: sleep > 0 ? `${sleep} / ${sleepGoal}h` : '— / 8h' },
                 { icon: '⚖️', label: 'Log Weight', desc: `Current: ${userProfile?.weight || '--'} kg`, color: '#607D8B', onPress: () => { setWeightInput(String(userProfile?.weight || '')); setShowWeightModal(true); }, value: `Target: ${userProfile?.targetWeight || '--'} kg` },
-                { icon: '🏃', label: 'Gym Guide', desc: 'Learn proper form', color: '#E91E63', onPress: () => navigation.navigate('GymExercise'), value: 'All Exercises' },
+                { icon: '🍎', label: 'Food Database', desc: 'Search nutrition info', color: '#FF6B6B', onPress: () => navigation.navigate('FoodDatabase'), value: 'Browse & Log' },
               ].map((a, i) => (
                 <TouchableOpacity key={i} style={styles.quickItem} onPress={a.onPress} activeOpacity={0.8}>
                   <LinearGradient colors={[a.color + '18', COLORS.darkCard]} style={styles.quickItemGrad}>
@@ -1154,6 +1218,34 @@ const styles = StyleSheet.create({
   goalTargetValue: { fontSize: SIZES.fontXl, ...FONTS.bold },
   goalTargetLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
   goalTargetDivider: { width: 1, height: 30, backgroundColor: COLORS.darkBorder },
+  // Water Tracker
+  waterHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  waterTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  waterEmoji: { fontSize: 30 },
+  waterTitle: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
+  waterSub: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
+  waterCount: { fontSize: 30, ...FONTS.bold },
+  waterCountTotal: { fontSize: SIZES.fontMd, color: COLORS.textMuted },
+  waterGlasses: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 6,
+    justifyContent: 'center', marginBottom: 16,
+  },
+  waterControls: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  waterBtn: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: COLORS.accent + '15',
+    borderWidth: 1.5, borderColor: COLORS.accent + '40',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  waterBtnDisabled: { backgroundColor: COLORS.darkCard, borderColor: COLORS.darkBorder },
+  waterProgressWrap: { flex: 1, alignItems: 'center', gap: 6 },
+  waterProgressBar: {
+    width: '100%', height: 8, borderRadius: 4,
+    backgroundColor: COLORS.darkBorder, overflow: 'hidden',
+  },
+  waterProgressFill: { height: '100%', borderRadius: 4, backgroundColor: COLORS.accent },
+  waterProgressLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
+
   // Quick Actions (2-column broad)
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
   quickItem: {
