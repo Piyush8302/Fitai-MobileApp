@@ -162,27 +162,26 @@ const SubscriptionScreen = ({ navigation }) => {
       <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
         <View style={styles.doneContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} style={{ marginBottom: 20 }} />
-          <Text style={styles.doneTitle}>Approve Payment</Text>
+          <Text style={styles.doneTitle}>Complete Your Payment</Text>
           <Text style={styles.doneSub}>
-            Payment request of ₹{currentPrice} sent to{'\n'}
-            <Text style={{ color: COLORS.primary, fontWeight: 'bold' }}>{upiId}</Text>
+            Pay <Text style={{ color: COLORS.primary, fontWeight: 'bold' }}>₹{currentPrice}</Text> on the secure Cashfree page using GPay, PhonePe or any UPI app
           </Text>
           <View style={styles.doneSteps}>
             <View style={styles.doneStep}>
               <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
-              <Text style={styles.doneStepText}>Request sent to your UPI app</Text>
+              <Text style={styles.doneStepText}>Payment page opened</Text>
             </View>
             <View style={styles.doneStep}>
               <ActivityIndicator size={16} color={COLORS.warning} />
-              <Text style={styles.doneStepText}>Waiting for approval...</Text>
+              <Text style={styles.doneStepText}>Waiting for payment...</Text>
             </View>
             <View style={styles.doneStep}>
               <Ionicons name="diamond-outline" size={20} color={COLORS.textMuted} />
-              <Text style={[styles.doneStepText, { color: COLORS.textMuted }]}>Premium activation</Text>
+              <Text style={[styles.doneStepText, { color: COLORS.textMuted }]}>Premium auto-activates</Text>
             </View>
           </View>
           <Text style={styles.helpText}>
-            Open Google Pay / PhonePe → Check notifications → Approve ₹{currentPrice} payment
+            Closed the page by mistake? Go back and tap "Pay ₹{currentPrice} via UPI" again.{'\n'}Premium activates within seconds of payment.
           </Text>
           <TouchableOpacity onPress={() => { if (pollingRef.current) clearInterval(pollingRef.current); setStep('plan'); }} style={styles.cancelLink}>
             <Text style={styles.cancelLinkText}>Cancel</Text>

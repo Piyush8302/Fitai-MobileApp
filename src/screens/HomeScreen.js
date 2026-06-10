@@ -69,8 +69,10 @@ const HomeScreen = ({ navigation }) => {
 
   const goalLabel = (user.fitnessGoal || 'maintenance').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   const weightDiff = Math.abs((user.weight || 70) - (user.targetWeight || 65));
-  const weightTotal = Math.abs(70 - (user.targetWeight || 65)) || 10;
-  const goalPercent = Math.min(100, Math.round(((weightTotal - weightDiff) / weightTotal) * 100));
+  // Progress from the weight the user STARTED at (not hardcoded)
+  const startW = user.startWeight || user.weight || 70;
+  const weightTotal = Math.abs(startW - (user.targetWeight || startW)) || 1;
+  const goalPercent = Math.min(100, Math.max(0, Math.round(((weightTotal - weightDiff) / weightTotal) * 100)));
   const adjustedCalGoal = getGoalAdjustedCalories();
   const calPercent = adjustedCalGoal ? Math.round((tracking.caloriesConsumed / adjustedCalGoal) * 100) : 0;
   const overallProgress = Math.round((calPercent + (tracking.waterIntake / tracking.waterGoal * 100) + (tracking.steps / tracking.stepsGoal * 100)) / 3) || 0;

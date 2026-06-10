@@ -137,6 +137,8 @@ const DietScreen = ({ navigation }) => {
   const [tracking, setTracking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dietType, setDietType] = useState('balanced');
+  const [aiPlan, setAiPlan] = useState(null);
+  const [aiPlanLoading, setAiPlanLoading] = useState(false);
 
   const loadDietData = useCallback(async () => {
     try {
@@ -155,9 +157,54 @@ const DietScreen = ({ navigation }) => {
         else setDietType('balanced');
       }
       if (trackRes.success) setTracking(trackRes.data);
+      // AI full-day plan from backend (non-blocking)
+      try {
+        setAiPlanLoading(true);
+        const aiRes = await api.get(ENDPOINTS.AI_DIET);
+        if (aiRes.success) setAiPlan(aiRes.data);
+      } catch (e) { /* silent */ }
+      finally { setAiPlanLoading(false); }
     } catch (e) { console.log(e); }
     setLoading(false);
   }, []);
+
+  const regenerateAiPlan = async () => {
+    try {
+      setAiPlanLoading(true);
+      const aiRes = await api.get(ENDPOINTS.AI_DIET);
+      if (aiRes.success) setAiPlan(aiRes.data);
+    } catch (e) { /* silent */ }
+    finally { setAiPlanLoading(false); }
+  };
+
+  const logAiMeal = (meal) => {
+    const item = meal.items[0];
+    if (!item) return;
+    Alert.alert(
+      item.name,
+      `${item.quantity} • ${item.calories} kcal • P: ${item.protein}g\n\nLog this to today's meals?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Meal',
+          onPress: async () => {
+            try {
+              const apiMealType = ['breakfast', 'lunch', 'dinner'].includes(meal.type) ? meal.type : 'snack';
+              const res = await api.post(ENDPOINTS.LOG_MEAL, {
+                mealType: apiMealType,
+                items: [{ name: item.name, calories: item.calories, protein: item.protein }],
+                totalCalories: item.calories,
+              });
+              if (res.success) {
+                setTracking(res.data);
+                Alert.alert('Logged!', `${item.name} added to your daily log`);
+              }
+            } catch (e) { Alert.alert('Error', 'Failed to log meal'); }
+          },
+        },
+      ]
+    );
+  };
 
   useEffect(() => { loadDietData(); }, [loadDietData]);
 
@@ -182,7 +229,12 @@ const DietScreen = ({ navigation }) => {
   const goal = user?.fitnessGoal || 'maintenance';
   const adjustment = GOAL_ADJUSTMENTS[goal] || GOAL_ADJUSTMENTS.maintenance;
   const isWeightLoss = goal === 'weight_loss' || goal === 'fat_loss';
-  const targetCal = isWeightLoss ? bmr : Math.round(dailyCal * adjustment.calMult);
+  // Same goal-adjusted formula as Tracking/Home (single source of truth)
+  const targetCal = isWeightLoss
+    ? Math.max(bmr, dailyCal - 500)
+    : goal === 'weight_gain' ? Math.round(dailyCal + 400)
+    : goal === 'muscle_building' ? Math.round(dailyCal + 300)
+    : Math.round(dailyCal * adjustment.calMult);
   const proteinNeed = user?.proteinNeed || Math.round((user?.weight || 70) * 1.6);
   const carbsNeed = Math.round((targetCal * 0.45) / 4); // 45% carbs
   const fatNeed = Math.round((targetCal * 0.25) / 9); // 25% fat
@@ -323,6 +375,51 @@ const DietScreen = ({ navigation }) => {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {/* ===== AI FULL-DAY PLAN (from backend) ===== */}
+        <View style={styles.aiPlanHeader}>
+          <Text style={styles.sectionTitle}>🤖 AI Full-Day Plan</Text>
+          <TouchableOpacity onPress={regenerateAiPlan} disabled={aiPlanLoading} style={styles.regenBtn}>
+            <Ionicons name="refresh" size={16} color={COLORS.primary} />
+            <Text style={styles.regenText}>New Plan</Text>
+          </TouchableOpacity>
+        </View>
+        {aiPlanLoading && !aiPlan ? (
+          <GradientCard><ActivityIndicator color={COLORS.primary} style={{ paddingVertical: 20 }} /></GradientCard>
+        ) : aiPlan ? (
+          <GradientCard colors={[COLORS.primary + '10', '#1A1A2E']} style={{ marginBottom: 20 }}>
+            <Text style={styles.aiPlanTitle}>{aiPlan.title}</Text>
+            <Text style={styles.aiPlanMeta}>
+              {aiPlan.calorieNote} • 💧 {aiPlan.waterIntake}L water • Plan total: {aiPlan.totalCalories} kcal, {aiPlan.totalProtein}g protein
+            </Text>
+            {(aiPlan.meals || []).map((meal, idx) => {
+              const item = meal.items?.[0];
+              if (!item) return null;
+              const typeLabels = {
+                breakfast: '🌅 Breakfast', mid_morning: '🍎 Mid-Morning', lunch: '☀️ Lunch',
+                evening_snack: '🍪 Evening Snack', dinner: '🌙 Dinner',
+                pre_workout: '⚡ Pre-Workout', post_workout: '💪 Post-Workout',
+              };
+              return (
+                <TouchableOpacity key={idx} style={styles.aiMealRow} onPress={() => logAiMeal(meal)} activeOpacity={0.7}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.aiMealType}>{typeLabels[meal.type] || meal.type} • {meal.time}</Text>
+                    <Text style={styles.aiMealName}>{item.name} ({item.quantity})</Text>
+                    <Text style={styles.aiMealMacros}>P: {item.protein}g • C: {item.carbs}g • F: {item.fat}g</Text>
+                  </View>
+                  <View style={styles.aiMealRight}>
+                    <Text style={styles.aiMealCal}>{item.calories}</Text>
+                    <Text style={styles.aiMealCalUnit}>kcal</Text>
+                    <View style={styles.aiLogBtn}>
+                      <Ionicons name="add-circle" size={20} color={COLORS.primary} />
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+            <Text style={styles.aiPlanHint}>Tap any meal to log it • "New Plan" for different meals</Text>
+          </GradientCard>
+        ) : null}
 
         {/* ===== SUGGESTED MEAL PLAN ===== */}
         <Text style={styles.sectionTitle}>
@@ -491,6 +588,33 @@ const DietScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingBottom: 20 },
+
+  // AI Plan
+  aiPlanHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  regenBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14,
+    backgroundColor: COLORS.primary + '15', borderWidth: 1, borderColor: COLORS.primary + '40',
+  },
+  regenText: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.bold },
+  aiPlanTitle: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, marginBottom: 4 },
+  aiPlanMeta: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginBottom: 12, lineHeight: 18 },
+  aiMealRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 10, borderTopWidth: 1, borderTopColor: COLORS.darkBorder,
+  },
+  aiMealType: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.bold, marginBottom: 2 },
+  aiMealName: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.semiBold },
+  aiMealMacros: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
+  aiMealRight: { alignItems: 'center', marginLeft: 10 },
+  aiMealCal: { fontSize: SIZES.fontLg, color: COLORS.warning, ...FONTS.bold },
+  aiMealCalUnit: { fontSize: 9, color: COLORS.textMuted },
+  aiLogBtn: { marginTop: 4 },
+  aiPlanHint: {
+    fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium,
+    textAlign: 'center', marginTop: 10, paddingTop: 10,
+    borderTopWidth: 1, borderTopColor: COLORS.darkBorder,
+  },
 
   // Recommendation Banner
   recBanner: { marginBottom: 16 },
