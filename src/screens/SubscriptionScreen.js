@@ -111,19 +111,35 @@ const SubscriptionScreen = ({ navigation }) => {
     }
   };
 
-  const handleCancel = async () => {
-    Alert.alert('Cancel Subscription', 'Your premium will remain active until expiry.', [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Yes, Cancel', style: 'destructive',
-        onPress: async () => {
-          try {
-            const res = await api.post(ENDPOINTS.CANCEL_SUB);
-            if (res.success) { Alert.alert('Cancelled', res.message); fetchStatus(); }
-          } catch (e) { Alert.alert('Error', 'Could not cancel'); }
+  const handleCancel = () => {
+    const daysLeft = subStatus?.daysLeft || 0;
+    const planName = subStatus?.plan === 'yearly' ? 'Yearly' : 'Monthly';
+    Alert.alert(
+      '⚠️ Cancel Subscription?',
+      `You are about to cancel your ${planName} plan.\n\n` +
+      `• No refund will be issued${daysLeft > 0 ? ` for the remaining ${daysLeft} days` : ''}\n` +
+      `• Premium features will be removed immediately\n` +
+      `• Unlimited AI chat will stop working\n\n` +
+      `This action cannot be undone.`,
+      [
+        { text: 'Keep Premium', style: 'cancel' },
+        {
+          text: 'Cancel Anyway',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await api.post(ENDPOINTS.CANCEL_SUB);
+              if (res.success) {
+                Alert.alert('Subscription Cancelled', 'Your premium access has been removed. You can re-subscribe anytime.');
+                fetchStatus();
+              } else {
+                Alert.alert('Error', res.message || 'Could not cancel');
+              }
+            } catch (e) { Alert.alert('Error', 'Could not cancel. Please try again.'); }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const plans = [
