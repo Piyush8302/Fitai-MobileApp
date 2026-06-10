@@ -228,25 +228,27 @@ const FoodDatabaseScreen = ({ navigation }) => {
 
       {/* Category Filter */}
       {categories.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll} contentContainerStyle={{ paddingHorizontal: 16 }}>
-          <TouchableOpacity
-            style={[styles.catChip, !selectedCategory && styles.catChipActive]}
-            onPress={() => setSelectedCategory(null)}
-          >
-            <Text style={[styles.catChipText, !selectedCategory && { color: COLORS.primary }]}>All</Text>
-          </TouchableOpacity>
-          {categories.map((c) => (
+        <View style={styles.catWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catScrollContent}>
             <TouchableOpacity
-              key={c.name}
-              style={[styles.catChip, selectedCategory === c.name && styles.catChipActive]}
-              onPress={() => setSelectedCategory(selectedCategory === c.name ? null : c.name)}
+              style={[styles.catChip, !selectedCategory && styles.catChipActive]}
+              onPress={() => setSelectedCategory(null)}
             >
-              <Text style={[styles.catChipText, selectedCategory === c.name && { color: COLORS.primary }]}>
-                {c.name} ({c.count})
-              </Text>
+              <Text style={[styles.catChipText, !selectedCategory && { color: COLORS.primary, ...FONTS.bold }]}>All</Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+            {categories.map((c) => (
+              <TouchableOpacity
+                key={c.name}
+                style={[styles.catChip, selectedCategory === c.name && styles.catChipActive]}
+                onPress={() => setSelectedCategory(selectedCategory === c.name ? null : c.name)}
+              >
+                <Text style={[styles.catChipText, selectedCategory === c.name && { color: COLORS.primary, ...FONTS.bold }]}>
+                  {c.name} ({c.count})
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
       )}
 
       {loading ? (
@@ -460,13 +462,15 @@ const styles = StyleSheet.create({
   filterTextActive: { color: COLORS.primary },
 
   // Category
-  catScroll: { marginBottom: 10, maxHeight: 44 },
+  catWrap: { height: 46, marginBottom: 10 },
+  catScrollContent: { paddingHorizontal: 16, alignItems: 'center' },
   catChip: {
-    backgroundColor: COLORS.darkCard, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8,
+    height: 38, justifyContent: 'center',
+    backgroundColor: COLORS.darkCard, borderRadius: 19, paddingHorizontal: 16,
     borderWidth: 1, borderColor: COLORS.darkBorder, marginRight: 8,
   },
   catChipActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '20' },
-  catChipText: { fontSize: SIZES.fontSm, color: COLORS.white, ...FONTS.medium, textTransform: 'capitalize' },
+  catChipText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium, textTransform: 'capitalize' },
 
   // List
   list: { padding: 16, paddingBottom: 100 },

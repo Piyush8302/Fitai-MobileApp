@@ -84,7 +84,7 @@ const HomeScreen = ({ navigation }) => {
   const exploreActions = [
     { id: 'articles', title: 'Articles', icon: '📰', screen: 'Articles', color: '#9C27B0' },
     { id: 'food', title: 'Food DB', icon: '🍽', screen: 'FoodDatabase', color: '#FF9800' },
-    { id: 'exercises', title: 'Exercises', icon: '🦵', screen: 'ExerciseLibrary', color: '#E91E63' },
+    { id: 'exercises', title: 'Exercises', icon: '💪', screen: 'ExerciseLibrary', color: '#E91E63' },
     { id: 'achievements', title: 'Badges', icon: '🏆', screen: 'Achievements', color: '#FFD700' },
   ];
 
