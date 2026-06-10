@@ -12,95 +12,79 @@ const { width } = Dimensions.get('window');
 
 const TIMELINE_GOALS = ['weight_loss', 'weight_gain', 'muscle_building', 'fat_loss'];
 
+const DIET_OPTIONS = [
+  { key: 'veg', label: 'Vegetarian', icon: '🥦', desc: 'No meat, no eggs' },
+  { key: 'non_veg', label: 'Non-Veg', icon: '🍗', desc: 'Everything except beef/pork' },
+  { key: 'vegan', label: 'Vegan', icon: '🌱', desc: 'No animal products' },
+  { key: 'eggetarian', label: 'Eggetarian', icon: '🥚', desc: 'Veg + eggs' },
+];
+
 const ProfileSetupScreen = ({ navigation }) => {
   const [step, setStep] = useState(0);
+  const [goal, setGoal] = useState(null);
   const [gender, setGender] = useState(null);
   const [age, setAge] = useState(25);
   const [height, setHeight] = useState(170);
   const [weight, setWeight] = useState(70);
   const [targetWeight, setTargetWeight] = useState(65);
   const [activity, setActivity] = useState(null);
-  const [goal, setGoal] = useState(null);
+  const [dietPreference, setDietPreference] = useState(null);
   const [timeline, setTimeline] = useState(null);
   const [customMode, setCustomMode] = useState(false);
   const [customValue, setCustomValue] = useState('');
   const [customUnit, setCustomUnit] = useState('months');
   const [loading, setLoading] = useState(false);
 
-  const steps = ['Gender', 'Age', 'Body', 'Activity', 'Goal', 'Timeline'];
-
+  // Step order: Goal FIRST, then profile details
   const needsTimeline = () => TIMELINE_GOALS.includes(goal);
+  const steps = ['Goal', 'Gender', 'Age', 'Body', 'Activity', 'Diet', 'Timeline'];
+  const lastStep = needsTimeline() ? 6 : 5;
 
-  // Generate smart timeline options based on goal and weight diff
+  // Which steps REQUIRE a selection before Continue is enabled
+  const isStepComplete = () => {
+    switch (step) {
+      case 0: return !!goal;
+      case 1: return !!gender;
+      case 2: return true;  // age always has a value
+      case 3: return true;  // body always has values
+      case 4: return !!activity;
+      case 5: return !!dietPreference;
+      case 6: return !!timeline;
+      default: return true;
+    }
+  };
+
+  // ===== TIMELINE HELPERS =====
   const getTimelineOptions = () => {
     const diff = Math.abs(targetWeight - weight);
-    if (!diff || diff < 0.5) return [];
-
-    if (goal === 'weight_loss' || goal === 'fat_loss') {
-      // Safe rate: 0.5 kg/week = 2 kg/month | Max: 1 kg/week = 4 kg/month
-      const rec = Math.max(2, Math.ceil(diff / 2));
-      return [
-        {
-          months: Math.max(1, Math.round(diff / 4)),
-          status: 'critical',
-          note: `~${(diff / Math.max(1, Math.round(diff / 4))).toFixed(1)} kg/month — Too fast, risks muscle loss & health`,
-        },
-        {
-          months: Math.ceil(diff / 3),
-          status: 'aggressive',
-          note: `~${(diff / Math.ceil(diff / 3)).toFixed(1)} kg/month — Challenging, strict diet needed`,
-        },
-        {
-          months: rec,
-          status: 'recommended',
-          note: `~${(diff / rec).toFixed(1)} kg/month — Healthy & sustainable (ideal)`,
-        },
-        {
-          months: rec + Math.max(1, Math.round(rec * 0.5)),
-          status: 'comfortable',
-          note: `~${(diff / (rec + Math.max(1, Math.round(rec * 0.5)))).toFixed(1)} kg/month — Relaxed, very sustainable`,
-        },
-      ].filter((o, i, arr) => o.months >= 1 && arr.findIndex(x => x.months === o.months) === i);
-    }
-
-    if (goal === 'weight_gain') {
-      // Safe rate: 0.3-0.5 kg/week lean gain = 1.5-2 kg/month
-      const rec = Math.max(3, Math.ceil(diff / 1.5));
-      return [
-        {
-          months: Math.max(1, Math.round(diff / 3.5)),
-          status: 'critical',
-          note: `~${(diff / Math.max(1, Math.round(diff / 3.5))).toFixed(1)} kg/month — Too fast, mostly fat gain`,
-        },
-        {
-          months: Math.ceil(diff / 2.5),
-          status: 'aggressive',
-          note: `~${(diff / Math.ceil(diff / 2.5)).toFixed(1)} kg/month — Fast, some fat gain expected`,
-        },
-        {
-          months: rec,
-          status: 'recommended',
-          note: `~${(diff / rec).toFixed(1)} kg/month — Lean muscle + weight gain`,
-        },
-        {
-          months: rec + Math.max(2, Math.round(rec * 0.5)),
-          status: 'comfortable',
-          note: `~${(diff / (rec + Math.max(2, Math.round(rec * 0.5)))).toFixed(1)} kg/month — Very gradual, maximum quality`,
-        },
-      ].filter((o, i, arr) => o.months >= 1 && arr.findIndex(x => x.months === o.months) === i);
-    }
 
     if (goal === 'muscle_building') {
-      const diff2 = diff || 5;
       return [
-        { months: 3, status: diff2 > 3 ? 'critical' : 'aggressive', note: 'Very intensive, maximum effort required' },
+        { months: 3, status: 'aggressive', note: 'Very intensive, maximum effort required' },
         { months: 6, status: 'recommended', note: 'Visible muscle definition & strength gains' },
         { months: 9, status: 'comfortable', note: 'Consistent, sustainable progress' },
         { months: 12, status: 'comfortable', note: 'Full transformation with solid foundation' },
       ];
     }
+    if (!diff || diff < 0.5) return [];
 
-    return [];
+    if (goal === 'weight_loss' || goal === 'fat_loss') {
+      const rec = Math.max(2, Math.ceil(diff / 2));
+      return [
+        { months: Math.max(1, Math.round(diff / 4)), status: 'critical', note: `~${(diff / Math.max(1, Math.round(diff / 4))).toFixed(1)} kg/month — Too fast, risks muscle loss & health` },
+        { months: Math.ceil(diff / 3), status: 'aggressive', note: `~${(diff / Math.ceil(diff / 3)).toFixed(1)} kg/month — Challenging, strict diet needed` },
+        { months: rec, status: 'recommended', note: `~${(diff / rec).toFixed(1)} kg/month — Healthy & sustainable (ideal)` },
+        { months: rec + Math.max(1, Math.round(rec * 0.5)), status: 'comfortable', note: `~${(diff / (rec + Math.max(1, Math.round(rec * 0.5)))).toFixed(1)} kg/month — Relaxed, very sustainable` },
+      ].filter((o, i, arr) => o.months >= 1 && arr.findIndex(x => x.months === o.months) === i);
+    }
+    // weight_gain
+    const rec = Math.max(3, Math.ceil(diff / 1.5));
+    return [
+      { months: Math.max(1, Math.round(diff / 3.5)), status: 'critical', note: `~${(diff / Math.max(1, Math.round(diff / 3.5))).toFixed(1)} kg/month — Too fast, mostly fat gain` },
+      { months: Math.ceil(diff / 2.5), status: 'aggressive', note: `~${(diff / Math.ceil(diff / 2.5)).toFixed(1)} kg/month — Fast, some fat gain expected` },
+      { months: rec, status: 'recommended', note: `~${(diff / rec).toFixed(1)} kg/month — Lean muscle + weight gain` },
+      { months: rec + Math.max(2, Math.round(rec * 0.5)), status: 'comfortable', note: `~${(diff / (rec + Math.max(2, Math.round(rec * 0.5)))).toFixed(1)} kg/month — Very gradual, maximum quality` },
+    ].filter((o, i, arr) => o.months >= 1 && arr.findIndex(x => x.months === o.months) === i);
   };
 
   const applyCustomTimeline = (val, unit) => {
@@ -112,7 +96,6 @@ const ProfileSetupScreen = ({ navigation }) => {
     setTimeline(Math.min(36, Math.max(0.25, months)));
   };
 
-  // Classify a custom pace so warnings still apply
   const getCustomStatus = (months) => {
     const diff = Math.abs(targetWeight - weight);
     if (!diff || !months) return 'comfortable';
@@ -137,17 +120,22 @@ const ProfileSetupScreen = ({ navigation }) => {
     }
   };
 
+  // ===== SAVE =====
   const saveProfile = async () => {
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem('token');
       if (token) api.setToken(token);
 
-      const profileData = {
-        gender, age, height, weight, targetWeight,
-        activityLevel: activity, fitnessGoal: goal,
-      };
-
+      const profileData = {};
+      if (gender) profileData.gender = gender;
+      profileData.age = age;
+      profileData.height = height;
+      profileData.weight = weight;
+      profileData.targetWeight = targetWeight;
+      if (activity) profileData.activityLevel = activity;
+      if (goal) profileData.fitnessGoal = goal;
+      if (dietPreference) profileData.dietPreference = dietPreference;
       if (needsTimeline() && timeline) {
         profileData.goalTimeline = timeline;
         profileData.goalStartDate = new Date().toISOString();
@@ -166,6 +154,34 @@ const ProfileSetupScreen = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ===== NAVIGATION =====
+  const goNext = () => {
+    // After Diet step, jump to Timeline only if goal needs it
+    if (step === 5) {
+      if (needsTimeline()) setStep(6);
+      else saveProfile();
+      return;
+    }
+    if (step === 6) { saveProfile(); return; }
+    setStep(step + 1);
+  };
+
+  const handleNext = () => {
+    if (!isStepComplete()) return; // button disabled anyway
+    goNext();
+  };
+
+  const handleSkip = () => {
+    // Skip = move on without selecting this step
+    if (step === 0) setGoal(null);
+    if (step === 1) setGender(null);
+    if (step === 4) setActivity(null);
+    if (step === 5) setDietPreference(null);
+    if (step === 6) { setTimeline(null); saveProfile(); return; }
+    // If goal was skipped, timeline never shows
+    goNext();
   };
 
   const NumberSelector = ({ value, onChange, min, max, unit, label }) => (
@@ -188,11 +204,36 @@ const ProfileSetupScreen = ({ navigation }) => {
 
   const renderStep = () => {
     switch (step) {
-      case 0:
+      case 0: // ===== GOAL (FIRST) =====
+        return (
+          <View style={styles.stepContent}>
+            <Text style={styles.stepTitle}>Choose Your Goal</Text>
+            <Text style={styles.stepSubtitle}>What do you want to achieve? We'll build everything around this</Text>
+            <View style={styles.goalGrid}>
+              {FITNESS_GOALS.slice(0, 6).map((g) => (
+                <TouchableOpacity
+                  key={g.id}
+                  style={[styles.goalCard, goal === g.id && { borderColor: g.color, backgroundColor: g.color + '10' }]}
+                  onPress={() => { setGoal(g.id); setTimeline(null); }}
+                >
+                  <Text style={styles.goalIcon}>{g.icon}</Text>
+                  <Text style={[styles.goalTitle, goal === g.id && { color: g.color }]}>{g.title}</Text>
+                  <Text style={styles.goalDesc}>{g.desc}</Text>
+                  {goal === g.id && (
+                    <View style={[styles.goalCheck, { backgroundColor: g.color }]}>
+                      <Ionicons name="checkmark" size={12} color={COLORS.white} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        );
+      case 1: // ===== GENDER =====
         return (
           <View style={styles.stepContent}>
             <Text style={styles.stepTitle}>What's your gender?</Text>
-            <Text style={styles.stepSubtitle}>This helps us personalize your plan</Text>
+            <Text style={styles.stepSubtitle}>This helps us calculate your calorie needs accurately</Text>
             <View style={styles.genderRow}>
               {GENDER_OPTIONS.map((g) => (
                 <TouchableOpacity
@@ -207,25 +248,25 @@ const ProfileSetupScreen = ({ navigation }) => {
             </View>
           </View>
         );
-      case 1:
+      case 2: // ===== AGE =====
         return (
           <View style={styles.stepContent}>
             <Text style={styles.stepTitle}>How old are you?</Text>
-            <Text style={styles.stepSubtitle}>Age helps us calculate your needs</Text>
+            <Text style={styles.stepSubtitle}>Age affects your metabolism & calorie needs</Text>
             <NumberSelector value={age} onChange={setAge} min={10} max={80} unit="years" label="Age" />
           </View>
         );
-      case 2:
+      case 3: // ===== BODY =====
         return (
           <View style={styles.stepContent}>
             <Text style={styles.stepTitle}>Your Body Measurements</Text>
-            <Text style={styles.stepSubtitle}>We'll calculate your BMI & calorie needs</Text>
+            <Text style={styles.stepSubtitle}>We'll calculate your BMI & daily calorie target</Text>
             <NumberSelector value={height} onChange={setHeight} min={100} max={250} unit="cm" label="Height" />
             <NumberSelector value={weight} onChange={setWeight} min={30} max={200} unit="kg" label="Current Weight" />
             <NumberSelector value={targetWeight} onChange={setTargetWeight} min={30} max={200} unit="kg" label="Target Weight" />
           </View>
         );
-      case 3:
+      case 4: // ===== ACTIVITY =====
         return (
           <View style={styles.stepContent}>
             <Text style={styles.stepTitle}>Activity Level</Text>
@@ -241,31 +282,33 @@ const ProfileSetupScreen = ({ navigation }) => {
                   <Text style={[styles.activityLabel, activity === a.id && styles.activeText]}>{a.label}</Text>
                   <Text style={styles.activityDesc}>{a.desc}</Text>
                 </View>
+                {activity === a.id && <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />}
               </TouchableOpacity>
             ))}
           </View>
         );
-      case 4:
+      case 5: // ===== DIET PREFERENCE =====
         return (
           <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>What's Your Goal?</Text>
-            <Text style={styles.stepSubtitle}>Select your primary fitness goal</Text>
-            <View style={styles.goalGrid}>
-              {FITNESS_GOALS.slice(0, 6).map((g) => (
-                <TouchableOpacity
-                  key={g.id}
-                  style={[styles.goalCard, goal === g.id && { borderColor: g.color }]}
-                  onPress={() => { setGoal(g.id); setTimeline(null); }}
-                >
-                  <Text style={styles.goalIcon}>{g.icon}</Text>
-                  <Text style={[styles.goalTitle, goal === g.id && { color: g.color }]}>{g.title}</Text>
-                  <Text style={styles.goalDesc}>{g.desc}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Text style={styles.stepTitle}>Diet Preference</Text>
+            <Text style={styles.stepSubtitle}>Your meal suggestions & diet plans will match this</Text>
+            {DIET_OPTIONS.map((d) => (
+              <TouchableOpacity
+                key={d.key}
+                style={[styles.activityCard, dietPreference === d.key && styles.activityCardActive]}
+                onPress={() => setDietPreference(d.key)}
+              >
+                <Text style={styles.activityIcon}>{d.icon}</Text>
+                <View style={styles.activityInfo}>
+                  <Text style={[styles.activityLabel, dietPreference === d.key && styles.activeText]}>{d.label}</Text>
+                  <Text style={styles.activityDesc}>{d.desc}</Text>
+                </View>
+                {dietPreference === d.key && <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />}
+              </TouchableOpacity>
+            ))}
           </View>
         );
-      case 5: {
+      case 6: { // ===== TIMELINE =====
         const diff = Math.abs(targetWeight - weight);
         const options = getTimelineOptions();
         const selectedOption = options.find(o => o.months === timeline);
@@ -282,7 +325,6 @@ const ProfileSetupScreen = ({ navigation }) => {
                 : 'How long do you want to achieve your goal?'}
             </Text>
 
-            {/* Warning banner for critical selection */}
             {isCritical && (
               <View style={styles.warningBanner}>
                 <Ionicons name="warning" size={20} color="#FF4444" />
@@ -296,7 +338,6 @@ const ProfileSetupScreen = ({ navigation }) => {
               </View>
             )}
 
-            {/* Timeline options */}
             {options.map((opt) => {
               const style = getStatusStyle(opt.status);
               const isSelected = !customMode && timeline === opt.months;
@@ -377,61 +418,25 @@ const ProfileSetupScreen = ({ navigation }) => {
               </Text>
             )}
 
-            {/* Auto-recommendation info */}
             <View style={styles.timelineInfo}>
               <Ionicons name="information-circle-outline" size={16} color={COLORS.textMuted} />
               <Text style={styles.timelineInfoText}>
                 Based on scientific guidelines: safe weight loss = 0.5–1 kg/week, lean gain = 0.3–0.5 kg/week
               </Text>
             </View>
-
-            {/* Skip button */}
-            <TouchableOpacity style={styles.skipBtn} onPress={() => { setTimeline(null); saveProfile(); }}>
-              <Text style={styles.skipText}>Skip & use default timeline</Text>
-            </TouchableOpacity>
           </View>
         );
       }
     }
   };
 
-  const handleNext = () => {
-    if (step === 0 && !gender) {
-      Alert.alert('Required', 'Please select your gender to continue');
-      return;
-    }
-    if (step === 3 && !activity) {
-      Alert.alert('Required', 'Please select your activity level');
-      return;
-    }
-    if (step === 4 && !goal) {
-      Alert.alert('Required', 'Please select your fitness goal');
-      return;
-    }
-    if (step === 4) {
-      if (needsTimeline()) {
-        setStep(5);
-      } else {
-        saveProfile();
-      }
-      return;
-    }
-    if (step === 5) {
-      if (!timeline) {
-        Alert.alert('Select Timeline', 'Please select a timeline or tap "Skip" below');
-        return;
-      }
-      saveProfile();
-      return;
-    }
-    setStep(step + 1);
-  };
-
-  const totalSteps = needsTimeline() ? steps.length : steps.length - 1;
-  const displayStep = step + 1;
+  const totalSteps = needsTimeline() ? 7 : 6;
+  const displayStep = Math.min(step + 1, totalSteps);
+  const stepDone = isStepComplete();
 
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
+      {/* Progress + Skip */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
           <LinearGradient
@@ -442,6 +447,10 @@ const ProfileSetupScreen = ({ navigation }) => {
           />
         </View>
         <Text style={styles.stepIndicator}>{displayStep}/{totalSteps}</Text>
+        <TouchableOpacity onPress={handleSkip} style={styles.skipBtn} disabled={loading}>
+          <Text style={styles.skipText}>Skip</Text>
+          <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -455,10 +464,10 @@ const ProfileSetupScreen = ({ navigation }) => {
           </TouchableOpacity>
         )}
         <GradientButton
-          title={loading ? 'Saving...' : (step === 4 && !needsTimeline()) || step === 5 ? 'Complete Setup' : 'Continue'}
-          disabled={loading}
+          title={loading ? 'Saving...' : step === lastStep ? 'Complete Setup' : 'Continue'}
+          disabled={loading || !stepDone}
           onPress={handleNext}
-          style={[styles.nextBtn, step === 0 && { flex: 1 }]}
+          style={[styles.nextBtn, step === 0 && { flex: 1 }, !stepDone && { opacity: 0.4 }]}
         />
       </View>
     </LinearGradient>
@@ -477,10 +486,34 @@ const styles = StyleSheet.create({
   },
   progressFill: { height: '100%', borderRadius: 3 },
   stepIndicator: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.bold },
+  skipBtn: {
+    flexDirection: 'row', alignItems: 'center', marginLeft: 14,
+    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 14,
+    backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  skipText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium },
   scroll: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 100 },
   stepContent: {},
   stepTitle: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold, marginBottom: 8 },
   stepSubtitle: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium, marginBottom: 32 },
+
+  // Goal
+  goalGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  goalCard: {
+    width: (width - 60) / 2, paddingVertical: 20, paddingHorizontal: 14,
+    backgroundColor: COLORS.darkCard, borderRadius: SIZES.radiusLg,
+    borderWidth: 1.5, borderColor: COLORS.darkBorder, alignItems: 'center', position: 'relative',
+  },
+  goalIcon: { fontSize: 36, marginBottom: 10 },
+  goalTitle: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.semiBold, textAlign: 'center' },
+  goalDesc: { fontSize: SIZES.fontXs, color: COLORS.textMuted, textAlign: 'center', marginTop: 4 },
+  goalCheck: {
+    position: 'absolute', top: 8, right: 8,
+    width: 22, height: 22, borderRadius: 11,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // Gender
   genderRow: { flexDirection: 'row', gap: 12, justifyContent: 'center' },
   genderCard: {
     flex: 1, alignItems: 'center', paddingVertical: 28,
@@ -491,6 +524,8 @@ const styles = StyleSheet.create({
   genderIcon: { fontSize: 44, marginBottom: 12 },
   genderLabel: { fontSize: SIZES.fontLg, color: COLORS.textSecondary, ...FONTS.semiBold },
   genderLabelActive: { color: COLORS.primary },
+
+  // Number selector
   numberSelector: { marginBottom: 28 },
   numberLabel: { fontSize: SIZES.fontMd, color: COLORS.textSecondary, ...FONTS.medium, marginBottom: 12 },
   numberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
@@ -503,6 +538,8 @@ const styles = StyleSheet.create({
   numDisplay: { alignItems: 'center', marginHorizontal: 32 },
   numValue: { fontSize: 48, color: COLORS.white, ...FONTS.bold },
   numUnit: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium },
+
+  // Activity / Diet cards
   activityCard: {
     flexDirection: 'row', alignItems: 'center', padding: 16,
     backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius,
@@ -514,17 +551,8 @@ const styles = StyleSheet.create({
   activityLabel: { fontSize: SIZES.fontLg, color: COLORS.textSecondary, ...FONTS.semiBold },
   activeText: { color: COLORS.primary },
   activityDesc: { fontSize: SIZES.fontSm, color: COLORS.textMuted, marginTop: 2 },
-  goalGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  goalCard: {
-    width: (width - 60) / 2, paddingVertical: 20, paddingHorizontal: 14,
-    backgroundColor: COLORS.darkCard, borderRadius: SIZES.radiusLg,
-    borderWidth: 1.5, borderColor: COLORS.darkBorder, alignItems: 'center',
-  },
-  goalIcon: { fontSize: 36, marginBottom: 10 },
-  goalTitle: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.semiBold, textAlign: 'center' },
-  goalDesc: { fontSize: SIZES.fontXs, color: COLORS.textMuted, textAlign: 'center', marginTop: 4 },
 
-  // Timeline step
+  // Timeline
   warningBanner: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
     backgroundColor: '#FF444415', borderRadius: SIZES.radius,
@@ -548,6 +576,7 @@ const styles = StyleSheet.create({
   timelineMonthLabel: { fontSize: 10, ...FONTS.medium },
   timelineStatusLabel: { fontSize: SIZES.fontMd, ...FONTS.bold, marginBottom: 4 },
   timelineNote: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, lineHeight: 18 },
+
   // Custom timeline input
   customRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   customInput: {
@@ -573,9 +602,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.darkBorder, marginTop: 4, marginBottom: 12,
   },
   timelineInfoText: { flex: 1, fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, lineHeight: 18 },
-  skipBtn: { alignItems: 'center', paddingVertical: 12 },
-  skipText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium },
 
+  // Bottom bar
   bottomBar: {
     flexDirection: 'row', paddingHorizontal: 24, paddingBottom: 34, paddingTop: 12,
     backgroundColor: COLORS.dark, gap: 12,
