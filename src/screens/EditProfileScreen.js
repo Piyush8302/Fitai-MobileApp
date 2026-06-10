@@ -31,6 +31,9 @@ const EditProfileScreen = ({ navigation }) => {
   const [fitnessGoal, setFitnessGoal] = useState('');
   const [dietPreference, setDietPreference] = useState('');
   const [goalTimeline, setGoalTimeline] = useState(null); // months
+  const [customMode, setCustomMode] = useState(false);
+  const [customValue, setCustomValue] = useState('');
+  const [customUnit, setCustomUnit] = useState('months'); // 'weeks' | 'months'
   const [savingProfile, setSavingProfile] = useState(false);
 
   // OTP flow states
@@ -323,8 +326,8 @@ const EditProfileScreen = ({ navigation }) => {
 
     const protein = Math.round(w * (isGain || fitnessGoal === 'muscle_building' ? 1.8 : 1.6));
     const tooFast = isLoss ? rate > 3 : isGain ? rate > 2.5 : false;
-    const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + goalTimeline);
+    // Use days so fractional months (from weeks input) work correctly
+    const endDate = new Date(Date.now() + goalTimeline * 30.44 * 24 * 60 * 60 * 1000);
 
     const precautions = isLoss ? [
       `Never eat below ${bmr} kcal (your BMR) — slows metabolism`,
@@ -348,6 +351,22 @@ const EditProfileScreen = ({ navigation }) => {
     ];
 
     return { rate, targetCal, protein, tooFast, precautions, diff, isLoss, isGain, endDate };
+  };
+
+  const applyCustomTimeline = (val, unit) => {
+    setCustomValue(val);
+    setCustomUnit(unit);
+    const num = parseFloat(val);
+    if (!num || num <= 0) { setGoalTimeline(null); return; }
+    const months = unit === 'weeks' ? parseFloat((num / 4.345).toFixed(2)) : num;
+    setGoalTimeline(Math.min(36, Math.max(0.25, months))); // 1 week – 3 years
+  };
+
+  // Pretty label for fractional months (e.g. from weeks input)
+  const formatTimeline = (m) => {
+    if (!m) return '';
+    if (m < 1) return `${Math.round(m * 4.345)} weeks`;
+    return Number.isInteger(m) ? `${m} month${m > 1 ? 's' : ''}` : `~${m.toFixed(1)} months`;
   };
 
   const planDetails = getPlanDetails();
@@ -588,12 +607,12 @@ const EditProfileScreen = ({ navigation }) => {
               <View style={styles.chipWrap}>
                 {getTimelineOptions().map((opt) => {
                   const st = getStatusStyle(opt.status);
-                  const sel = goalTimeline === opt.months;
+                  const sel = !customMode && goalTimeline === opt.months;
                   return (
                     <TouchableOpacity
                       key={opt.months}
                       style={[styles.chip, sel && { backgroundColor: st.color + '25', borderColor: st.color }]}
-                      onPress={() => setGoalTimeline(opt.months)}
+                      onPress={() => { setCustomMode(false); setCustomValue(''); setGoalTimeline(opt.months); }}
                     >
                       <Text style={[styles.chipText, sel && { color: st.color, ...FONTS.bold }]}>
                         {opt.months} month{opt.months > 1 ? 's' : ''} · {st.label}
@@ -601,7 +620,46 @@ const EditProfileScreen = ({ navigation }) => {
                     </TouchableOpacity>
                   );
                 })}
+                <TouchableOpacity
+                  style={[styles.chip, customMode && styles.chipActive]}
+                  onPress={() => { setCustomMode(true); setGoalTimeline(null); setCustomValue(''); }}
+                >
+                  <Text style={[styles.chipText, customMode && styles.chipTextActive]}>✏️ Custom</Text>
+                </TouchableOpacity>
               </View>
+
+              {/* Custom timeline input */}
+              {customMode && (
+                <View style={styles.customRow}>
+                  <TextInput
+                    style={styles.customInput}
+                    value={customValue}
+                    onChangeText={(v) => applyCustomTimeline(v, customUnit)}
+                    keyboardType="number-pad"
+                    placeholder="e.g. 6"
+                    placeholderTextColor={COLORS.textMuted}
+                    maxLength={3}
+                  />
+                  <View style={styles.unitToggle}>
+                    {['weeks', 'months'].map((u) => (
+                      <TouchableOpacity
+                        key={u}
+                        style={[styles.unitBtn, customUnit === u && styles.unitBtnActive]}
+                        onPress={() => applyCustomTimeline(customValue, u)}
+                      >
+                        <Text style={[styles.unitText, customUnit === u && styles.unitTextActive]}>
+                          {u.charAt(0).toUpperCase() + u.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+              {customMode && goalTimeline && (
+                <Text style={styles.customHint}>
+                  = {formatTimeline(goalTimeline)} {planDetails?.tooFast ? '— ⚠️ too fast, risky pace!' : planDetails ? `— ${planDetails.rate.toFixed(1)} kg/month pace` : ''}
+                </Text>
+              )}
 
               {/* Plan summary + precautions */}
               {planDetails && goalTimeline && (
@@ -828,6 +886,24 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: COLORS.primary + '25', borderColor: COLORS.primary },
   chipText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
   chipTextActive: { color: COLORS.primary, ...FONTS.bold },
+  // Custom timeline input
+  customRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
+  customInput: {
+    flex: 1, backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radius,
+    borderWidth: 1.5, borderColor: COLORS.primary + '50',
+    paddingHorizontal: 16, paddingVertical: 12,
+    fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, textAlign: 'center',
+  },
+  unitToggle: {
+    flexDirection: 'row', backgroundColor: COLORS.darkSurface,
+    borderRadius: SIZES.radius, padding: 4, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  unitBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: SIZES.radius - 4 },
+  unitBtnActive: { backgroundColor: COLORS.primary },
+  unitText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium },
+  unitTextActive: { color: COLORS.white, ...FONTS.bold },
+  customHint: { fontSize: SIZES.fontXs, color: COLORS.accent, ...FONTS.medium, marginTop: 8 },
+
   // Goal Timeline plan box
   planBox: {
     marginTop: 14, padding: 14, borderRadius: SIZES.radius,

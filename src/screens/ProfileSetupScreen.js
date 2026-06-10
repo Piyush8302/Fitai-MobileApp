@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
@@ -22,6 +22,9 @@ const ProfileSetupScreen = ({ navigation }) => {
   const [activity, setActivity] = useState(null);
   const [goal, setGoal] = useState(null);
   const [timeline, setTimeline] = useState(null);
+  const [customMode, setCustomMode] = useState(false);
+  const [customValue, setCustomValue] = useState('');
+  const [customUnit, setCustomUnit] = useState('months');
   const [loading, setLoading] = useState(false);
 
   const steps = ['Gender', 'Age', 'Body', 'Activity', 'Goal', 'Timeline'];
@@ -98,6 +101,30 @@ const ProfileSetupScreen = ({ navigation }) => {
     }
 
     return [];
+  };
+
+  const applyCustomTimeline = (val, unit) => {
+    setCustomValue(val);
+    setCustomUnit(unit);
+    const num = parseFloat(val);
+    if (!num || num <= 0) { setTimeline(null); return; }
+    const months = unit === 'weeks' ? parseFloat((num / 4.345).toFixed(2)) : num;
+    setTimeline(Math.min(36, Math.max(0.25, months)));
+  };
+
+  // Classify a custom pace so warnings still apply
+  const getCustomStatus = (months) => {
+    const diff = Math.abs(targetWeight - weight);
+    if (!diff || !months) return 'comfortable';
+    const rate = diff / months;
+    if (goal === 'weight_gain') {
+      if (rate > 2.5) return 'critical';
+      if (rate > 2) return 'aggressive';
+      return rate >= 1 ? 'recommended' : 'comfortable';
+    }
+    if (rate > 3) return 'critical';
+    if (rate > 2.5) return 'aggressive';
+    return rate >= 1.5 ? 'recommended' : 'comfortable';
   };
 
   const getStatusStyle = (status) => {
@@ -242,7 +269,9 @@ const ProfileSetupScreen = ({ navigation }) => {
         const diff = Math.abs(targetWeight - weight);
         const options = getTimelineOptions();
         const selectedOption = options.find(o => o.months === timeline);
-        const isCritical = selectedOption?.status === 'critical';
+        const isCritical = customMode
+          ? timeline && getCustomStatus(timeline) === 'critical'
+          : selectedOption?.status === 'critical';
 
         return (
           <View style={styles.stepContent}>
@@ -270,12 +299,12 @@ const ProfileSetupScreen = ({ navigation }) => {
             {/* Timeline options */}
             {options.map((opt) => {
               const style = getStatusStyle(opt.status);
-              const isSelected = timeline === opt.months;
+              const isSelected = !customMode && timeline === opt.months;
               return (
                 <TouchableOpacity
                   key={opt.months}
                   style={[styles.timelineCard, isSelected && { borderColor: style.color, backgroundColor: style.bg }]}
-                  onPress={() => setTimeline(opt.months)}
+                  onPress={() => { setCustomMode(false); setCustomValue(''); setTimeline(opt.months); }}
                   activeOpacity={0.8}
                 >
                   <View style={styles.timelineLeft}>
@@ -296,6 +325,57 @@ const ProfileSetupScreen = ({ navigation }) => {
                 </TouchableOpacity>
               );
             })}
+
+            {/* Custom timeline */}
+            <TouchableOpacity
+              style={[styles.timelineCard, customMode && { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10' }]}
+              onPress={() => { setCustomMode(true); setTimeline(null); setCustomValue(''); }}
+              activeOpacity={0.8}
+            >
+              <View style={styles.timelineLeft}>
+                <View style={[styles.timelineMonthBadge, { backgroundColor: COLORS.primary + '20' }]}>
+                  <Text style={{ fontSize: 22 }}>✏️</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.timelineStatusLabel, { color: COLORS.primary }]}>Custom Timeline</Text>
+                  <Text style={styles.timelineNote}>Set your own — in weeks or months</Text>
+                </View>
+              </View>
+              {customMode && <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />}
+            </TouchableOpacity>
+
+            {customMode && (
+              <View style={styles.customRow}>
+                <TextInput
+                  style={styles.customInput}
+                  value={customValue}
+                  onChangeText={(v) => applyCustomTimeline(v, customUnit)}
+                  keyboardType="number-pad"
+                  placeholder="e.g. 6"
+                  placeholderTextColor={COLORS.textMuted}
+                  maxLength={3}
+                  autoFocus
+                />
+                <View style={styles.unitToggle}>
+                  {['weeks', 'months'].map((u) => (
+                    <TouchableOpacity
+                      key={u}
+                      style={[styles.unitBtn, customUnit === u && styles.unitBtnActive]}
+                      onPress={() => applyCustomTimeline(customValue, u)}
+                    >
+                      <Text style={[styles.unitText, customUnit === u && styles.unitTextActive]}>
+                        {u.charAt(0).toUpperCase() + u.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+            {customMode && timeline && diff > 0 && (
+              <Text style={styles.customHint}>
+                Pace: {(diff / timeline).toFixed(1)} kg/month — {getStatusStyle(getCustomStatus(timeline)).label}
+              </Text>
+            )}
 
             {/* Auto-recommendation info */}
             <View style={styles.timelineInfo}>
@@ -468,6 +548,24 @@ const styles = StyleSheet.create({
   timelineMonthLabel: { fontSize: 10, ...FONTS.medium },
   timelineStatusLabel: { fontSize: SIZES.fontMd, ...FONTS.bold, marginBottom: 4 },
   timelineNote: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, lineHeight: 18 },
+  // Custom timeline input
+  customRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  customInput: {
+    flex: 1, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius,
+    borderWidth: 1.5, borderColor: COLORS.primary + '50',
+    paddingHorizontal: 16, paddingVertical: 12,
+    fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, textAlign: 'center',
+  },
+  unitToggle: {
+    flexDirection: 'row', backgroundColor: COLORS.darkCard,
+    borderRadius: SIZES.radius, padding: 4, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  unitBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: SIZES.radius - 4 },
+  unitBtnActive: { backgroundColor: COLORS.primary },
+  unitText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium },
+  unitTextActive: { color: COLORS.white, ...FONTS.bold },
+  customHint: { fontSize: SIZES.fontSm, color: COLORS.accent, ...FONTS.medium, marginBottom: 12, textAlign: 'center' },
+
   timelineInfo: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
     paddingVertical: 12, paddingHorizontal: 14,
