@@ -51,11 +51,28 @@ const HomeScreen = ({ navigation }) => {
     return 'Good Evening 🌙';
   };
 
+  // Goal-adjusted calorie target (same logic as TrackingScreen getGoalInfo)
+  const getGoalAdjustedCalories = () => {
+    const dailyCal = user.dailyCalories || tracking.caloriesGoal || 2000;
+    const bmr = user.bmr || Math.round(dailyCal / 1.55);
+    const safeDeficit = Math.max(bmr, dailyCal - 500);
+    switch (user.fitnessGoal) {
+      case 'weight_loss':
+      case 'fat_loss': return safeDeficit;
+      case 'weight_gain': return Math.round(dailyCal + 400);
+      case 'muscle_building': return Math.round(dailyCal + 300);
+      case 'height_growth':
+      case 'gym_workout': return Math.round(dailyCal * 1.1);
+      default: return dailyCal;
+    }
+  };
+
   const goalLabel = (user.fitnessGoal || 'maintenance').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   const weightDiff = Math.abs((user.weight || 70) - (user.targetWeight || 65));
   const weightTotal = Math.abs(70 - (user.targetWeight || 65)) || 10;
   const goalPercent = Math.min(100, Math.round(((weightTotal - weightDiff) / weightTotal) * 100));
-  const calPercent = tracking.caloriesGoal ? Math.round((tracking.caloriesConsumed / tracking.caloriesGoal) * 100) : 0;
+  const adjustedCalGoal = getGoalAdjustedCalories();
+  const calPercent = adjustedCalGoal ? Math.round((tracking.caloriesConsumed / adjustedCalGoal) * 100) : 0;
   const overallProgress = Math.round((calPercent + (tracking.waterIntake / tracking.waterGoal * 100) + (tracking.steps / tracking.stepsGoal * 100)) / 3) || 0;
   const quickActions = [
     { id: 'bmi', title: 'BMI', icon: '⚖️', screen: 'BMI', color: '#FF6B6B' },
@@ -104,7 +121,7 @@ const HomeScreen = ({ navigation }) => {
               <View style={styles.progressItem}>
                 <View style={[styles.progressDot, { backgroundColor: COLORS.success }]} />
                 <Text style={styles.progressLabel}>Calories</Text>
-                <Text style={styles.progressValue}>{tracking.caloriesConsumed.toLocaleString()} / {(tracking.caloriesGoal || 2000).toLocaleString()}</Text>
+                <Text style={styles.progressValue}>{tracking.caloriesConsumed.toLocaleString()} / {getGoalAdjustedCalories().toLocaleString()}</Text>
               </View>
               <View style={styles.progressItem}>
                 <View style={[styles.progressDot, { backgroundColor: COLORS.accent }]} />

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert, Modal, TextInput, Platform, AppState, Animated, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert, Modal, TextInput, Platform, Animated, KeyboardAvoidingView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Pedometer } from 'expo-sensors';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import Header from '../components/Header';
 import GradientCard from '../components/GradientCard';
@@ -18,14 +17,6 @@ const TrackingScreen = ({ navigation }) => {
   const [tracking, setTracking] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // Pedometer
-  const [isPedometerAvailable, setIsPedometerAvailable] = useState(false);
-  const [liveSteps, setLiveSteps] = useState(0);
-  const [pedometerActive, setPedometerActive] = useState(false);
-  const pedometerSub = useRef(null);
-  const lastSyncedSteps = useRef(0);
-  const syncTimer = useRef(null);
 
   // Modals
   const [showWalkModal, setShowWalkModal] = useState(false);
@@ -82,113 +73,6 @@ const TrackingScreen = ({ navigation }) => {
         Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
       ]).start(() => setToast(null));
     }, 2500);
-  };
-
-  // ===== PEDOMETER SETUP =====
-  useEffect(() => {
-    const checkPedometer = async () => {
-      try {
-        const available = await Pedometer.isAvailableAsync();
-        setIsPedometerAvailable(available);
-        if (available) {
-          // Load today's total steps from device sensor (captures background steps)
-          const start = new Date();
-          start.setHours(0, 0, 0, 0);
-          const end = new Date();
-          try {
-            const pastSteps = await Pedometer.getStepCountAsync(start, end);
-            if (pastSteps && pastSteps.steps > 0) {
-              setTracking((prev) => {
-                const serverSteps = prev?.steps || 0;
-                if (pastSteps.steps > serverSteps) {
-                  return { ...prev, steps: pastSteps.steps };
-                }
-                return prev;
-              });
-            }
-          } catch (e) { console.log('Historical steps fetch error:', e); }
-
-          const savedActive = await AsyncStorage.getItem('pedometerActive');
-          if (savedActive === 'true') {
-            startPedometer();
-          }
-        }
-      } catch (e) {
-        console.log('Pedometer check error:', e);
-        setIsPedometerAvailable(false);
-      }
-    };
-    checkPedometer();
-
-    return () => {
-      if (pedometerSub.current) pedometerSub.current.remove();
-      if (syncTimer.current) clearInterval(syncTimer.current);
-    };
-  }, []);
-
-  const startPedometer = async () => {
-    try {
-      if (pedometerSub.current) pedometerSub.current.remove();
-
-      setLiveSteps(0);
-      lastSyncedSteps.current = 0;
-
-      pedometerSub.current = Pedometer.watchStepCount((result) => {
-        setLiveSteps(result.steps);
-      });
-
-      setPedometerActive(true);
-      await AsyncStorage.setItem('pedometerActive', 'true');
-
-      if (syncTimer.current) clearInterval(syncTimer.current);
-      syncTimer.current = setInterval(() => {
-        syncStepsToServer();
-      }, 60000);
-    } catch (e) {
-      console.log('Pedometer start error:', e);
-      Alert.alert('Error', 'Could not start step counter. Make sure you have granted motion permissions.');
-    }
-  };
-
-  const stopPedometer = async () => {
-    if (pedometerSub.current) {
-      pedometerSub.current.remove();
-      pedometerSub.current = null;
-    }
-    if (syncTimer.current) {
-      clearInterval(syncTimer.current);
-      syncTimer.current = null;
-    }
-
-    await syncStepsToServer();
-    setPedometerActive(false);
-    setLiveSteps(0);
-    lastSyncedSteps.current = 0;
-    await AsyncStorage.setItem('pedometerActive', 'false');
-  };
-
-  const syncStepsToServer = async () => {
-    try {
-      setLiveSteps((currentLive) => {
-        const newSteps = currentLive - lastSyncedSteps.current;
-        if (newSteps > 0) {
-          lastSyncedSteps.current = currentLive;
-          const calBurned = Math.round(newSteps * (0.0004 * (userProfile?.weight || 60) + 0.015));
-          setTracking((prev) => {
-            const updatedSteps = (prev?.steps || 0) + newSteps;
-            const updatedBurned = (prev?.caloriesBurned || 0) + calBurned;
-            api.post(ENDPOINTS.LOG_TRACKING, {
-              steps: updatedSteps,
-              caloriesBurned: updatedBurned,
-            }).catch((e) => console.log('Step sync error:', e));
-            return { ...prev, steps: updatedSteps, caloriesBurned: updatedBurned };
-          });
-        }
-        return currentLive;
-      });
-    } catch (e) {
-      console.log('Sync steps error:', e);
-    }
   };
 
   const loadData = useCallback(async () => {
@@ -568,14 +452,26 @@ const TrackingScreen = ({ navigation }) => {
                       </Text>
                       <Text style={styles.goalTargetLabel}>{cal > goalInfo.targetCalories ? 'Over' : 'Remaining'}</Text>
                     </View>
+                    {userProfile?.goalTimeline && (
+                      <>
+                        <View style={styles.goalTargetDivider} />
+                        <View style={styles.goalTarget}>
+                          <Text style={[styles.goalTargetValue, { color: COLORS.accent }]}>
+                            {(() => {
+                              if (!userProfile.goalStartDate) return `${userProfile.goalTimeline}m`;
+                              const start = new Date(userProfile.goalStartDate);
+                              const end = new Date(start);
+                              end.setMonth(end.getMonth() + userProfile.goalTimeline);
+                              const now = new Date();
+                              const daysLeft = Math.max(0, Math.round((end - now) / (1000 * 60 * 60 * 24)));
+                              return daysLeft > 0 ? `${daysLeft}d` : 'Done!';
+                            })()}
+                          </Text>
+                          <Text style={styles.goalTargetLabel}>Days Left</Text>
+                        </View>
+                      </>
+                    )}
                   </View>
-                  {goalInfo.tips.length > 0 && (
-                    <View style={styles.goalTips}>
-                      {goalInfo.tips.map((tip, i) => (
-                        <Text key={i} style={styles.goalTip}>• {tip}</Text>
-                      ))}
-                    </View>
-                  )}
                 </View>
               </GradientCard>
             )}
@@ -605,64 +501,6 @@ const TrackingScreen = ({ navigation }) => {
                 </TouchableOpacity>
               ))}
             </View>
-
-            {/* ===== LIVE STEP COUNTER ===== */}
-            <GradientCard colors={isPedometerAvailable ? ['#4CAF5015', '#1A1A2E'] : ['#F4433615', '#1A1A2E']} style={{ marginBottom: 16 }}>
-              <View style={styles.pedometerCard}>
-                <View style={styles.pedometerLeft}>
-                  <Text style={styles.pedometerEmoji}>{pedometerActive ? '🚶‍♂️' : '📱'}</Text>
-                  <View>
-                    <Text style={styles.pedometerTitle}>
-                      {isPedometerAvailable ? 'Live Step Counter' : 'Step Counter'}
-                    </Text>
-                    {isPedometerAvailable ? (
-                      pedometerActive ? (
-                        <Text style={styles.pedometerSub}>
-                          +{liveSteps} steps this session | ~{Math.round(liveSteps * (0.0004 * (userProfile?.weight || 60) + 0.015))} kcal
-                        </Text>
-                      ) : (
-                        <Text style={styles.pedometerSub}>Tap Start to auto-count your steps</Text>
-                      )
-                    ) : (
-                      <Text style={[styles.pedometerSub, { color: COLORS.error }]}>Sensor not available on this device</Text>
-                    )}
-                  </View>
-                </View>
-                {isPedometerAvailable && (
-                  <TouchableOpacity
-                    style={[styles.pedometerBtn, pedometerActive && styles.pedometerBtnStop]}
-                    onPress={pedometerActive ? stopPedometer : startPedometer}
-                  >
-                    <Ionicons
-                      name={pedometerActive ? 'stop' : 'play'}
-                      size={16}
-                      color={pedometerActive ? COLORS.error : COLORS.success}
-                    />
-                    <Text style={[styles.pedometerBtnText, { color: pedometerActive ? COLORS.error : COLORS.success }]}>
-                      {pedometerActive ? 'Stop' : 'Start'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              {pedometerActive && (
-                <View style={styles.liveStepsRow}>
-                  <View style={styles.liveStepItem}>
-                    <Text style={styles.liveStepValue}>{(tracking?.steps || 0) + liveSteps - (lastSyncedSteps.current || 0)}</Text>
-                    <Text style={styles.liveStepLabel}>Total Steps</Text>
-                  </View>
-                  <View style={styles.liveStepDivider} />
-                  <View style={styles.liveStepItem}>
-                    <Text style={[styles.liveStepValue, { color: COLORS.success }]}>{((((tracking?.steps || 0) + liveSteps - (lastSyncedSteps.current || 0)) / 1300)).toFixed(1)} km</Text>
-                    <Text style={styles.liveStepLabel}>Distance</Text>
-                  </View>
-                  <View style={styles.liveStepDivider} />
-                  <View style={styles.liveStepItem}>
-                    <Text style={[styles.liveStepValue, { color: COLORS.warning }]}>{(tracking?.caloriesBurned || 0) + Math.round((liveSteps - (lastSyncedSteps.current || 0)) * (0.0004 * (userProfile?.weight || 60) + 0.015))}</Text>
-                    <Text style={styles.liveStepLabel}>Calories</Text>
-                  </View>
-                </View>
-              )}
-            </GradientCard>
 
             {/* ===== TODAY'S SUMMARY ===== */}
             <Text style={styles.sectionTitle}>📊 Today's Summary</Text>
@@ -1316,9 +1154,6 @@ const styles = StyleSheet.create({
   goalTargetValue: { fontSize: SIZES.fontXl, ...FONTS.bold },
   goalTargetLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
   goalTargetDivider: { width: 1, height: 30, backgroundColor: COLORS.darkBorder },
-  goalTips: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.darkBorder },
-  goalTip: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium, marginBottom: 4, lineHeight: 20 },
-
   // Quick Actions (2-column broad)
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
   quickItem: {
@@ -1504,30 +1339,6 @@ const styles = StyleSheet.create({
   submitBtn: { borderRadius: SIZES.radius, overflow: 'hidden', marginTop: 16 },
   submitGrad: { alignItems: 'center', paddingVertical: 14, borderRadius: SIZES.radius },
   submitText: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
-
-  // Pedometer
-  pedometerCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  pedometerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  pedometerEmoji: { fontSize: 32 },
-  pedometerTitle: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
-  pedometerSub: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
-  pedometerBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 20, borderWidth: 1.5,
-    borderColor: COLORS.success + '50', backgroundColor: COLORS.success + '10',
-  },
-  pedometerBtnStop: { borderColor: COLORS.error + '50', backgroundColor: COLORS.error + '10' },
-  pedometerBtnText: { fontSize: SIZES.fontSm, ...FONTS.bold },
-  liveStepsRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
-    marginTop: 14, paddingTop: 14,
-    borderTopWidth: 1, borderTopColor: COLORS.darkBorder,
-  },
-  liveStepItem: { alignItems: 'center' },
-  liveStepValue: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },
-  liveStepLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
-  liveStepDivider: { width: 1, height: 30, backgroundColor: COLORS.darkBorder },
 
   // Toast
   toastWrap: { position: 'absolute', top: 60, right: 16, left: 16, zIndex: 999, elevation: 999 },
