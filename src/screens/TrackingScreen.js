@@ -30,8 +30,17 @@ const TrackingScreen = ({ navigation }) => {
   const [walkMin, setWalkMin] = useState('');
   const [activityType, setActivityType] = useState('walk');
 
+  // Auto-detect meal type from current time
+  const getMealTypeByTime = () => {
+    const h = new Date().getHours();
+    if (h >= 4 && h < 11) return 'breakfast';   // 4 AM – 11 AM
+    if (h >= 11 && h < 16) return 'lunch';      // 11 AM – 4 PM
+    if (h >= 16 && h < 19) return 'snack';      // 4 PM – 7 PM
+    return 'dinner';                            // 7 PM – 4 AM
+  };
+
   // Meal form
-  const [mealType, setMealType] = useState('lunch');
+  const [mealType, setMealType] = useState(getMealTypeByTime());
   const [mealName, setMealName] = useState('');
   const [mealCalories, setMealCalories] = useState('');
   const [mealProtein, setMealProtein] = useState('');
@@ -559,7 +568,7 @@ const TrackingScreen = ({ navigation }) => {
             <Text style={styles.sectionTitle}>⚡ Quick Log</Text>
             <View style={styles.quickGrid}>
               {[
-                { icon: '🍽', label: 'Log Meal', desc: `${meals.length} meal${meals.length !== 1 ? 's' : ''} logged`, color: COLORS.warning, onPress: () => setShowMealModal(true), value: `${cal} / ${calGoal} kcal` },
+                { icon: '🍽', label: 'Log Meal', desc: `${meals.length} meal${meals.length !== 1 ? 's' : ''} logged`, color: COLORS.warning, onPress: () => { setMealType(getMealTypeByTime()); setShowMealModal(true); }, value: `${cal} / ${calGoal} kcal` },
                 { icon: '🚶', label: 'Walk / Run', desc: `${formatSteps(steps)} steps today`, color: '#4CAF50', onPress: () => setShowWalkModal(true), value: `${burned} kcal burned` },
                 { icon: '🏋️', label: 'Log Exercise', desc: 'Pick from exercises', color: COLORS.primary, onPress: () => setShowExerciseModal(true), value: `${burned} kcal total` },
                 { icon: '😴', label: 'Log Sleep', desc: sleep > 0 ? `${sleep}h logged today` : 'Not logged yet', color: '#9C27B0', onPress: () => setShowSleepModal(true), value: sleep > 0 ? `${sleep} / ${sleepGoal}h` : '— / 8h' },
