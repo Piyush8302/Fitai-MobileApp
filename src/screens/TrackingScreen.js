@@ -116,14 +116,17 @@ const TrackingScreen = ({ navigation }) => {
   }, [navigation, loadData, loadWeekly]);
 
   // ===== API ACTIONS =====
+  const MAX_WATER = 20;
+
   const addWater = async (delta = 1) => {
     const current = tracking?.waterIntake || 0;
     if (delta < 0 && current <= 0) return; // can't go below 0
+    if (delta > 0 && current >= MAX_WATER) return; // cap at 20 glasses
 
     // Optimistic update — instant UI feedback
     setTracking(prev => ({
       ...prev,
-      waterIntake: Math.max(0, (prev?.waterIntake || 0) + delta),
+      waterIntake: Math.min(MAX_WATER, Math.max(0, (prev?.waterIntake || 0) + delta)),
     }));
 
     try {
@@ -506,9 +509,9 @@ const TrackingScreen = ({ navigation }) => {
                 </Text>
               </View>
 
-              {/* Glass indicators */}
+              {/* Glass indicators (max 16 icons, then +N badge) */}
               <View style={styles.waterGlasses}>
-                {Array.from({ length: Math.max(waterGoal, water) }).map((_, i) => (
+                {Array.from({ length: Math.min(16, Math.max(waterGoal, water)) }).map((_, i) => (
                   <Ionicons
                     key={i}
                     name={i < water ? 'water' : 'water-outline'}
@@ -516,6 +519,11 @@ const TrackingScreen = ({ navigation }) => {
                     color={i < water ? COLORS.accent : COLORS.textMuted + '60'}
                   />
                 ))}
+                {water > 16 && (
+                  <View style={styles.waterMoreBadge}>
+                    <Text style={styles.waterMoreText}>+{water - 16}</Text>
+                  </View>
+                )}
               </View>
 
               {/* − / + controls */}
@@ -533,11 +541,16 @@ const TrackingScreen = ({ navigation }) => {
                     <View style={[styles.waterProgressFill, { width: `${Math.min(100, Math.round((water / waterGoal) * 100))}%` }]} />
                   </View>
                   <Text style={styles.waterProgressLabel}>
-                    {water >= waterGoal ? '🎉 Daily goal complete!' : `${waterGoal - water} glass${waterGoal - water > 1 ? 'es' : ''} to go`}
+                    {water >= MAX_WATER ? '✋ Max limit (20) reached' : water >= waterGoal ? '🎉 Daily goal complete!' : `${waterGoal - water} glass${waterGoal - water > 1 ? 'es' : ''} to go`}
                   </Text>
                 </View>
-                <TouchableOpacity style={styles.waterBtn} onPress={() => addWater(1)} activeOpacity={0.7}>
-                  <Ionicons name="add" size={28} color={COLORS.accent} />
+                <TouchableOpacity
+                  style={[styles.waterBtn, water >= MAX_WATER && styles.waterBtnDisabled]}
+                  onPress={() => addWater(1)}
+                  disabled={water >= MAX_WATER}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add" size={28} color={water >= MAX_WATER ? COLORS.textMuted : COLORS.accent} />
                 </TouchableOpacity>
               </View>
             </GradientCard>
@@ -1244,6 +1257,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.darkBorder, overflow: 'hidden',
   },
   waterProgressFill: { height: '100%', borderRadius: 4, backgroundColor: COLORS.accent },
+  waterMoreBadge: {
+    paddingHorizontal: 8, height: 26, borderRadius: 13,
+    backgroundColor: COLORS.accent + '20', borderWidth: 1, borderColor: COLORS.accent + '40',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  waterMoreText: { fontSize: SIZES.fontXs, color: COLORS.accent, ...FONTS.bold },
   waterProgressLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
 
   // Quick Actions (2-column broad)
