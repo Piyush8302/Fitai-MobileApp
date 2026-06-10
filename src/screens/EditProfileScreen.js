@@ -30,6 +30,7 @@ const EditProfileScreen = ({ navigation }) => {
   const [activityLevel, setActivityLevel] = useState('');
   const [fitnessGoal, setFitnessGoal] = useState('');
   const [dietPreference, setDietPreference] = useState('');
+  const [goalTimeline, setGoalTimeline] = useState(null); // months
   const [savingProfile, setSavingProfile] = useState(false);
 
   // OTP flow states
@@ -63,6 +64,7 @@ const EditProfileScreen = ({ navigation }) => {
         setActivityLevel(u.activityLevel || '');
         setFitnessGoal(u.fitnessGoal || '');
         setDietPreference(u.dietPreference || '');
+        setGoalTimeline(u.goalTimeline || null);
       }
     } catch (e) {
       console.log('Load user error:', e);
@@ -250,6 +252,105 @@ const EditProfileScreen = ({ navigation }) => {
   const phoneChanged = phone.trim() !== (user?.phone || '');
   const nameChanged = name.trim() !== (user?.name || '');
   const avatarChanged = avatar !== (user?.avatar || '');
+
+  // ===== GOAL TIMELINE =====
+  const TIMELINE_GOALS = ['weight_loss', 'weight_gain', 'muscle_building', 'fat_loss'];
+  const showTimeline = TIMELINE_GOALS.includes(fitnessGoal);
+
+  const getTimelineOptions = () => {
+    const w = parseFloat(weight) || 0;
+    const tw = parseFloat(targetWeight) || 0;
+    const diff = Math.abs(tw - w);
+
+    if (fitnessGoal === 'muscle_building') {
+      return [
+        { months: 3, status: 'aggressive' },
+        { months: 6, status: 'recommended' },
+        { months: 9, status: 'comfortable' },
+        { months: 12, status: 'comfortable' },
+      ];
+    }
+    if (!diff || diff < 0.5) return [];
+
+    if (fitnessGoal === 'weight_loss' || fitnessGoal === 'fat_loss') {
+      // Safe: ~2 kg/month | Max: ~4 kg/month
+      const rec = Math.max(2, Math.ceil(diff / 2));
+      return [
+        { months: Math.max(1, Math.round(diff / 4)), status: 'critical' },
+        { months: Math.ceil(diff / 3), status: 'aggressive' },
+        { months: rec, status: 'recommended' },
+        { months: rec + Math.max(1, Math.round(rec * 0.5)), status: 'comfortable' },
+      ].filter((o, i, a) => o.months >= 1 && a.findIndex(x => x.months === o.months) === i);
+    }
+    // weight_gain — safe lean gain ~1.5 kg/month
+    const rec = Math.max(3, Math.ceil(diff / 1.5));
+    return [
+      { months: Math.max(1, Math.round(diff / 3.5)), status: 'critical' },
+      { months: Math.ceil(diff / 2.5), status: 'aggressive' },
+      { months: rec, status: 'recommended' },
+      { months: rec + Math.max(2, Math.round(rec * 0.5)), status: 'comfortable' },
+    ].filter((o, i, a) => o.months >= 1 && a.findIndex(x => x.months === o.months) === i);
+  };
+
+  const getStatusStyle = (status) => {
+    switch (status) {
+      case 'critical': return { color: '#FF4444', label: '⚠️ Too Fast' };
+      case 'aggressive': return { color: '#FF9800', label: '🔥 Aggressive' };
+      case 'recommended': return { color: '#4CAF50', label: '✅ Recommended' };
+      case 'comfortable': return { color: '#00D2FF', label: '😌 Comfortable' };
+      default: return { color: COLORS.textMuted, label: 'Custom' };
+    }
+  };
+
+  // Diet plan + precautions calculated from selected timeline
+  const getPlanDetails = () => {
+    if (!goalTimeline || !showTimeline) return null;
+    const w = parseFloat(weight) || 70;
+    const tw = parseFloat(targetWeight) || w;
+    const diff = Math.abs(tw - w);
+    const isLoss = fitnessGoal === 'weight_loss' || fitnessGoal === 'fat_loss';
+    const isGain = fitnessGoal === 'weight_gain';
+    const rate = diff > 0 ? diff / goalTimeline : 0; // kg/month
+    const dailyCal = user?.dailyCalories || 2000;
+    const bmr = user?.bmr || Math.round(dailyCal / 1.55);
+
+    // 1 kg body weight ≈ 7700 kcal
+    const dailyDelta = Math.round((rate * 7700) / 30);
+    let targetCal;
+    if (isLoss) targetCal = Math.max(bmr, dailyCal - dailyDelta);
+    else if (isGain) targetCal = dailyCal + Math.min(dailyDelta || 400, 500);
+    else targetCal = dailyCal + 300;
+
+    const protein = Math.round(w * (isGain || fitnessGoal === 'muscle_building' ? 1.8 : 1.6));
+    const tooFast = isLoss ? rate > 3 : isGain ? rate > 2.5 : false;
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + goalTimeline);
+
+    const precautions = isLoss ? [
+      `Never eat below ${bmr} kcal (your BMR) — slows metabolism`,
+      `Eat ${protein}g protein daily to preserve muscle`,
+      'No crash dieting — weight bounces back (yo-yo effect)',
+      'Walk 8,000–10,000 steps daily',
+      'Sleep 7–8 hours — poor sleep stalls fat loss',
+      'Avoid sugary drinks, maida & fried food',
+    ] : isGain ? [
+      'Gain with clean food, not junk — quality surplus',
+      `Eat ${protein}g protein daily (dal, paneer, eggs, chicken)`,
+      'Strength train 3–4x/week or surplus becomes fat',
+      'Add banana shake, peanut butter, dry fruits, ghee',
+      'Eat 5–6 meals a day — never skip breakfast',
+    ] : [
+      `Eat ${protein}g protein split across 4–5 meals`,
+      'Progressive overload — increase weight/reps weekly',
+      '20–40g protein within 2 hours post-workout',
+      'Sleep 7–9 hours for muscle recovery',
+      'Rest 48 hours between same muscle group',
+    ];
+
+    return { rate, targetCal, protein, tooFast, precautions, diff, isLoss, isGain, endDate };
+  };
+
+  const planDetails = getPlanDetails();
 
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
@@ -478,6 +579,59 @@ const EditProfileScreen = ({ navigation }) => {
             </View>
           </View>
 
+          {/* Goal Timeline */}
+          {showTimeline && (
+            <View style={styles.fieldCard}>
+              <Text style={styles.fieldLabel}>
+                Goal Timeline {planDetails?.diff > 0 ? `— ${planDetails.diff.toFixed(1)} kg to ${parseFloat(targetWeight) > parseFloat(weight) ? 'gain' : 'lose'}` : ''}
+              </Text>
+              <View style={styles.chipWrap}>
+                {getTimelineOptions().map((opt) => {
+                  const st = getStatusStyle(opt.status);
+                  const sel = goalTimeline === opt.months;
+                  return (
+                    <TouchableOpacity
+                      key={opt.months}
+                      style={[styles.chip, sel && { backgroundColor: st.color + '25', borderColor: st.color }]}
+                      onPress={() => setGoalTimeline(opt.months)}
+                    >
+                      <Text style={[styles.chipText, sel && { color: st.color, ...FONTS.bold }]}>
+                        {opt.months} month{opt.months > 1 ? 's' : ''} · {st.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Plan summary + precautions */}
+              {planDetails && goalTimeline && (
+                <View style={styles.planBox}>
+                  {planDetails.tooFast && (
+                    <View style={styles.planWarning}>
+                      <Ionicons name="warning" size={16} color="#FF4444" />
+                      <Text style={styles.planWarningText}>
+                        This pace is too fast and risky — muscle loss, weakness & nutritional deficiency. Choose a slower timeline.
+                      </Text>
+                    </View>
+                  )}
+                  <Text style={styles.planTitle}>📋 Your Plan</Text>
+                  <View style={styles.planRow}>
+                    <Text style={styles.planItem}>🎯 {planDetails.diff > 0 ? `${planDetails.rate.toFixed(1)} kg/month` : 'Body recomposition'}</Text>
+                    <Text style={styles.planItem}>🔥 ~{planDetails.targetCal} kcal/day</Text>
+                  </View>
+                  <View style={styles.planRow}>
+                    <Text style={styles.planItem}>💪 {planDetails.protein}g protein/day</Text>
+                    <Text style={styles.planItem}>📅 Target: {planDetails.endDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</Text>
+                  </View>
+                  <Text style={styles.planTitle}>🛡️ Precautions</Text>
+                  {planDetails.precautions.map((p, i) => (
+                    <Text key={i} style={styles.precautionText}>• {p}</Text>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Activity Level */}
           <View style={styles.fieldCard}>
             <Text style={styles.fieldLabel}>Activity Level</Text>
@@ -528,6 +682,13 @@ const EditProfileScreen = ({ navigation }) => {
                 if (activityLevel) updates.activityLevel = activityLevel;
                 if (fitnessGoal) updates.fitnessGoal = fitnessGoal;
                 if (dietPreference) updates.dietPreference = dietPreference;
+                if (showTimeline && goalTimeline) {
+                  updates.goalTimeline = goalTimeline;
+                  // Reset start date only when timeline actually changed
+                  if (goalTimeline !== user?.goalTimeline) {
+                    updates.goalStartDate = new Date().toISOString();
+                  }
+                }
                 const res = await api.put(ENDPOINTS.UPDATE_PROFILE, updates);
                 if (res.success) {
                   // Server recalculates BMR, BMI, dailyCalories, proteinNeed via pre-save hook
@@ -667,6 +828,22 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: COLORS.primary + '25', borderColor: COLORS.primary },
   chipText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
   chipTextActive: { color: COLORS.primary, ...FONTS.bold },
+  // Goal Timeline plan box
+  planBox: {
+    marginTop: 14, padding: 14, borderRadius: SIZES.radius,
+    backgroundColor: COLORS.darkSurface, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  planWarning: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: '#FF444415', borderRadius: SIZES.radius,
+    borderWidth: 1, borderColor: '#FF444440', padding: 10, marginBottom: 12,
+  },
+  planWarningText: { flex: 1, fontSize: SIZES.fontXs, color: '#FF4444', ...FONTS.medium, lineHeight: 17 },
+  planTitle: { fontSize: SIZES.fontSm, color: COLORS.white, ...FONTS.bold, marginBottom: 8, marginTop: 4 },
+  planRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  planItem: { fontSize: SIZES.fontXs, color: COLORS.textSecondary, ...FONTS.medium },
+  precautionText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, lineHeight: 19, marginBottom: 3 },
+
   saveProfileBtn: { marginTop: 20, borderRadius: SIZES.radius, overflow: 'hidden' },
   saveProfileGrad: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
