@@ -34,7 +34,7 @@ const WeightGainScreen = ({ navigation }) => (
       {/* High Calorie Meals */}
       <Text style={styles.sectionTitle}>🍛 High-Calorie Meal Plan</Text>
       {[
-        { time: 'Breakfast 7 AM', meal: 'Banana Shake + Oats + Peanut Butter', cal: 550, icon: '🥣' },
+        { time: 'Breakfast 7 AM', meal: 'Banana Shake + Oats + Peanut Butter', cal: 550, icon: '🍲' },
         { time: 'Mid-Morning 10 AM', meal: 'Dry Fruits + Boiled Eggs', cal: 350, icon: '🥜' },
         { time: 'Lunch 1 PM', meal: 'Chicken/Paneer + Rice + Roti + Dal', cal: 700, icon: '🍛' },
         { time: 'Snack 4 PM', meal: 'Protein Shake + Banana', cal: 400, icon: '🥤' },
@@ -61,7 +61,7 @@ const WeightGainScreen = ({ navigation }) => (
       <Text style={styles.sectionTitle}>💪 Strength Training</Text>
       {[
         { name: 'Squats', sets: '4x12', muscle: 'Legs', icon: '🦵' },
-        { name: 'Bench Press', sets: '4x10', muscle: 'Chest', icon: '🫁' },
+        { name: 'Bench Press', sets: '4x10', muscle: 'Chest', icon: '🏋️' },
         { name: 'Deadlift', sets: '3x8', muscle: 'Back', icon: '🏋️' },
         { name: 'Shoulder Press', sets: '4x10', muscle: 'Shoulders', icon: '💪' },
         { name: 'Barbell Curl', sets: '3x12', muscle: 'Biceps', icon: '🦾' },

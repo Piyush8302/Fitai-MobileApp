@@ -7,7 +7,7 @@ import Header from '../components/Header';
 import api, { ENDPOINTS } from '../config/api';
 
 const MUSCLE_ICONS = {
-  chest: '🫁', back: '🔙', legs: '🦵', shoulders: '💪', biceps: '💪',
+  chest: '🏋️', back: '🔙', legs: '🦵', shoulders: '💪', biceps: '💪',
   triceps: '💪', abs: '🧱', glutes: '🍑', full_body: '🏃',
 };
 

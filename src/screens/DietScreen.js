@@ -16,7 +16,7 @@ const { width } = Dimensions.get('window');
 const DIET_MEALS = {
   veg: {
     breakfast: [
-      { name: 'Oats with Banana & Almonds', calories: 320, protein: 12, carbs: 55, fat: 8, icon: '🥣' },
+      { name: 'Oats with Banana & Almonds', calories: 320, protein: 12, carbs: 55, fat: 8, icon: '🍲' },
       { name: 'Poha with Peanuts', calories: 280, protein: 8, carbs: 45, fat: 8, icon: '🍚' },
       { name: 'Idli with Sambar (4 pcs)', calories: 250, protein: 10, carbs: 42, fat: 4, icon: '🥘' },
       { name: 'Moong Dal Chilla + Curd', calories: 270, protein: 16, carbs: 30, fat: 6, icon: '🫓' },
@@ -24,7 +24,7 @@ const DIET_MEALS = {
     lunch: [
       { name: 'Dal Rice + Sabzi + Salad', calories: 450, protein: 18, carbs: 65, fat: 10, icon: '🍛' },
       { name: 'Paneer Tikka + 2 Roti', calories: 480, protein: 24, carbs: 45, fat: 18, icon: '🧀' },
-      { name: 'Rajma Chawal + Raita', calories: 420, protein: 16, carbs: 62, fat: 8, icon: '🫘' },
+      { name: 'Rajma Chawal + Raita', calories: 420, protein: 16, carbs: 62, fat: 8, icon: '🍛' },
       { name: 'Chole + 2 Roti + Salad', calories: 440, protein: 17, carbs: 58, fat: 12, icon: '🥗' },
     ],
     dinner: [
@@ -44,7 +44,7 @@ const DIET_MEALS = {
     breakfast: [
       { name: 'Egg Omelette (3) + Toast', calories: 380, protein: 24, carbs: 30, fat: 16, icon: '🍳' },
       { name: 'Boiled Eggs (3) + Banana', calories: 330, protein: 20, carbs: 28, fat: 14, icon: '🥚' },
-      { name: 'Oats + Protein Shake', calories: 350, protein: 30, carbs: 40, fat: 6, icon: '🥣' },
+      { name: 'Oats + Protein Shake', calories: 350, protein: 30, carbs: 40, fat: 6, icon: '🍲' },
       { name: 'Chicken Sandwich', calories: 370, protein: 26, carbs: 35, fat: 12, icon: '🥪' },
     ],
     lunch: [
@@ -68,7 +68,7 @@ const DIET_MEALS = {
   },
   vegan: {
     breakfast: [
-      { name: 'Smoothie Bowl (Banana+Oats)', calories: 300, protein: 8, carbs: 55, fat: 6, icon: '🥣' },
+      { name: 'Smoothie Bowl (Banana+Oats)', calories: 300, protein: 8, carbs: 55, fat: 6, icon: '🍲' },
       { name: 'Poha + Soy Milk', calories: 280, protein: 10, carbs: 44, fat: 7, icon: '🍚' },
       { name: 'Ragi Dosa + Chutney', calories: 240, protein: 6, carbs: 40, fat: 5, icon: '🫓' },
       { name: 'Tofu Scramble + Toast', calories: 320, protein: 18, carbs: 30, fat: 12, icon: '🍞' },
@@ -76,7 +76,7 @@ const DIET_MEALS = {
     lunch: [
       { name: 'Dal Rice + Sabzi', calories: 420, protein: 16, carbs: 60, fat: 8, icon: '🍛' },
       { name: 'Tofu Curry + 2 Roti', calories: 400, protein: 20, carbs: 42, fat: 14, icon: '🥘' },
-      { name: 'Chole + Brown Rice', calories: 450, protein: 18, carbs: 58, fat: 10, icon: '🫘' },
+      { name: 'Chole + Brown Rice', calories: 450, protein: 18, carbs: 58, fat: 10, icon: '🍛' },
       { name: 'Soya Chunk Curry + Roti', calories: 440, protein: 28, carbs: 45, fat: 12, icon: '🍛' },
     ],
     dinner: [
@@ -103,7 +103,7 @@ const DIET_MEALS = {
       { name: 'Egg Curry + Rice + Salad', calories: 450, protein: 20, carbs: 55, fat: 14, icon: '🍛' },
       { name: 'Paneer Tikka + 2 Roti', calories: 480, protein: 24, carbs: 45, fat: 18, icon: '🧀' },
       { name: 'Dal Fry + Rice + Egg', calories: 460, protein: 22, carbs: 58, fat: 12, icon: '🍚' },
-      { name: 'Rajma + Roti + Boiled Egg', calories: 440, protein: 20, carbs: 52, fat: 12, icon: '🫘' },
+      { name: 'Rajma + Roti + Boiled Egg', calories: 440, protein: 20, carbs: 52, fat: 12, icon: '🍛' },
     ],
     dinner: [
       { name: 'Egg Fried Rice + Raita', calories: 400, protein: 16, carbs: 52, fat: 12, icon: '🍚' },

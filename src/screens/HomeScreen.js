@@ -266,7 +266,7 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.mealRow}>
           {(() => {
             const mealTypes = ['breakfast', 'lunch', 'dinner'];
-            const mealIcons = { breakfast: '🥣', lunch: '🍛', dinner: '🥗', snack: '🍪' };
+            const mealIcons = { breakfast: '🌅', lunch: '☀️', dinner: '🌙', snack: '🍪' };
             const logged = tracking?.mealsLogged || [];
             return mealTypes.map((type, i) => {
               const found = logged.find(m => m.mealType === type);

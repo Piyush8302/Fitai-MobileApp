@@ -69,7 +69,7 @@ const HeightGrowthScreen = ({ navigation }) => {
                 { icon: '🐟', title: 'Vitamin D', desc: 'Fish, sunlight — calcium absorption' },
                 { icon: '🥬', title: 'Zinc', desc: 'Spinach, nuts — growth hormone stimulation' },
                 { icon: '🍊', title: 'Vitamin C', desc: 'Oranges, amla — collagen formation' },
-                { icon: '🫘', title: 'Iron', desc: 'Beans, lentils — oxygen transport' },
+                { icon: '🍛', title: 'Iron', desc: 'Beans, lentils — oxygen transport' },
               ].map((n, i) => (
                 <View key={i} style={styles.nutriItem}>
                   <Text style={styles.nutriIcon}>{n.icon}</Text>

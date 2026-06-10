@@ -25,7 +25,7 @@ export const GENDER_OPTIONS = [
 
 export const MEAL_PLAN_SAMPLE = {
   breakfast: [
-    { name: 'Oats with Banana', calories: 320, protein: 12, carbs: 55, fat: 6, icon: '🥣' },
+    { name: 'Oats with Banana', calories: 320, protein: 12, carbs: 55, fat: 6, icon: '🍲' },
     { name: 'Poha with Peanuts', calories: 280, protein: 8, carbs: 45, fat: 8, icon: '🍚' },
     { name: 'Idli with Sambar', calories: 250, protein: 10, carbs: 42, fat: 4, icon: '🥘' },
     { name: 'Egg Omelette + Toast', calories: 350, protein: 22, carbs: 30, fat: 14, icon: '🍳' },
@@ -34,7 +34,7 @@ export const MEAL_PLAN_SAMPLE = {
     { name: 'Dal Rice + Sabzi', calories: 450, protein: 18, carbs: 65, fat: 10, icon: '🍛' },
     { name: 'Chicken Curry + Roti', calories: 520, protein: 35, carbs: 45, fat: 16, icon: '🍗' },
     { name: 'Paneer Tikka + Rice', calories: 480, protein: 24, carbs: 55, fat: 14, icon: '🧀' },
-    { name: 'Rajma Chawal', calories: 420, protein: 16, carbs: 62, fat: 8, icon: '🫘' },
+    { name: 'Rajma Chawal', calories: 420, protein: 16, carbs: 62, fat: 8, icon: '🍛' },
   ],
   dinner: [
     { name: 'Grilled Chicken Salad', calories: 350, protein: 32, carbs: 20, fat: 12, icon: '🥗' },
@@ -54,7 +54,7 @@ export const MEAL_PLAN_SAMPLE = {
 export const DIET_MEAL_SUGGESTIONS = {
   veg: {
     breakfast: [
-      { name: 'Oats with Banana', calories: 320, protein: 12, icon: '🥣' },
+      { name: 'Oats with Banana', calories: 320, protein: 12, icon: '🍲' },
       { name: 'Poha with Peanuts', calories: 280, protein: 8, icon: '🍚' },
       { name: 'Idli with Sambar', calories: 250, protein: 10, icon: '🥘' },
       { name: 'Paneer Paratha', calories: 380, protein: 16, icon: '🫓' },
@@ -62,7 +62,7 @@ export const DIET_MEAL_SUGGESTIONS = {
     lunch: [
       { name: 'Dal Rice + Sabzi', calories: 450, protein: 18, icon: '🍛' },
       { name: 'Paneer Tikka + Rice', calories: 480, protein: 24, icon: '🧀' },
-      { name: 'Rajma Chawal', calories: 420, protein: 16, icon: '🫘' },
+      { name: 'Rajma Chawal', calories: 420, protein: 16, icon: '🍛' },
       { name: 'Chole + Roti', calories: 440, protein: 15, icon: '🍛' },
     ],
     dinner: [
@@ -82,7 +82,7 @@ export const DIET_MEAL_SUGGESTIONS = {
     breakfast: [
       { name: 'Egg Omelette + Toast', calories: 350, protein: 22, icon: '🍳' },
       { name: 'Boiled Eggs + Bread', calories: 300, protein: 20, icon: '🥚' },
-      { name: 'Oats with Banana', calories: 320, protein: 12, icon: '🥣' },
+      { name: 'Oats with Banana', calories: 320, protein: 12, icon: '🍲' },
       { name: 'Poha with Peanuts', calories: 280, protein: 8, icon: '🍚' },
     ],
     lunch: [
@@ -106,14 +106,14 @@ export const DIET_MEAL_SUGGESTIONS = {
   },
   vegan: {
     breakfast: [
-      { name: 'Oats with Banana', calories: 320, protein: 12, icon: '🥣' },
+      { name: 'Oats with Banana', calories: 320, protein: 12, icon: '🍲' },
       { name: 'Poha with Peanuts', calories: 280, protein: 8, icon: '🍚' },
       { name: 'Idli with Sambar', calories: 250, protein: 10, icon: '🥘' },
-      { name: 'Upma with Veggies', calories: 270, protein: 8, icon: '🥣' },
+      { name: 'Upma with Veggies', calories: 270, protein: 8, icon: '🍲' },
     ],
     lunch: [
       { name: 'Dal Rice + Sabzi', calories: 450, protein: 18, icon: '🍛' },
-      { name: 'Rajma Chawal', calories: 420, protein: 16, icon: '🫘' },
+      { name: 'Rajma Chawal', calories: 420, protein: 16, icon: '🍛' },
       { name: 'Chole + Roti', calories: 440, protein: 15, icon: '🍛' },
       { name: 'Tofu Curry + Rice', calories: 400, protein: 20, icon: '🥘' },
     ],
@@ -134,14 +134,14 @@ export const DIET_MEAL_SUGGESTIONS = {
     breakfast: [
       { name: 'Egg Omelette + Toast', calories: 350, protein: 22, icon: '🍳' },
       { name: 'Boiled Eggs + Bread', calories: 300, protein: 20, icon: '🥚' },
-      { name: 'Oats with Banana', calories: 320, protein: 12, icon: '🥣' },
+      { name: 'Oats with Banana', calories: 320, protein: 12, icon: '🍲' },
       { name: 'Poha with Peanuts', calories: 280, protein: 8, icon: '🍚' },
     ],
     lunch: [
       { name: 'Egg Curry + Rice', calories: 460, protein: 22, icon: '🥚' },
       { name: 'Dal Rice + Sabzi', calories: 450, protein: 18, icon: '🍛' },
       { name: 'Paneer Tikka + Rice', calories: 480, protein: 24, icon: '🧀' },
-      { name: 'Rajma Chawal', calories: 420, protein: 16, icon: '🫘' },
+      { name: 'Rajma Chawal', calories: 420, protein: 16, icon: '🍛' },
     ],
     dinner: [
       { name: 'Egg Bhurji + Roti', calories: 380, protein: 20, icon: '🍳' },
@@ -159,7 +159,7 @@ export const DIET_MEAL_SUGGESTIONS = {
 };
 
 export const WORKOUT_CATEGORIES = [
-  { id: 'chest', name: 'Chest', icon: '🫁', color: '#FF6B6B' },
+  { id: 'chest', name: 'Chest', icon: '🏋️', color: '#FF6B6B' },
   { id: 'back', name: 'Back', icon: '🔙', color: '#6C63FF' },
   { id: 'shoulders', name: 'Shoulders', icon: '💪', color: '#00D2FF' },
   { id: 'arms', name: 'Arms', icon: '🦾', color: '#FF9800' },
@@ -280,7 +280,7 @@ export const HOME_WEEKLY_PLAN = [
 ];
 
 export const WEEKLY_WORKOUT_PLAN = [
-  { day: 'Monday', focus: 'Chest + Triceps', icon: '🫁', color: '#FF6B6B' },
+  { day: 'Monday', focus: 'Chest + Triceps', icon: '🏋️', color: '#FF6B6B' },
   { day: 'Tuesday', focus: 'Back + Biceps', icon: '🔙', color: '#6C63FF' },
   { day: 'Wednesday', focus: 'Legs + Core', icon: '🦵', color: '#4CAF50' },
   { day: 'Thursday', focus: 'Shoulders + Arms', icon: '💪', color: '#00D2FF' },
