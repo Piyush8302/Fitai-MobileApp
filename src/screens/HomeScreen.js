@@ -319,7 +319,7 @@ const HomeScreen = ({ navigation }) => {
                   <LinearGradient colors={[COLORS.darkCard, COLORS.darkSurface]} style={styles.mealGradient}>
                     <Text style={styles.mealIcon}>{mealIcons[type]}</Text>
                     <Text style={styles.mealTime}>{type.charAt(0).toUpperCase() + type.slice(1)}</Text>
-                    <Text style={styles.mealName}>{found ? (found.items?.map(it => it.name).join(', ') || 'Logged') : 'Not yet'}</Text>
+                    <Text style={styles.mealName} numberOfLines={2}>{found ? (found.items?.map(it => it.name).join(', ') || 'Logged') : 'Not yet'}</Text>
                     <Text style={styles.mealCal}>{found ? `${found.totalCalories} kcal` : '-- kcal'}</Text>
                     {found && (
                       <View style={styles.doneBadge}>
@@ -457,13 +457,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6,
   },
   exerciseChipText: { fontSize: SIZES.fontSm, color: COLORS.primaryLight, ...FONTS.medium },
-  mealRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+  mealRow: { flexDirection: 'row', gap: 10, marginBottom: 24, alignItems: 'stretch' },
   mealCard: { flex: 1, borderRadius: SIZES.radius, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.darkBorder },
-  mealGradient: { padding: 14, alignItems: 'center', borderRadius: SIZES.radius },
-  mealIcon: { fontSize: 28, marginBottom: 8 },
+  mealGradient: { flex: 1, padding: 12, alignItems: 'center', justifyContent: 'center', borderRadius: SIZES.radius, minHeight: 112 },
+  mealIcon: { fontSize: 26, marginBottom: 6 },
   mealTime: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
-  mealName: { fontSize: SIZES.fontSm, color: COLORS.white, ...FONTS.semiBold, marginTop: 4, textAlign: 'center' },
-  mealCal: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.bold, marginTop: 4 },
+  mealName: { fontSize: SIZES.fontSm, color: COLORS.white, ...FONTS.semiBold, marginTop: 3, textAlign: 'center' },
+  mealCal: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.bold, marginTop: 3 },
   doneBadge: {
     position: 'absolute', top: 8, right: 8,
     width: 20, height: 20, borderRadius: 10,
