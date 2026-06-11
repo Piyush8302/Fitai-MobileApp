@@ -58,6 +58,9 @@ const TrackingScreen = ({ navigation }) => {
   // Weight form
   const [weightInput, setWeightInput] = useState('');
 
+  // Calorie info modal (BMR/TDEE/Target explanation)
+  const [showCalorieInfo, setShowCalorieInfo] = useState(false);
+
   // Weekly data
   const [weeklyData, setWeeklyData] = useState(null);
 
@@ -461,6 +464,9 @@ const TrackingScreen = ({ navigation }) => {
                       <Text style={styles.goalBannerTitle}>{goalInfo.title}</Text>
                       <Text style={styles.goalBannerDesc}>{goalInfo.desc}</Text>
                     </View>
+                    <TouchableOpacity onPress={() => setShowCalorieInfo(true)} style={styles.infoBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                      <Ionicons name="information-circle-outline" size={22} color={COLORS.textMuted} />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.goalTargetsRow}>
                     <View style={styles.goalTarget}>
@@ -1191,6 +1197,66 @@ const TrackingScreen = ({ navigation }) => {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* ===== CALORIE INFO MODAL (BMR / TDEE / Target) ===== */}
+      <Modal visible={showCalorieInfo} transparent animationType="slide" onRequestClose={() => setShowCalorieInfo(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>📖 What do these numbers mean?</Text>
+                <TouchableOpacity onPress={() => setShowCalorieInfo(false)}>
+                  <Ionicons name="close" size={24} color={COLORS.white} />
+                </TouchableOpacity>
+              </View>
+
+              {(() => {
+                const bmr = userProfile?.bmr || 1500;
+                const tdee = userProfile?.dailyCalories || 2000;
+                const target = goalInfo.targetCalories;
+                return (
+                  <>
+                    <View style={[styles.infoRow, { borderLeftColor: COLORS.warning }]}>
+                      <Text style={styles.infoRowTitle}>🛌 BMR — {bmr} kcal</Text>
+                      <Text style={styles.infoRowDesc}>
+                        Calories your body burns just to stay alive (breathing, heart, brain) — even if you rest all day. Never eat below this!
+                      </Text>
+                    </View>
+                    <View style={[styles.infoRow, { borderLeftColor: COLORS.accent }]}>
+                      <Text style={styles.infoRowTitle}>🚶 Daily Burn (TDEE) — {tdee} kcal</Text>
+                      <Text style={styles.infoRowDesc}>
+                        BMR + your daily activity & workouts. Eating exactly this much keeps your weight the same.
+                      </Text>
+                    </View>
+                    <View style={[styles.infoRow, { borderLeftColor: COLORS.success }]}>
+                      <Text style={styles.infoRowTitle}>🎯 Target — {target} kcal (your focus!)</Text>
+                      <Text style={styles.infoRowDesc}>
+                        {target < tdee
+                          ? `Daily Burn minus a safe deficit. Eat ~${target} kcal daily → your body burns the gap (${tdee - target} kcal) from fat → steady weight loss.`
+                          : target > tdee
+                            ? `Daily Burn plus a surplus. Eat ~${target} kcal daily → the extra ${target - tdee} kcal fuels muscle & weight gain.`
+                            : `Same as your Daily Burn — eat this much to maintain your current weight.`}
+                      </Text>
+                    </View>
+                    <View style={styles.infoNote}>
+                      <Ionicons name="notifications-outline" size={16} color={COLORS.primary} />
+                      <Text style={styles.infoNoteText}>
+                        We check your intake daily at 9 PM — you'll get a notification if you're over or under target.
+                      </Text>
+                    </View>
+                  </>
+                );
+              })()}
+
+              <TouchableOpacity style={styles.submitBtn} onPress={() => setShowCalorieInfo(false)}>
+                <LinearGradient colors={COLORS.gradient1} style={styles.submitGrad}>
+                  <Text style={styles.submitText}>Got it!</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
+
       {/* Toast Notification */}
       {toast && (
         <Animated.View style={[styles.toastWrap, { transform: [{ translateY: toastAnim }], opacity: toastOpacity }]}>
@@ -1240,6 +1306,21 @@ const styles = StyleSheet.create({
   goalTargetValue: { fontSize: SIZES.fontXl, ...FONTS.bold },
   goalTargetLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
   goalTargetDivider: { width: 1, height: 30, backgroundColor: COLORS.darkBorder },
+  // Calorie info modal
+  infoBtn: { padding: 2, marginLeft: 6 },
+  infoRow: {
+    borderLeftWidth: 3, paddingLeft: 12, paddingVertical: 8, marginBottom: 12,
+    backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radiusSm, paddingRight: 10,
+  },
+  infoRowTitle: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold, marginBottom: 4 },
+  infoRowDesc: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium, lineHeight: 19 },
+  infoNote: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: COLORS.primary + '12', borderRadius: SIZES.radius,
+    borderWidth: 1, borderColor: COLORS.primary + '30', padding: 12, marginTop: 4,
+  },
+  infoNoteText: { flex: 1, fontSize: SIZES.fontXs, color: COLORS.textSecondary, ...FONTS.medium, lineHeight: 17 },
+
   // Water Tracker
   waterHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   waterTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
