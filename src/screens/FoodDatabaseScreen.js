@@ -412,7 +412,7 @@ const FoodDatabaseScreen = ({ navigation }) => {
       {/* Toast Notification */}
       {toast && (
         <Animated.View style={[styles.toastContainer, { transform: [{ translateY: toastAnim }], opacity: toastOpacity }]}>
-          <LinearGradient colors={['#1A2E1A', '#1A1A2E']} style={styles.toastGradient}>
+          <LinearGradient colors={['#1A2E1A', '#222438']} style={styles.toastGradient}>
             <View style={styles.toastIconWrap}>
               <Ionicons name="checkmark-circle" size={22} color={COLORS.success} />
             </View>

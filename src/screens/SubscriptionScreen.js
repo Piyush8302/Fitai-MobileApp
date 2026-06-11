@@ -64,7 +64,7 @@ const SubscriptionScreen = ({ navigation }) => {
 
       // Open Cashfree payment page in browser
       await WebBrowser.openBrowserAsync(res.data.paymentUrl, {
-        toolbarColor: '#0D0D1A',
+        toolbarColor: '#151725',
         dismissButtonStyle: 'done',
       });
 

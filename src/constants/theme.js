@@ -8,22 +8,22 @@ export const COLORS = {
   warning: '#FF9800',
   error: '#F44336',
 
-  dark: '#0D0D1A',
-  darkCard: '#1A1A2E',
-  darkSurface: '#16213E',
-  darkBorder: '#2A2A4A',
+  dark: '#151725',
+  darkCard: '#222438',
+  darkSurface: '#252A45',
+  darkBorder: '#363A5C',
 
   white: '#FFFFFF',
   textPrimary: '#FFFFFF',
-  textSecondary: '#B0B0CC',
-  textMuted: '#6B6B8D',
+  textSecondary: '#C2C3DA',
+  textMuted: '#9092B0',
 
   gradient1: ['#6C63FF', '#00D2FF'],
   gradient2: ['#FF6B6B', '#FF8E53'],
   gradient3: ['#4CAF50', '#00D2FF'],
   gradient4: ['#6C63FF', '#FF6B6B'],
-  gradientDark: ['#0D0D1A', '#1A1A2E'],
-  gradientCard: ['#1A1A2E', '#16213E'],
+  gradientDark: ['#151725', '#222438'],
+  gradientCard: ['#222438', '#252A45'],
 };
 
 export const SIZES = {

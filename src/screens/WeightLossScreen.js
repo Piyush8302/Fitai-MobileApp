@@ -21,7 +21,7 @@ const WeightLossScreen = ({ navigation }) => {
       <Header title="Weight Loss Program" subtitle="AI-Powered Fat Burning Plan" onBack={() => navigation.goBack()} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Progress Summary */}
-        <GradientCard colors={['#FF6B6B15', '#1A1A2E']} style={styles.summaryCard}>
+        <GradientCard colors={['#FF6B6B15', '#222438']} style={styles.summaryCard}>
           <View style={styles.summaryRow}>
             <ProgressRing progress={35} size={100} strokeWidth={10} color={COLORS.secondary} value="35%" label="Fat Loss" />
             <View style={styles.summaryInfo}>
@@ -102,7 +102,7 @@ const WeightLossScreen = ({ navigation }) => {
 
         {/* Belly Fat Tips */}
         <Text style={styles.sectionTitle}>🎯 Belly Fat Reduction</Text>
-        <GradientCard colors={['#FF980015', '#1A1A2E']}>
+        <GradientCard colors={['#FF980015', '#222438']}>
           {[
             'Do planks and crunches daily',
             'Avoid alcohol and sugary drinks',
