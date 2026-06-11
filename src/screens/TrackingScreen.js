@@ -39,16 +39,13 @@ const TrackingScreen = ({ navigation }) => {
     return 'dinner';                            // 7 PM – 4 AM
   };
 
-  // Meal form
+  // Meal form — multi-item builder (each food has its own quantity, like MyFitnessPal)
   const [mealType, setMealType] = useState(getMealTypeByTime());
-  const [mealName, setMealName] = useState('');
-  const [mealCalories, setMealCalories] = useState('');
-  const [mealProtein, setMealProtein] = useState('');
+  const [mealName, setMealName] = useState(''); // search box text
   const [foodResults, setFoodResults] = useState([]);
   const [foodSearching, setFoodSearching] = useState(false);
   const foodSearchTimer = useRef(null);
-  const [mealQty, setMealQty] = useState(1); // servings multiplier
-  const baseNutri = useRef({ cal: 0, protein: 0, serving: '' }); // per-serving base values
+  const [mealItems, setMealItems] = useState([]); // [{id, name, qty, baseCal, baseProtein, serving, custom, calText, proText}]
 
   // Sleep form
   const [sleepHours, setSleepHours] = useState('7');
@@ -219,60 +216,65 @@ const TrackingScreen = ({ navigation }) => {
     }, 300);
   }, []);
 
-  const selectFood = (food) => {
-    setMealName(food.name);
-    baseNutri.current = { cal: food.calories, protein: food.protein, serving: food.serving || '1 serving' };
-    setMealQty(1);
-    setMealCalories(String(food.calories));
-    setMealProtein(String(food.protein));
+  // Add a food to the meal items list (from search, Quick Add, or custom)
+  const addFoodItem = (food, custom = false) => {
+    setMealItems(prev => [...prev, {
+      id: Date.now() + Math.random(),
+      name: food.name,
+      qty: 1,
+      baseCal: food.calories || 0,
+      baseProtein: food.protein || 0,
+      serving: food.serving || '1 serving',
+      custom,
+      calText: custom ? '' : undefined,
+      proText: custom ? '' : undefined,
+    }]);
+    setMealName('');
     setFoodResults([]);
   };
+
+  const changeItemQty = (id, delta) => {
+    setMealItems(prev => prev.map(i =>
+      i.id === id ? { ...i, qty: Math.min(10, Math.max(0.5, i.qty + delta)) } : i
+    ));
+  };
+
+  const updateItem = (id, patch) => {
+    setMealItems(prev => prev.map(i => (i.id === id ? { ...i, ...patch } : i)));
+  };
+
+  const removeItem = (id) => {
+    setMealItems(prev => prev.filter(i => i.id !== id));
+  };
+
+  const itemsTotalCal = mealItems.reduce((s, i) => s + Math.round(i.baseCal * i.qty), 0);
+  const itemsTotalProtein = parseFloat(mealItems.reduce((s, i) => s + i.baseProtein * i.qty, 0).toFixed(1));
 
   const handleMealNameChange = (text) => {
     setMealName(text);
     searchFoodDB(text);
   };
 
-  // Quantity stepper — calories/protein scale with servings
-  const changeMealQty = (delta) => {
-    const q = Math.min(10, Math.max(0.5, mealQty + delta));
-    setMealQty(q);
-    if (baseNutri.current.cal > 0) {
-      setMealCalories(String(Math.round(baseNutri.current.cal * q)));
-      setMealProtein(String(parseFloat((baseNutri.current.protein * q).toFixed(1))));
-    }
-  };
-
-  // Manual edits define the per-serving base (so stepper stays correct)
-  const handleCaloriesChange = (t) => {
-    setMealCalories(t);
-    baseNutri.current.cal = (parseInt(t) || 0) / (mealQty || 1);
-  };
-  const handleProteinChange = (t) => {
-    setMealProtein(t);
-    baseNutri.current.protein = (parseFloat(t) || 0) / (mealQty || 1);
-  };
-
   const logMealEntry = async () => {
-    if (!mealName.trim()) { Alert.alert('Error', 'Enter what you ate'); return; }
-    const cal = parseInt(mealCalories) || 0;
-    const protein = parseFloat(mealProtein) || 0;
-    const itemName = mealQty !== 1 ? `${mealName.trim()} (${mealQty}× serving)` : mealName.trim();
+    if (mealItems.length === 0) { Alert.alert('Add food', 'Search and add at least one food item'); return; }
+    const items = mealItems.map(i => ({
+      name: i.qty !== 1 ? `${i.name} (${i.qty}×)` : i.name,
+      calories: Math.round(i.baseCal * i.qty),
+      protein: parseFloat((i.baseProtein * i.qty).toFixed(1)),
+    }));
     try {
       const res = await api.post(ENDPOINTS.LOG_MEAL, {
         mealType,
-        items: [{ name: itemName, calories: cal, protein }],
-        totalCalories: cal,
+        items,
+        totalCalories: itemsTotalCal,
       });
       if (res.success) {
         setTracking(res.data);
-        showToast('🍽', `Added to ${mealType}`, `${itemName} • ${cal} kcal${protein > 0 ? ` • ${protein}g protein` : ''}`);
+        showToast('🍽', `Added to ${mealType}`, `${items.length} item${items.length > 1 ? 's' : ''} • ${itemsTotalCal} kcal • ${itemsTotalProtein}g protein`);
         setShowMealModal(false);
         setMealName('');
-        setMealCalories('');
-        setMealProtein('');
-        setMealQty(1);
-        baseNutri.current = { cal: 0, protein: 0, serving: '' };
+        setMealItems([]);
+        setFoodResults([]);
       }
     } catch (e) { Alert.alert('Error', 'Failed to log meal'); }
   };
@@ -922,7 +924,7 @@ const TrackingScreen = ({ navigation }) => {
                   <TouchableOpacity
                     key={idx}
                     style={[styles.foodSuggestion, mealName === food.name && { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10' }]}
-                    onPress={() => { setMealName(food.name); baseNutri.current = { cal: food.calories, protein: food.protein, serving: '1 serving' }; setMealQty(1); setMealCalories(String(food.calories)); setMealProtein(String(food.protein)); }}
+                    onPress={() => addFoodItem(food)}
                   >
                     <Text style={styles.foodSugIcon}>{food.icon}</Text>
                     <Text style={styles.foodSugName} numberOfLines={1}>{food.name}</Text>
@@ -932,11 +934,11 @@ const TrackingScreen = ({ navigation }) => {
                 ))}
               </ScrollView>
 
-              <Text style={styles.inputLabel}>What did you eat?</Text>
+              <Text style={styles.inputLabel}>Search & add foods (one by one)</Text>
               <View style={{ position: 'relative' }}>
                 <TextInput
                   style={styles.modalInput}
-                  placeholder="Type food name (e.g. roti, rice, paneer)"
+                  placeholder="e.g. rice, paneer, roti — tap result to add"
                   placeholderTextColor={COLORS.textMuted}
                   value={mealName}
                   onChangeText={handleMealNameChange}
@@ -960,7 +962,7 @@ const TrackingScreen = ({ navigation }) => {
                         backgroundColor: COLORS.darkCard, borderBottomWidth: 1, borderBottomColor: COLORS.border,
                         borderRadius: 8, marginBottom: 4,
                       }}
-                      onPress={() => selectFood(food)}
+                      onPress={() => addFoodItem(food)}
                     >
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: COLORS.white, fontSize: 13, fontWeight: '600' }}>{food.name}</Text>
@@ -977,66 +979,70 @@ const TrackingScreen = ({ navigation }) => {
                 </ScrollView>
               )}
 
-              {/* Quantity / Servings stepper */}
-              <Text style={styles.inputLabel}>How much did you eat?</Text>
-              <View style={styles.qtyRow}>
-                <TouchableOpacity
-                  style={[styles.qtyBtn, mealQty <= 0.5 && { opacity: 0.4 }]}
-                  onPress={() => changeMealQty(-0.5)}
-                  disabled={mealQty <= 0.5}
-                >
-                  <Ionicons name="remove" size={20} color={COLORS.primary} />
-                </TouchableOpacity>
-                <View style={styles.qtyDisplay}>
-                  <Text style={styles.qtyValue}>{mealQty}×</Text>
-                  <Text style={styles.qtyServing} numberOfLines={1}>
-                    {baseNutri.current.serving || 'serving'}{baseNutri.current.cal > 0 ? ` (${Math.round(baseNutri.current.cal)} kcal each)` : ''}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.qtyBtn, mealQty >= 10 && { opacity: 0.4 }]}
-                  onPress={() => changeMealQty(0.5)}
-                  disabled={mealQty >= 10}
-                >
-                  <Ionicons name="add" size={20} color={COLORS.primary} />
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.qtyHint}>
-                e.g. 2 roti = 2× • aadha plate rice = 0.5× • ya niche calories khud bharo
-              </Text>
+              {/* Custom item (food not found in search) */}
+              <TouchableOpacity
+                style={styles.customAddBtn}
+                onPress={() => addFoodItem({ name: mealName.trim() || 'Custom food', calories: 0, protein: 0, serving: 'custom' }, true)}
+              >
+                <Ionicons name="add-circle-outline" size={16} color={COLORS.primary} />
+                <Text style={styles.customAddText}>
+                  Add custom item{mealName.trim() ? ` "${mealName.trim()}"` : ''} (enter kcal yourself)
+                </Text>
+              </TouchableOpacity>
 
-              <View style={styles.inputRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>Calories (kcal)</Text>
-                  <TextInput
-                    style={[styles.modalInput, mealCalories ? { borderColor: COLORS.primary + '40' } : {}]}
-                    placeholder="auto or manual"
-                    placeholderTextColor={COLORS.textMuted}
-                    keyboardType="number-pad"
-                    value={mealCalories}
-                    onChangeText={handleCaloriesChange}
-                  />
-                </View>
-                <View style={{ width: 10 }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>Protein (g)</Text>
-                  <TextInput
-                    style={[styles.modalInput, mealProtein ? { borderColor: COLORS.primary + '40' } : {}]}
-                    placeholder="auto or manual"
-                    placeholderTextColor={COLORS.textMuted}
-                    keyboardType="decimal-pad"
-                    value={mealProtein}
-                    onChangeText={handleProteinChange}
-                  />
-                </View>
-              </View>
-
-              {mealName.trim() && mealCalories && (
-                <View style={styles.mealPreview}>
-                  <Text style={styles.mealPreviewText}>
-                    {mealType === 'breakfast' ? '🌅' : mealType === 'lunch' ? '☀️' : mealType === 'dinner' ? '🌙' : '🍪'}{' '}
-                    {mealName} • {mealCalories} kcal{mealProtein ? ` • ${mealProtein}g protein` : ''}
-                  </Text>
+              {/* ===== ADDED ITEMS LIST ===== */}
+              {mealItems.length > 0 && (
+                <View style={styles.itemsBox}>
+                  <Text style={styles.itemsTitle}>🧾 Your {mealType} ({mealItems.length} item{mealItems.length > 1 ? 's' : ''})</Text>
+                  {mealItems.map((item) => (
+                    <View key={item.id} style={styles.itemRow}>
+                      <View style={{ flex: 1, paddingRight: 6 }}>
+                        <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+                        {item.custom ? (
+                          <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                            <TextInput
+                              style={styles.itemMiniInput}
+                              placeholder="kcal"
+                              placeholderTextColor={COLORS.textMuted}
+                              keyboardType="number-pad"
+                              value={item.calText}
+                              onChangeText={(t) => updateItem(item.id, { calText: t, baseCal: parseInt(t) || 0 })}
+                            />
+                            <TextInput
+                              style={styles.itemMiniInput}
+                              placeholder="protein g"
+                              placeholderTextColor={COLORS.textMuted}
+                              keyboardType="decimal-pad"
+                              value={item.proText}
+                              onChangeText={(t) => updateItem(item.id, { proText: t, baseProtein: parseFloat(t) || 0 })}
+                            />
+                          </View>
+                        ) : (
+                          <Text style={styles.itemServing} numberOfLines={1}>
+                            {item.serving} • {Math.round(item.baseCal)} kcal each
+                          </Text>
+                        )}
+                      </View>
+                      <View style={styles.itemQtyWrap}>
+                        <TouchableOpacity onPress={() => changeItemQty(item.id, -0.5)} hitSlop={{ top: 8, bottom: 8 }}>
+                          <Ionicons name="remove-circle" size={24} color={item.qty <= 0.5 ? COLORS.darkBorder : COLORS.primary} />
+                        </TouchableOpacity>
+                        <Text style={styles.itemQtyText}>{item.qty}×</Text>
+                        <TouchableOpacity onPress={() => changeItemQty(item.id, 0.5)} hitSlop={{ top: 8, bottom: 8 }}>
+                          <Ionicons name="add-circle" size={24} color={COLORS.primary} />
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.itemCal}>{Math.round(item.baseCal * item.qty)}</Text>
+                      <TouchableOpacity onPress={() => removeItem(item.id)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+                        <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  <View style={styles.itemsTotal}>
+                    <Text style={styles.itemsTotalText}>
+                      Total: {itemsTotalCal} kcal • {itemsTotalProtein}g protein
+                    </Text>
+                  </View>
                 </View>
               )}
 
@@ -1528,18 +1534,35 @@ const styles = StyleSheet.create({
   mealPreview: { backgroundColor: COLORS.warning + '10', borderRadius: SIZES.radius, padding: 12, marginTop: 8, borderWidth: 1, borderColor: COLORS.warning + '30' },
   mealPreviewText: { fontSize: SIZES.fontSm, color: COLORS.warning, ...FONTS.medium, textAlign: 'center' },
 
-  // Quantity stepper
-  qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  qtyBtn: {
-    width: 42, height: 42, borderRadius: 21,
-    backgroundColor: COLORS.primary + '15',
-    borderWidth: 1.5, borderColor: COLORS.primary + '40',
-    alignItems: 'center', justifyContent: 'center',
+  // Multi-item meal builder
+  customAddBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 10, marginTop: 2,
   },
-  qtyDisplay: { flex: 1, alignItems: 'center' },
-  qtyValue: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },
-  qtyServing: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 1 },
-  qtyHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 6, textAlign: 'center' },
+  customAddText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.medium },
+  itemsBox: {
+    backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radius,
+    borderWidth: 1, borderColor: COLORS.primary + '25',
+    padding: 12, marginTop: 4,
+  },
+  itemsTitle: { fontSize: SIZES.fontSm, color: COLORS.white, ...FONTS.bold, marginBottom: 8 },
+  itemRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder,
+  },
+  itemName: { fontSize: SIZES.fontSm, color: COLORS.white, ...FONTS.semiBold },
+  itemServing: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 1 },
+  itemMiniInput: {
+    backgroundColor: COLORS.darkCard, borderRadius: 8,
+    borderWidth: 1, borderColor: COLORS.darkBorder,
+    paddingHorizontal: 8, paddingVertical: 4, fontSize: SIZES.fontXs,
+    color: COLORS.white, ...FONTS.medium, width: 72,
+  },
+  itemQtyWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  itemQtyText: { fontSize: SIZES.fontSm, color: COLORS.white, ...FONTS.bold, minWidth: 30, textAlign: 'center' },
+  itemCal: { fontSize: SIZES.fontSm, color: COLORS.warning, ...FONTS.bold, minWidth: 38, textAlign: 'right' },
+  itemsTotal: { paddingTop: 10, alignItems: 'center' },
+  itemsTotalText: { fontSize: SIZES.fontMd, color: COLORS.primary, ...FONTS.bold },
 
   // Food suggestions
   foodSuggestion: {
