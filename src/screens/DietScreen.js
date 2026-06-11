@@ -494,37 +494,19 @@ const DietScreen = ({ navigation }) => {
           </View>
         ))}
 
-        {/* ===== WATER TRACKER ===== */}
-        <Text style={styles.sectionTitle}>💧 Water Intake</Text>
-        <GradientCard colors={['#00D2FF15', COLORS.darkCard]}>
-          <View style={styles.waterRow}>
-            <ProgressRing
-              progress={Math.min(100, ((tracking?.waterIntake || 0) / 8) * 100)}
-              size={80}
-              color={COLORS.accent}
-              value={`${tracking?.waterIntake || 0}`}
-              label="of 8"
-            />
-            <View style={styles.waterGlasses}>
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((g) => (
-                <TouchableOpacity
-                  key={g}
-                  style={[styles.glass, g <= (tracking?.waterIntake || 0) && styles.glassFilled]}
-                  onPress={async () => {
-                    try {
-                      const res = await api.post(ENDPOINTS.ADD_WATER, { glasses: 1 });
-                      if (res.success) {
-                        setTracking(prev => ({ ...prev, waterIntake: res.data.waterIntake }));
-                      }
-                    } catch (e) { console.log(e); }
-                  }}
-                >
-                  <Text style={{ fontSize: 18 }}>{g <= (tracking?.waterIntake || 0) ? '💧' : '🔲'}</Text>
-                </TouchableOpacity>
-              ))}
+        {/* ===== WATER RECOMMENDATION (tracking happens on Track page) ===== */}
+        <GradientCard colors={['#00D2FF12', COLORS.darkCard]} style={{ marginBottom: 4 }}>
+          <View style={styles.waterRecoRow}>
+            <Text style={styles.waterRecoIcon}>💧</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.waterRecoTitle}>
+                Drink {user?.weight ? `${(Math.round(user.weight * 0.033 * 10) / 10)}L` : '2L'} water daily
+              </Text>
+              <Text style={styles.waterRecoSub}>
+                ≈ {user?.weight ? Math.max(6, Math.round((user.weight * 0.033 * 1000) / 250)) : 8} glasses • Log it from the Track page
+              </Text>
             </View>
           </View>
-          <Text style={styles.waterTip}>Tap to log water • Goal: 8 glasses (2L)</Text>
         </GradientCard>
 
         {/* ===== DIET TIPS BASED ON GOAL ===== */}
@@ -588,6 +570,12 @@ const DietScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingBottom: 20 },
+
+  // Water recommendation
+  waterRecoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  waterRecoIcon: { fontSize: 28 },
+  waterRecoTitle: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
+  waterRecoSub: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
 
   // AI Plan
   aiPlanHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
