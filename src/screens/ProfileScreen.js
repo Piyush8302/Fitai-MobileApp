@@ -180,48 +180,51 @@ const ProfileScreen = ({ navigation }) => {
           ))}
         </View>
 
-        {/* Extra Health Info */}
-        {(user?.dailyCalories || user?.proteinNeed) && (
-          <View style={styles.healthRow}>
-            {user?.dailyCalories && (() => {
-              const tdee = user.dailyCalories;
-              const bmrVal = user.bmr || Math.round(tdee / 1.55);
-              const g = user.fitnessGoal;
-              const target = (g === 'weight_loss' || g === 'fat_loss') ? bmrVal
-                : g === 'weight_gain' ? Math.round(tdee * 1.2)
-                : g === 'muscle_building' ? Math.round(tdee * 1.15)
-                : (g === 'height_growth' || g === 'gym_workout') ? Math.round(tdee * 1.1)
-                : tdee;
-              return (
-                <View style={styles.healthItem}>
-                  <Text style={styles.healthIcon}>🔥</Text>
-                  <View>
-                    <Text style={styles.healthValue}>{target} kcal</Text>
-                    <Text style={styles.healthLabel}>Target Calories</Text>
-                  </View>
-                </View>
-              );
-            })()}
-            {user?.proteinNeed && (
-              <View style={styles.healthItem}>
+        {/* Extra Health Info — Target is the main focus, others for context */}
+        {user?.dailyCalories && (() => {
+          const tdee = user.dailyCalories;
+          const bmrVal = user.bmr || Math.round(tdee / 1.55);
+          const g = user.fitnessGoal;
+          // Same goal-adjusted formula as Home/Tracking (single source of truth)
+          const safeDeficit = Math.max(bmrVal + 100, tdee - 500);
+          const target = (g === 'weight_loss' || g === 'fat_loss') ? safeDeficit
+            : g === 'weight_gain' ? Math.round(tdee + 400)
+            : g === 'muscle_building' ? Math.round(tdee + 300)
+            : (g === 'height_growth' || g === 'gym_workout') ? Math.round(tdee * 1.1)
+            : tdee;
+          const isLoss = g === 'weight_loss' || g === 'fat_loss';
+          const isGain = g === 'weight_gain' || g === 'muscle_building';
+          return (
+            <View style={styles.healthGrid}>
+              <View style={[styles.healthCell, { borderColor: COLORS.success + '40', backgroundColor: COLORS.success + '0A' }]}>
+                <Text style={styles.healthIcon}>🎯</Text>
+                <Text style={[styles.healthValue, { color: COLORS.success }]}>{target} kcal</Text>
+                <Text style={styles.healthLabel}>Target — Eat This Daily</Text>
+                <Text style={styles.healthHint}>
+                  {isLoss ? `${tdee - target} kcal deficit → fat loss` : isGain ? `${target - tdee} kcal surplus → gain` : 'maintain weight'}
+                </Text>
+              </View>
+              <View style={styles.healthCell}>
+                <Text style={styles.healthIcon}>🔥</Text>
+                <Text style={styles.healthValue}>{tdee} kcal</Text>
+                <Text style={styles.healthLabel}>Daily Burn (TDEE)</Text>
+                <Text style={styles.healthHint}>what you burn per day</Text>
+              </View>
+              <View style={styles.healthCell}>
+                <Text style={styles.healthIcon}>🛌</Text>
+                <Text style={styles.healthValue}>{bmrVal} kcal</Text>
+                <Text style={styles.healthLabel}>BMR (Minimum)</Text>
+                <Text style={styles.healthHint}>never eat below this</Text>
+              </View>
+              <View style={styles.healthCell}>
                 <Text style={styles.healthIcon}>💪</Text>
-                <View>
-                  <Text style={styles.healthValue}>{user.proteinNeed}g</Text>
-                  <Text style={styles.healthLabel}>Protein Need</Text>
-                </View>
+                <Text style={styles.healthValue}>{user.proteinNeed || '--'}g</Text>
+                <Text style={styles.healthLabel}>Protein / Day</Text>
+                <Text style={styles.healthHint}>preserve & build muscle</Text>
               </View>
-            )}
-            {user?.bmr && (
-              <View style={styles.healthItem}>
-                <Text style={styles.healthIcon}>⚡</Text>
-                <View>
-                  <Text style={styles.healthValue}>{user.bmr}</Text>
-                  <Text style={styles.healthLabel}>BMR</Text>
-                </View>
-              </View>
-            )}
-          </View>
-        )}
+            </View>
+          );
+        })()}
 
         {/* Appearance */}
         <View style={styles.menuSection}>
@@ -321,16 +324,16 @@ const styles = StyleSheet.create({
   statIcon: { fontSize: 22, marginBottom: 6 },
   statValue: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
   statLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: 2 },
-  healthRow: {
-    flexDirection: 'row', justifyContent: 'space-around',
+  healthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
+  healthCell: {
+    width: '47%', flexGrow: 1, alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8,
     backgroundColor: COLORS.darkCard, borderRadius: SIZES.radiusLg,
     borderWidth: 1, borderColor: COLORS.darkBorder,
-    padding: 14, marginBottom: 24,
   },
-  healthItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  healthIcon: { fontSize: 20 },
-  healthValue: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
-  healthLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
+  healthIcon: { fontSize: 20, marginBottom: 4 },
+  healthValue: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
+  healthLabel: { fontSize: SIZES.fontXs, color: COLORS.textSecondary, ...FONTS.semiBold, marginTop: 2, textAlign: 'center' },
+  healthHint: { fontSize: 9, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2, textAlign: 'center' },
   menuSection: { marginBottom: 20 },
   sectionTitle: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.semiBold, marginBottom: 10, marginLeft: 4 },
   menuCard: {

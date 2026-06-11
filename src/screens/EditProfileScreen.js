@@ -320,7 +320,7 @@ const EditProfileScreen = ({ navigation }) => {
     // 1 kg body weight ≈ 7700 kcal
     const dailyDelta = Math.round((rate * 7700) / 30);
     let targetCal;
-    if (isLoss) targetCal = Math.max(bmr, dailyCal - dailyDelta);
+    if (isLoss) targetCal = Math.max(bmr + 100, dailyCal - dailyDelta);
     else if (isGain) targetCal = dailyCal + Math.min(dailyDelta || 400, 500);
     else targetCal = dailyCal + 300;
 

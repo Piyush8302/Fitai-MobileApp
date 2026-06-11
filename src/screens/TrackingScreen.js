@@ -315,7 +315,7 @@ const TrackingScreen = ({ navigation }) => {
     // Research-based calorie & protein targets (ICMR 2020, ACSM, ISSN position papers)
     // Safe deficit: TDEE - 500 kcal (never below BMR) → ~0.5 kg/week loss
     // Surplus: +300-500 kcal for lean gain
-    const safeDeficit = Math.max(bmr, dailyCal - 500);
+    const safeDeficit = Math.max(bmr + 100, dailyCal - 500);
     switch (goal) {
       case 'weight_loss':
         return {

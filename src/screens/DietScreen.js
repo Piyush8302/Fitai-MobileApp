@@ -231,7 +231,7 @@ const DietScreen = ({ navigation }) => {
   const isWeightLoss = goal === 'weight_loss' || goal === 'fat_loss';
   // Same goal-adjusted formula as Tracking/Home (single source of truth)
   const targetCal = isWeightLoss
-    ? Math.max(bmr, dailyCal - 500)
+    ? Math.max(bmr + 100, dailyCal - 500)
     : goal === 'weight_gain' ? Math.round(dailyCal + 400)
     : goal === 'muscle_building' ? Math.round(dailyCal + 300)
     : Math.round(dailyCal * adjustment.calMult);
@@ -425,6 +425,12 @@ const DietScreen = ({ navigation }) => {
         <Text style={styles.sectionTitle}>
           📋 Suggested Meals ({(preference || 'veg').replace(/_/g, ' ')})
         </Text>
+        <View style={styles.pickGuide}>
+          <Ionicons name="checkmark-done-circle-outline" size={16} color={COLORS.primary} />
+          <Text style={styles.pickGuideText}>
+            These are ALTERNATIVES — pick any ONE from each meal. 1 breakfast + 1 lunch + 1 dinner + snacks ≈ {targetCal} kcal target
+          </Text>
+        </View>
         <Text style={styles.mealSubtitle}>
           {dietType === 'deficit'
             ? '🔥 Lower calorie options prioritized'
@@ -439,12 +445,25 @@ const DietScreen = ({ navigation }) => {
 
         {Object.entries(meals).map(([mealType, mealList]) => (
           <View key={mealType} style={styles.mealSection}>
-            <Text style={styles.mealType}>
-              {mealType === 'breakfast' ? '🌅 Breakfast' :
-               mealType === 'lunch' ? '☀️ Lunch' :
-               mealType === 'dinner' ? '🌙 Dinner' : '🍪 Snacks'}
-            </Text>
+            <View style={styles.mealTypeRow}>
+              <Text style={styles.mealType}>
+                {mealType === 'breakfast' ? '🌅 Breakfast' :
+                 mealType === 'lunch' ? '☀️ Lunch' :
+                 mealType === 'dinner' ? '🌙 Dinner' : '🍪 Snacks'}
+              </Text>
+              <View style={styles.pickOneBadge}>
+                <Text style={styles.pickOneText}>Pick any 1</Text>
+              </View>
+            </View>
             {getMealsForType(mealType).map((meal, i) => (
+              <React.Fragment key={i}>
+              {i > 0 && (
+                <View style={styles.orDivider}>
+                  <View style={styles.orLine} />
+                  <Text style={styles.orText}>OR</Text>
+                  <View style={styles.orLine} />
+                </View>
+              )}
               <TouchableOpacity
                 key={i}
                 style={styles.mealCard}
@@ -490,6 +509,7 @@ const DietScreen = ({ navigation }) => {
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
+              </React.Fragment>
             ))}
           </View>
         ))}
@@ -657,7 +677,24 @@ const styles = StyleSheet.create({
 
   // Meal Plan
   mealSection: { marginBottom: 20 },
-  mealType: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.semiBold, marginBottom: 10 },
+  mealTypeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  mealType: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.semiBold },
+  pickOneBadge: {
+    backgroundColor: COLORS.primary + '15', borderRadius: 12,
+    borderWidth: 1, borderColor: COLORS.primary + '40',
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
+  pickOneText: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.bold },
+  orDivider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 6, paddingHorizontal: 20 },
+  orLine: { flex: 1, height: 1, backgroundColor: COLORS.darkBorder },
+  orText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.bold },
+  pickGuide: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: COLORS.primary + '10', borderRadius: SIZES.radius,
+    borderWidth: 1, borderColor: COLORS.primary + '25',
+    padding: 12, marginBottom: 14,
+  },
+  pickGuideText: { flex: 1, fontSize: SIZES.fontXs, color: COLORS.textSecondary, ...FONTS.medium, lineHeight: 17 },
   mealCard: { marginBottom: 8, borderRadius: SIZES.radius, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.darkBorder },
   mealGrad: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: SIZES.radius },
   mealIcon: { fontSize: 28, marginRight: 12 },

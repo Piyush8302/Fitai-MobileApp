@@ -97,7 +97,7 @@ const HomeScreen = ({ navigation }) => {
   const getGoalAdjustedCalories = () => {
     const dailyCal = user.dailyCalories || tracking.caloriesGoal || 2000;
     const bmr = user.bmr || Math.round(dailyCal / 1.55);
-    const safeDeficit = Math.max(bmr, dailyCal - 500);
+    const safeDeficit = Math.max(bmr + 100, dailyCal - 500);
     switch (user.fitnessGoal) {
       case 'weight_loss':
       case 'fat_loss': return safeDeficit;
