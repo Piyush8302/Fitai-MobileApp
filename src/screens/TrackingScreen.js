@@ -216,15 +216,23 @@ const TrackingScreen = ({ navigation }) => {
     }, 300);
   }, []);
 
+  // Extract weight in grams from a serving string, e.g. "1 medium (40g)" → 40, "100g" → 100
+  const parseGrams = (serving) => {
+    const m = String(serving || '').match(/(\d+(?:\.\d+)?)\s*(?:g|gm|gms|grams|ml)\b/i);
+    return m ? parseFloat(m[1]) : null;
+  };
+
   // Add a food to the meal items list (from search, Quick Add, or custom)
   const addFoodItem = (food, custom = false) => {
+    const serving = food.serving || '1 serving';
     setMealItems(prev => [...prev, {
       id: Date.now() + Math.random(),
       name: food.name,
       qty: 1,
       baseCal: food.calories || 0,
       baseProtein: food.protein || 0,
-      serving: food.serving || '1 serving',
+      serving,
+      grams: parseGrams(serving), // weight of ONE serving (null if unknown)
       custom,
       calText: custom ? '' : undefined,
       proText: custom ? '' : undefined,
@@ -249,6 +257,7 @@ const TrackingScreen = ({ navigation }) => {
 
   const itemsTotalCal = mealItems.reduce((s, i) => s + Math.round(i.baseCal * i.qty), 0);
   const itemsTotalProtein = parseFloat(mealItems.reduce((s, i) => s + i.baseProtein * i.qty, 0).toFixed(1));
+  const itemsTotalGrams = Math.round(mealItems.reduce((s, i) => s + (i.grams ? i.grams * i.qty : 0), 0));
 
   const handleMealNameChange = (text) => {
     setMealName(text);
@@ -1019,9 +1028,17 @@ const TrackingScreen = ({ navigation }) => {
                           </View>
                         ) : (
                           <Text style={styles.itemServing} numberOfLines={1}>
-                            {item.serving} • {Math.round(item.baseCal)} kcal each
+                            {item.serving} = {Math.round(item.baseCal)} kcal
                           </Text>
                         )}
+                        {/* How it's measured: serving weight × quantity */}
+                        {item.grams ? (
+                          <Text style={styles.itemWeight}>
+                            ⚖️ {item.qty}× {item.grams}g = {Math.round(item.grams * item.qty)}g eaten
+                          </Text>
+                        ) : !item.custom ? (
+                          <Text style={styles.itemWeight}>⚖️ {item.qty} serving{item.qty !== 1 ? 's' : ''} eaten</Text>
+                        ) : null}
                       </View>
                       <View style={styles.itemQtyWrap}>
                         <TouchableOpacity onPress={() => changeItemQty(item.id, -0.5)} hitSlop={{ top: 8, bottom: 8 }}>
@@ -1032,7 +1049,10 @@ const TrackingScreen = ({ navigation }) => {
                           <Ionicons name="add-circle" size={24} color={COLORS.primary} />
                         </TouchableOpacity>
                       </View>
-                      <Text style={styles.itemCal}>{Math.round(item.baseCal * item.qty)}</Text>
+                      <View style={{ alignItems: 'flex-end', minWidth: 42 }}>
+                        <Text style={styles.itemCal}>{Math.round(item.baseCal * item.qty)}</Text>
+                        <Text style={styles.itemCalUnit}>kcal</Text>
+                      </View>
                       <TouchableOpacity onPress={() => removeItem(item.id)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
                         <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
                       </TouchableOpacity>
@@ -1040,7 +1060,10 @@ const TrackingScreen = ({ navigation }) => {
                   ))}
                   <View style={styles.itemsTotal}>
                     <Text style={styles.itemsTotalText}>
-                      Total: {itemsTotalCal} kcal • {itemsTotalProtein}g protein
+                      Total: {itemsTotalCal} kcal • {itemsTotalProtein}g protein{itemsTotalGrams > 0 ? ` • ~${itemsTotalGrams}g food` : ''}
+                    </Text>
+                    <Text style={styles.itemsHint}>
+                      Calories = standard serving weight × your quantity
                     </Text>
                   </View>
                 </View>
@@ -1560,9 +1583,12 @@ const styles = StyleSheet.create({
   },
   itemQtyWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   itemQtyText: { fontSize: SIZES.fontSm, color: COLORS.white, ...FONTS.bold, minWidth: 30, textAlign: 'center' },
-  itemCal: { fontSize: SIZES.fontSm, color: COLORS.warning, ...FONTS.bold, minWidth: 38, textAlign: 'right' },
+  itemCal: { fontSize: SIZES.fontSm, color: COLORS.warning, ...FONTS.bold },
+  itemCalUnit: { fontSize: 8, color: COLORS.textMuted },
+  itemWeight: { fontSize: SIZES.fontXs, color: COLORS.accent, ...FONTS.medium, marginTop: 2 },
   itemsTotal: { paddingTop: 10, alignItems: 'center' },
   itemsTotalText: { fontSize: SIZES.fontMd, color: COLORS.primary, ...FONTS.bold },
+  itemsHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 4 },
 
   // Food suggestions
   foodSuggestion: {
