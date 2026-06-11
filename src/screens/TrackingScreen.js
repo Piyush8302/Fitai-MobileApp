@@ -47,6 +47,8 @@ const TrackingScreen = ({ navigation }) => {
   const [foodResults, setFoodResults] = useState([]);
   const [foodSearching, setFoodSearching] = useState(false);
   const foodSearchTimer = useRef(null);
+  const [mealQty, setMealQty] = useState(1); // servings multiplier
+  const baseNutri = useRef({ cal: 0, protein: 0, serving: '' }); // per-serving base values
 
   // Sleep form
   const [sleepHours, setSleepHours] = useState('7');
@@ -219,6 +221,8 @@ const TrackingScreen = ({ navigation }) => {
 
   const selectFood = (food) => {
     setMealName(food.name);
+    baseNutri.current = { cal: food.calories, protein: food.protein, serving: food.serving || '1 serving' };
+    setMealQty(1);
     setMealCalories(String(food.calories));
     setMealProtein(String(food.protein));
     setFoodResults([]);
@@ -229,23 +233,46 @@ const TrackingScreen = ({ navigation }) => {
     searchFoodDB(text);
   };
 
+  // Quantity stepper — calories/protein scale with servings
+  const changeMealQty = (delta) => {
+    const q = Math.min(10, Math.max(0.5, mealQty + delta));
+    setMealQty(q);
+    if (baseNutri.current.cal > 0) {
+      setMealCalories(String(Math.round(baseNutri.current.cal * q)));
+      setMealProtein(String(parseFloat((baseNutri.current.protein * q).toFixed(1))));
+    }
+  };
+
+  // Manual edits define the per-serving base (so stepper stays correct)
+  const handleCaloriesChange = (t) => {
+    setMealCalories(t);
+    baseNutri.current.cal = (parseInt(t) || 0) / (mealQty || 1);
+  };
+  const handleProteinChange = (t) => {
+    setMealProtein(t);
+    baseNutri.current.protein = (parseFloat(t) || 0) / (mealQty || 1);
+  };
+
   const logMealEntry = async () => {
     if (!mealName.trim()) { Alert.alert('Error', 'Enter what you ate'); return; }
     const cal = parseInt(mealCalories) || 0;
     const protein = parseFloat(mealProtein) || 0;
+    const itemName = mealQty !== 1 ? `${mealName.trim()} (${mealQty}× serving)` : mealName.trim();
     try {
       const res = await api.post(ENDPOINTS.LOG_MEAL, {
         mealType,
-        items: [{ name: mealName.trim(), calories: cal, protein }],
+        items: [{ name: itemName, calories: cal, protein }],
         totalCalories: cal,
       });
       if (res.success) {
         setTracking(res.data);
-        showToast('🍽', `Added to ${mealType}`, `${mealName} • ${cal} kcal${protein > 0 ? ` • ${protein}g protein` : ''}`);
+        showToast('🍽', `Added to ${mealType}`, `${itemName} • ${cal} kcal${protein > 0 ? ` • ${protein}g protein` : ''}`);
         setShowMealModal(false);
         setMealName('');
         setMealCalories('');
         setMealProtein('');
+        setMealQty(1);
+        baseNutri.current = { cal: 0, protein: 0, serving: '' };
       }
     } catch (e) { Alert.alert('Error', 'Failed to log meal'); }
   };
@@ -895,7 +922,7 @@ const TrackingScreen = ({ navigation }) => {
                   <TouchableOpacity
                     key={idx}
                     style={[styles.foodSuggestion, mealName === food.name && { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10' }]}
-                    onPress={() => { setMealName(food.name); setMealCalories(String(food.calories)); setMealProtein(String(food.protein)); }}
+                    onPress={() => { setMealName(food.name); baseNutri.current = { cal: food.calories, protein: food.protein, serving: '1 serving' }; setMealQty(1); setMealCalories(String(food.calories)); setMealProtein(String(food.protein)); }}
                   >
                     <Text style={styles.foodSugIcon}>{food.icon}</Text>
                     <Text style={styles.foodSugName} numberOfLines={1}>{food.name}</Text>
@@ -950,6 +977,34 @@ const TrackingScreen = ({ navigation }) => {
                 </ScrollView>
               )}
 
+              {/* Quantity / Servings stepper */}
+              <Text style={styles.inputLabel}>How much did you eat?</Text>
+              <View style={styles.qtyRow}>
+                <TouchableOpacity
+                  style={[styles.qtyBtn, mealQty <= 0.5 && { opacity: 0.4 }]}
+                  onPress={() => changeMealQty(-0.5)}
+                  disabled={mealQty <= 0.5}
+                >
+                  <Ionicons name="remove" size={20} color={COLORS.primary} />
+                </TouchableOpacity>
+                <View style={styles.qtyDisplay}>
+                  <Text style={styles.qtyValue}>{mealQty}×</Text>
+                  <Text style={styles.qtyServing} numberOfLines={1}>
+                    {baseNutri.current.serving || 'serving'}{baseNutri.current.cal > 0 ? ` (${Math.round(baseNutri.current.cal)} kcal each)` : ''}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.qtyBtn, mealQty >= 10 && { opacity: 0.4 }]}
+                  onPress={() => changeMealQty(0.5)}
+                  disabled={mealQty >= 10}
+                >
+                  <Ionicons name="add" size={20} color={COLORS.primary} />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.qtyHint}>
+                e.g. 2 roti = 2× • aadha plate rice = 0.5× • ya niche calories khud bharo
+              </Text>
+
               <View style={styles.inputRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.inputLabel}>Calories (kcal)</Text>
@@ -959,7 +1014,7 @@ const TrackingScreen = ({ navigation }) => {
                     placeholderTextColor={COLORS.textMuted}
                     keyboardType="number-pad"
                     value={mealCalories}
-                    onChangeText={setMealCalories}
+                    onChangeText={handleCaloriesChange}
                   />
                 </View>
                 <View style={{ width: 10 }} />
@@ -971,7 +1026,7 @@ const TrackingScreen = ({ navigation }) => {
                     placeholderTextColor={COLORS.textMuted}
                     keyboardType="decimal-pad"
                     value={mealProtein}
-                    onChangeText={setMealProtein}
+                    onChangeText={handleProteinChange}
                   />
                 </View>
               </View>
@@ -1344,7 +1399,7 @@ const styles = StyleSheet.create({
   waterProgressWrap: { flex: 1, alignItems: 'center', gap: 6 },
   waterProgressBar: {
     width: '100%', height: 8, borderRadius: 4,
-    backgroundColor: COLORS.darkBorder, overflow: 'hidden',
+    backgroundColor: COLORS.textMuted + '30', overflow: 'hidden',
   },
   waterProgressFill: { height: '100%', borderRadius: 4, backgroundColor: COLORS.accent },
   waterMoreBadge: {
@@ -1472,6 +1527,19 @@ const styles = StyleSheet.create({
   foodDbLinkText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.medium },
   mealPreview: { backgroundColor: COLORS.warning + '10', borderRadius: SIZES.radius, padding: 12, marginTop: 8, borderWidth: 1, borderColor: COLORS.warning + '30' },
   mealPreviewText: { fontSize: SIZES.fontSm, color: COLORS.warning, ...FONTS.medium, textAlign: 'center' },
+
+  // Quantity stepper
+  qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  qtyBtn: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: COLORS.primary + '15',
+    borderWidth: 1.5, borderColor: COLORS.primary + '40',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  qtyDisplay: { flex: 1, alignItems: 'center' },
+  qtyValue: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },
+  qtyServing: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 1 },
+  qtyHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 6, textAlign: 'center' },
 
   // Food suggestions
   foodSuggestion: {

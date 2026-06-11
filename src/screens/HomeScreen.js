@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   goalArrow: { paddingHorizontal: 8 },
   goalArrowText: { fontSize: 24, color: COLORS.textMuted },
   goalProgress: { flexDirection: 'row', alignItems: 'center' },
-  goalProgressBar: { flex: 1, height: 8, backgroundColor: COLORS.darkBorder, borderRadius: 4, overflow: 'hidden' },
+  goalProgressBar: { flex: 1, height: 8, backgroundColor: COLORS.textMuted + '30', borderRadius: 4, overflow: 'hidden' },
   goalProgressFill: { height: '100%', borderRadius: 4 },
   goalPercent: { fontSize: SIZES.fontSm, color: COLORS.secondary, ...FONTS.bold, marginLeft: 10 },
   workoutCard: { marginBottom: 24 },

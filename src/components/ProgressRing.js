@@ -15,7 +15,7 @@ const ProgressRing = ({ progress = 0, size = 80, strokeWidth = 8, color = COLORS
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={COLORS.darkBorder}
+          stroke={color + '25'}
           strokeWidth={strokeWidth}
           fill="none"
         />

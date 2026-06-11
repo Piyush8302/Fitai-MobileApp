@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, Alert, Image, DevSettings } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
@@ -20,10 +20,20 @@ const ProfileScreen = ({ navigation }) => {
     setDarkMode(value);
     try {
       await AsyncStorage.setItem('themeMode', value ? 'dark' : 'light');
-      Alert.alert(
-        value ? '🌙 Dark Mode' : '☀️ Light Mode',
-        'Theme saved! Close and reopen the app to apply the new theme.',
-      );
+      // Reload the JS bundle so every screen re-styles with the new palette
+      if (__DEV__) {
+        DevSettings.reload();
+        return;
+      }
+      try {
+        const Updates = require('expo-updates');
+        await Updates.reloadAsync();
+      } catch (e) {
+        Alert.alert(
+          value ? '🌙 Dark Mode' : '☀️ Light Mode',
+          'Theme saved! Close and reopen the app to apply.',
+        );
+      }
     } catch (e) { console.log('Theme save error:', e); }
   };
 
