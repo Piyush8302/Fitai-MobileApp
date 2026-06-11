@@ -54,10 +54,10 @@ export const LIGHT_COLORS = {
   darkBorder: '#E0E2F0',  // borders
 
   // Content — dark text on light surfaces
-  white: '#1B1D33',
-  textPrimary: '#1B1D33',
-  textSecondary: '#4A4C6E',
-  textMuted: '#8385A5',
+  white: '#13152A',
+  textPrimary: '#13152A',
+  textSecondary: '#32345C',
+  textMuted: '#5D5F85',
 
   // Always-white: text/icons on colored gradients & buttons
   onAccent: '#FFFFFF',
