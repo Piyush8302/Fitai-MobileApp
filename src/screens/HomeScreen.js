@@ -469,10 +469,10 @@ const styles = StyleSheet.create({
     width: 20, height: 20, borderRadius: 10,
     backgroundColor: COLORS.success, alignItems: 'center', justifyContent: 'center',
   },
-  quoteCard: { marginBottom: 16, alignItems: 'center' },
-  quoteIcon: { fontSize: 32, marginBottom: 8 },
-  quoteText: { fontSize: SIZES.fontMd, color: COLORS.textSecondary, ...FONTS.medium, textAlign: 'center', lineHeight: 22, fontStyle: 'italic' },
-  quoteAuthor: { fontSize: SIZES.fontSm, color: COLORS.textMuted, marginTop: 8 },
+  quoteCard: { marginBottom: 16 },
+  quoteIcon: { fontSize: 32, marginBottom: 8, alignSelf: 'center' },
+  quoteText: { fontSize: SIZES.fontMd, color: COLORS.textSecondary, ...FONTS.medium, textAlign: 'center', lineHeight: 22, fontStyle: 'italic', alignSelf: 'center' },
+  quoteAuthor: { fontSize: SIZES.fontSm, color: COLORS.textMuted, marginTop: 8, alignSelf: 'center' },
 
   // Coming Soon Carousel
   bannerWrap: { marginBottom: 8 },
