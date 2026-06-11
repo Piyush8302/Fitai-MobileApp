@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,10 +10,52 @@ import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
+const BANNER_WIDTH = width - 32;
+
+const COMING_SOON_SLIDES = [
+  {
+    icon: '🧑‍🏫',
+    title: 'Personal Mentor',
+    desc: '1-on-1 guidance from certified fitness trainers & dieticians',
+    badge: 'COMING SOON',
+    colors: ['#6C63FF25', '#1A1A2E'],
+    accent: '#6C63FF',
+  },
+  {
+    icon: '🥗',
+    title: 'Healthy Food Delivery',
+    desc: 'Fresh, calorie-counted meals delivered to your doorstep',
+    badge: 'COMING SOON',
+    colors: ['#4CAF5025', '#1A1A2E'],
+    accent: '#4CAF50',
+  },
+  {
+    icon: '🏆',
+    title: 'Fitness Challenges',
+    desc: 'Compete with friends, win rewards & premium subscriptions',
+    badge: 'COMING SOON',
+    colors: ['#FF980025', '#1A1A2E'],
+    accent: '#FF9800',
+  },
+];
 
 const HomeScreen = ({ navigation }) => {
   const [user, setUser] = useState({ name: 'User', weight: 70, targetWeight: 65, fitnessGoal: 'weight_loss' });
   const [tracking, setTracking] = useState({ caloriesConsumed: 0, waterIntake: 0, steps: 0, workoutMinutes: 0, caloriesGoal: 2000, waterGoal: 8, stepsGoal: 10000, mealsLogged: [] });
+  const [bannerIndex, setBannerIndex] = useState(0);
+  const bannerRef = useRef(null);
+
+  // Auto-scroll the coming-soon carousel
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setBannerIndex((prev) => {
+        const next = (prev + 1) % COMING_SOON_SLIDES.length;
+        bannerRef.current?.scrollTo({ x: next * BANNER_WIDTH, animated: true });
+        return next;
+      });
+    }, 3500);
+    return () => clearInterval(timer);
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -298,6 +340,52 @@ const HomeScreen = ({ navigation }) => {
           <Text style={styles.quoteAuthor}>— Daily Motivation</Text>
         </GradientCard>
 
+        {/* ===== COMING SOON CAROUSEL ===== */}
+        <Text style={styles.sectionTitle}>✨ What's Next</Text>
+        <View style={styles.bannerWrap}>
+          <ScrollView
+            ref={bannerRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={BANNER_WIDTH}
+            decelerationRate="fast"
+            onMomentumScrollEnd={(e) => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / BANNER_WIDTH);
+              setBannerIndex(idx);
+            }}
+          >
+            {COMING_SOON_SLIDES.map((slide, i) => (
+              <View key={i} style={{ width: BANNER_WIDTH }}>
+                <LinearGradient colors={slide.colors} style={styles.bannerCard}>
+                  <View style={styles.bannerLeft}>
+                    <View style={[styles.bannerBadge, { backgroundColor: slide.accent + '25', borderColor: slide.accent + '50' }]}>
+                      <Text style={[styles.bannerBadgeText, { color: slide.accent }]}>{slide.badge}</Text>
+                    </View>
+                    <Text style={styles.bannerTitle}>{slide.title}</Text>
+                    <Text style={styles.bannerDesc}>{slide.desc}</Text>
+                  </View>
+                  <View style={[styles.bannerIconWrap, { backgroundColor: slide.accent + '20' }]}>
+                    <Text style={styles.bannerIcon}>{slide.icon}</Text>
+                  </View>
+                </LinearGradient>
+              </View>
+            ))}
+          </ScrollView>
+          {/* Dots */}
+          <View style={styles.bannerDots}>
+            {COMING_SOON_SLIDES.map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.bannerDot,
+                  bannerIndex === i && { backgroundColor: COLORS.primary, width: 18 },
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+
         <View style={{ height: 100 }} />
       </ScrollView>
     </LinearGradient>
@@ -385,6 +473,34 @@ const styles = StyleSheet.create({
   quoteIcon: { fontSize: 32, marginBottom: 8 },
   quoteText: { fontSize: SIZES.fontMd, color: COLORS.textSecondary, ...FONTS.medium, textAlign: 'center', lineHeight: 22, fontStyle: 'italic' },
   quoteAuthor: { fontSize: SIZES.fontSm, color: COLORS.textMuted, marginTop: 8 },
+
+  // Coming Soon Carousel
+  bannerWrap: { marginBottom: 8 },
+  bannerCard: {
+    flexDirection: 'row', alignItems: 'center',
+    borderRadius: SIZES.radiusLg, padding: 18, minHeight: 110,
+    borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  bannerLeft: { flex: 1, paddingRight: 12 },
+  bannerBadge: {
+    alignSelf: 'flex-start', borderRadius: 10, borderWidth: 1,
+    paddingHorizontal: 8, paddingVertical: 3, marginBottom: 8,
+  },
+  bannerBadgeText: { fontSize: 9, ...FONTS.bold, letterSpacing: 1.2 },
+  bannerTitle: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, marginBottom: 4 },
+  bannerDesc: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, lineHeight: 17 },
+  bannerIconWrap: {
+    width: 60, height: 60, borderRadius: 30,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  bannerIcon: { fontSize: 30 },
+  bannerDots: {
+    flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10,
+  },
+  bannerDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: COLORS.darkBorder,
+  },
 });
 
 export default HomeScreen;
