@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
   unitBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: SIZES.radius - 4 },
   unitBtnActive: { backgroundColor: COLORS.primary },
   unitText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium },
-  unitTextActive: { color: COLORS.white, ...FONTS.bold },
+  unitTextActive: { color: COLORS.onAccent, ...FONTS.bold },
   customHint: { fontSize: SIZES.fontSm, color: COLORS.accent, ...FONTS.medium, marginBottom: 12, textAlign: 'center' },
 
   timelineInfo: {

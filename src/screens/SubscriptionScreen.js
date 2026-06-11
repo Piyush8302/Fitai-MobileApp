@@ -64,7 +64,7 @@ const SubscriptionScreen = ({ navigation }) => {
 
       // Open Cashfree payment page in browser
       await WebBrowser.openBrowserAsync(res.data.paymentUrl, {
-        toolbarColor: '#151725',
+        toolbarColor: COLORS.dark,
         dismissButtonStyle: 'done',
       });
 
@@ -331,7 +331,7 @@ const SubscriptionScreen = ({ navigation }) => {
         <View style={styles.bottom}>
           <TouchableOpacity onPress={() => setShowUpiModal(true)} activeOpacity={0.8} style={styles.ctaContainer}>
             <LinearGradient colors={COLORS.gradient1} style={styles.ctaGrad}>
-              <Ionicons name="send" size={18} color={COLORS.white} />
+              <Ionicons name="send" size={18} color={COLORS.onAccent} />
               <Text style={styles.ctaText}>Pay ₹{currentPrice} via UPI</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -372,7 +372,7 @@ const SubscriptionScreen = ({ navigation }) => {
             <LinearGradient colors={COLORS.gradient1} style={styles.ctaGrad}>
               {loading ? <ActivityIndicator color={COLORS.white} /> : (
                 <>
-                  <Ionicons name="wallet" size={18} color={COLORS.white} />
+                  <Ionicons name="wallet" size={18} color={COLORS.onAccent} />
                   <Text style={styles.ctaText}>Pay ₹{currentPrice}</Text>
                 </>
               )}
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   planGrad: { padding: 20, borderRadius: SIZES.radiusLg },
   badgeContainer: { alignSelf: 'flex-start', marginBottom: 10 },
   badge: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 },
-  badgeText: { fontSize: SIZES.fontXs, color: COLORS.white, ...FONTS.bold, letterSpacing: 1 },
+  badgeText: { fontSize: SIZES.fontXs, color: COLORS.onAccent, ...FONTS.bold, letterSpacing: 1 },
   planHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   planName: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4, gap: 4 },
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
   bottom: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 24, paddingBottom: 34, paddingTop: 12, backgroundColor: COLORS.dark + 'F5', borderTopWidth: 1, borderTopColor: COLORS.darkBorder, alignItems: 'center' },
   ctaContainer: { width: '100%', borderRadius: SIZES.radius, overflow: 'hidden', ...SHADOWS.medium },
   ctaGrad: { paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: SIZES.radius },
-  ctaText: { color: COLORS.white, fontSize: SIZES.fontLg, ...FONTS.bold },
+  ctaText: { color: COLORS.onAccent, fontSize: SIZES.fontLg, ...FONTS.bold },
   directUpiBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, padding: 8 },
   directUpiText: { color: COLORS.primary, fontSize: SIZES.fontSm, ...FONTS.medium },
   secureText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 6 },

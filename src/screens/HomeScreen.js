@@ -18,7 +18,7 @@ const COMING_SOON_SLIDES = [
     title: 'Personal Mentor',
     desc: '1-on-1 guidance from certified fitness trainers & dieticians',
     badge: 'COMING SOON',
-    colors: ['#6C63FF25', '#222438'],
+    colors: ['#6C63FF25', COLORS.darkCard],
     accent: '#6C63FF',
   },
   {
@@ -26,7 +26,7 @@ const COMING_SOON_SLIDES = [
     title: 'Healthy Food Delivery',
     desc: 'Fresh, calorie-counted meals delivered to your doorstep',
     badge: 'COMING SOON',
-    colors: ['#4CAF5025', '#222438'],
+    colors: ['#4CAF5025', COLORS.darkCard],
     accent: '#4CAF50',
   },
   {
@@ -34,7 +34,7 @@ const COMING_SOON_SLIDES = [
     title: 'Fitness Challenges',
     desc: 'Compete with friends, win rewards & premium subscriptions',
     badge: 'COMING SOON',
-    colors: ['#FF980025', '#222438'],
+    colors: ['#FF980025', COLORS.darkCard],
     accent: '#FF9800',
   },
 ];
@@ -157,7 +157,7 @@ const HomeScreen = ({ navigation }) => {
         </View>
 
         {/* Today's Progress Card */}
-        <GradientCard colors={['#6C63FF20', '#222438']} style={styles.progressCard}>
+        <GradientCard colors={['#6C63FF20', COLORS.darkCard]} style={styles.progressCard}>
           <Text style={styles.cardTitle}>Today's Progress</Text>
           <View style={styles.progressRow}>
             <ProgressRing progress={overallProgress} size={90} color={COLORS.primary} value={`${overallProgress}%`} label="Overall" />
@@ -227,7 +227,7 @@ const HomeScreen = ({ navigation }) => {
         </View>
 
         {/* Current Goal */}
-        <GradientCard colors={['#FF6B6B15', '#222438']} style={styles.goalCard}>
+        <GradientCard colors={['#FF6B6B15', COLORS.darkCard]} style={styles.goalCard}>
           <View style={styles.goalHeader}>
             <Text style={styles.cardTitle}>Current Goal</Text>
             <View style={styles.goalBadge}>
@@ -282,7 +282,7 @@ const HomeScreen = ({ navigation }) => {
                 {!isRest && (
                   <TouchableOpacity style={styles.startBtn} onPress={() => navigation.navigate('Workout')}>
                     <LinearGradient colors={COLORS.gradient1} style={styles.startBtnGrad}>
-                      <Ionicons name="play" size={18} color={COLORS.white} />
+                      <Ionicons name="play" size={18} color={COLORS.onAccent} />
                     </LinearGradient>
                   </TouchableOpacity>
                 )}
@@ -334,7 +334,7 @@ const HomeScreen = ({ navigation }) => {
         </View>
 
         {/* Motivational Quote */}
-        <GradientCard colors={['#9C27B015', '#222438']} style={styles.quoteCard}>
+        <GradientCard colors={['#9C27B015', COLORS.darkCard]} style={styles.quoteCard}>
           <Text style={styles.quoteIcon}>💪</Text>
           <Text style={styles.quoteText}>"The only bad workout is the one that didn't happen."</Text>
           <Text style={styles.quoteAuthor}>— Daily Motivation</Text>
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
   },
   avatarImg: { width: 44, height: 44, borderRadius: 22 },
-  avatarText: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
+  avatarText: { fontSize: SIZES.fontLg, color: COLORS.onAccent, ...FONTS.bold },
   progressCard: { marginBottom: 24 },
   cardTitle: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, marginBottom: 16 },
   progressRow: { flexDirection: 'row', alignItems: 'center' },

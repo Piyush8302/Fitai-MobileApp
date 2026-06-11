@@ -11,7 +11,7 @@ const WeightGainScreen = ({ navigation }) => (
     <Header title="Weight Gain Program" subtitle="Healthy Mass Building Plan" onBack={() => navigation.goBack()} />
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
       {/* Progress */}
-      <GradientCard colors={['#4CAF5015', '#222438']} style={styles.card}>
+      <GradientCard colors={['#4CAF5015', COLORS.darkCard]} style={styles.card}>
         <View style={styles.row}>
           <ProgressRing progress={40} size={100} strokeWidth={10} color={COLORS.success} value="40%" label="Progress" />
           <View style={styles.info}>
@@ -95,7 +95,7 @@ const WeightGainScreen = ({ navigation }) => (
 
       {/* Protein Tracker */}
       <Text style={styles.sectionTitle}>🥩 Daily Protein Tracker</Text>
-      <GradientCard colors={['#6C63FF15', '#222438']}>
+      <GradientCard colors={['#6C63FF15', COLORS.darkCard]}>
         <View style={styles.proteinRow}>
           <ProgressRing progress={72} size={80} color={COLORS.primary} value="108g" label="of 150g" />
           <View style={styles.proteinList}>

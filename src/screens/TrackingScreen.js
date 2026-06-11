@@ -453,7 +453,7 @@ const TrackingScreen = ({ navigation }) => {
           <>
             {/* ===== PERSONALIZED GOAL BANNER ===== */}
             {userProfile && (
-              <GradientCard colors={[goalInfo.color + '15', '#222438']} style={{ marginBottom: 16 }}>
+              <GradientCard colors={[goalInfo.color + '15', COLORS.darkCard]} style={{ marginBottom: 16 }}>
                 <View style={styles.goalBanner}>
                   <View style={styles.goalBannerHeader}>
                     <Text style={styles.goalBannerIcon}>{goalInfo.icon}</Text>
@@ -504,7 +504,7 @@ const TrackingScreen = ({ navigation }) => {
             )}
 
             {/* ===== WATER TRACKER (dedicated card with +/- controls) ===== */}
-            <GradientCard colors={[COLORS.accent + '15', '#222438']} style={{ marginBottom: 16 }}>
+            <GradientCard colors={[COLORS.accent + '15', COLORS.darkCard]} style={{ marginBottom: 16 }}>
               <View style={styles.waterHeader}>
                 <View style={styles.waterTitleRow}>
                   <Text style={styles.waterEmoji}>💧</Text>
@@ -1194,7 +1194,7 @@ const TrackingScreen = ({ navigation }) => {
       {/* Toast Notification */}
       {toast && (
         <Animated.View style={[styles.toastWrap, { transform: [{ translateY: toastAnim }], opacity: toastOpacity }]}>
-          <LinearGradient colors={['#1A2E1A', '#222438']} style={styles.toastBox}>
+          <LinearGradient colors={[COLORS.darkCard, COLORS.darkCard]} style={styles.toastBox}>
             <Text style={styles.toastIcon}>{toast.icon}</Text>
             <View style={styles.toastInfo}>
               <Text style={styles.toastTitle}>{toast.title}</Text>
@@ -1458,7 +1458,7 @@ const styles = StyleSheet.create({
   // Submit
   submitBtn: { borderRadius: SIZES.radius, overflow: 'hidden', marginTop: 16 },
   submitGrad: { alignItems: 'center', paddingVertical: 14, borderRadius: SIZES.radius },
-  submitText: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
+  submitText: { fontSize: SIZES.fontLg, color: COLORS.onAccent, ...FONTS.bold },
 
   // Toast
   toastWrap: { position: 'absolute', top: 60, right: 16, left: 16, zIndex: 999, elevation: 999 },

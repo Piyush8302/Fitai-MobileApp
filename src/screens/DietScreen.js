@@ -267,7 +267,7 @@ const DietScreen = ({ navigation }) => {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
         {/* ===== PROFILE-BASED RECOMMENDATION BANNER ===== */}
-        <GradientCard colors={[COLORS.primary + '15', '#222438']} style={styles.recBanner}>
+        <GradientCard colors={[COLORS.primary + '15', COLORS.darkCard]} style={styles.recBanner}>
           <View style={styles.recHeader}>
             <View style={[styles.recIconWrap, { backgroundColor: COLORS.primary + '20' }]}>
               <Ionicons name="sparkles" size={22} color={COLORS.primary} />
@@ -286,7 +286,7 @@ const DietScreen = ({ navigation }) => {
         </GradientCard>
 
         {/* ===== CALORIE SUMMARY ===== */}
-        <GradientCard colors={['#4CAF5015', '#222438']} style={styles.calorieCard}>
+        <GradientCard colors={['#4CAF5015', COLORS.darkCard]} style={styles.calorieCard}>
           <View style={styles.calRow}>
             <ProgressRing
               progress={targetCal > 0 ? Math.min(100, Math.round((consumed / targetCal) * 100)) : 0}
@@ -387,7 +387,7 @@ const DietScreen = ({ navigation }) => {
         {aiPlanLoading && !aiPlan ? (
           <GradientCard><ActivityIndicator color={COLORS.primary} style={{ paddingVertical: 20 }} /></GradientCard>
         ) : aiPlan ? (
-          <GradientCard colors={[COLORS.primary + '10', '#222438']} style={{ marginBottom: 20 }}>
+          <GradientCard colors={[COLORS.primary + '10', COLORS.darkCard]} style={{ marginBottom: 20 }}>
             <Text style={styles.aiPlanTitle}>{aiPlan.title}</Text>
             <Text style={styles.aiPlanMeta}>
               {aiPlan.calorieNote} • 💧 {aiPlan.waterIntake}L water • Plan total: {aiPlan.totalCalories} kcal, {aiPlan.totalProtein}g protein
@@ -496,7 +496,7 @@ const DietScreen = ({ navigation }) => {
 
         {/* ===== WATER TRACKER ===== */}
         <Text style={styles.sectionTitle}>💧 Water Intake</Text>
-        <GradientCard colors={['#00D2FF15', '#222438']}>
+        <GradientCard colors={['#00D2FF15', COLORS.darkCard]}>
           <View style={styles.waterRow}>
             <ProgressRing
               progress={Math.min(100, ((tracking?.waterIntake || 0) / 8) * 100)}
@@ -529,7 +529,7 @@ const DietScreen = ({ navigation }) => {
 
         {/* ===== DIET TIPS BASED ON GOAL ===== */}
         <Text style={styles.sectionTitle}>💡 Tips for {(goal || '').replace(/_/g, ' ')}</Text>
-        <GradientCard colors={[COLORS.warning + '10', '#222438']}>
+        <GradientCard colors={[COLORS.warning + '10', COLORS.darkCard]}>
           {(() => {
             const tips = {
               weight_loss: [

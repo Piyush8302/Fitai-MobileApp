@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     width: 24, height: 24, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
   },
-  check: { color: COLORS.white, fontSize: 14, ...FONTS.bold },
+  check: { color: COLORS.onAccent, fontSize: 14, ...FONTS.bold },
   bottom: { paddingHorizontal: 24, paddingBottom: 34, paddingTop: 12, backgroundColor: COLORS.dark },
 });
 

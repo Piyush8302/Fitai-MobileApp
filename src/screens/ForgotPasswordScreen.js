@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.medium },
   submitBtn: { marginTop: 10, borderRadius: SIZES.radius, overflow: 'hidden' },
   submitGradient: { paddingVertical: 16, alignItems: 'center', borderRadius: SIZES.radius },
-  submitText: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
+  submitText: { fontSize: SIZES.fontLg, color: COLORS.onAccent, ...FONTS.bold },
   resendLink: { alignItems: 'center', marginTop: 16 },
   resendText: { fontSize: SIZES.fontMd, color: COLORS.accent, ...FONTS.medium },
   backLink: { alignItems: 'center', marginTop: 24 },

@@ -183,7 +183,7 @@ const FoodDatabaseScreen = ({ navigation }) => {
 
       {/* How We Track Banner */}
       <TouchableOpacity style={styles.infoBanner}>
-        <LinearGradient colors={['#4CAF5015', '#1A2E1A']} style={styles.infoBannerGrad}>
+        <LinearGradient colors={['#4CAF5015', COLORS.darkCard]} style={styles.infoBannerGrad}>
           <Ionicons name="information-circle" size={20} color="#4CAF50" />
           <View style={{ flex: 1, marginLeft: 10 }}>
             <Text style={styles.infoTitle}>How Health Tracking Works</Text>
@@ -394,7 +394,7 @@ const FoodDatabaseScreen = ({ navigation }) => {
                   {/* Log Button */}
                   <TouchableOpacity style={styles.logBtn} onPress={handleLogMeal}>
                     <LinearGradient colors={COLORS.gradient1} style={styles.logBtnGrad}>
-                      <Ionicons name="add-circle" size={22} color={COLORS.white} />
+                      <Ionicons name="add-circle" size={22} color={COLORS.onAccent} />
                       <Text style={styles.logBtnText}>
                         Log {Math.round(selectedFood.calories * servings)} kcal to {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
                       </Text>
@@ -412,7 +412,7 @@ const FoodDatabaseScreen = ({ navigation }) => {
       {/* Toast Notification */}
       {toast && (
         <Animated.View style={[styles.toastContainer, { transform: [{ translateY: toastAnim }], opacity: toastOpacity }]}>
-          <LinearGradient colors={['#1A2E1A', '#222438']} style={styles.toastGradient}>
+          <LinearGradient colors={[COLORS.darkCard, COLORS.darkCard]} style={styles.toastGradient}>
             <View style={styles.toastIconWrap}>
               <Ionicons name="checkmark-circle" size={22} color={COLORS.success} />
             </View>
@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
   // Log Button
   logBtn: { borderRadius: SIZES.radius, overflow: 'hidden' },
   logBtnGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 8, borderRadius: SIZES.radius },
-  logBtnText: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
+  logBtnText: { fontSize: SIZES.fontMd, color: COLORS.onAccent, ...FONTS.bold },
 
   // Toast
   toastContainer: {

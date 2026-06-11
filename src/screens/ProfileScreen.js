@@ -10,6 +10,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const ProfileScreen = ({ navigation }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem('themeMode').then((m) => setDarkMode(m === 'dark')).catch(() => {});
+  }, []);
+
+  const toggleDarkMode = async (value) => {
+    setDarkMode(value);
+    try {
+      await AsyncStorage.setItem('themeMode', value ? 'dark' : 'light');
+      Alert.alert(
+        value ? '🌙 Dark Mode' : '☀️ Light Mode',
+        'Theme saved! Close and reopen the app to apply the new theme.',
+      );
+    } catch (e) { console.log('Theme save error:', e); }
+  };
 
   const loadProfile = useCallback(async () => {
     try {
@@ -207,6 +223,27 @@ const ProfileScreen = ({ navigation }) => {
           </View>
         )}
 
+        {/* Appearance */}
+        <View style={styles.menuSection}>
+          <Text style={styles.sectionTitle}>Appearance</Text>
+          <View style={styles.menuCard}>
+            <View style={styles.menuItem}>
+              <View style={styles.menuLeft}>
+                <View style={styles.menuIconBg}>
+                  <Ionicons name={darkMode ? 'moon' : 'sunny'} size={20} color={COLORS.primary} />
+                </View>
+                <Text style={styles.menuLabel}>Dark Mode</Text>
+              </View>
+              <Switch
+                value={darkMode}
+                onValueChange={toggleDarkMode}
+                trackColor={{ false: COLORS.darkBorder, true: COLORS.primary + '70' }}
+                thumbColor={darkMode ? COLORS.primary : '#FFFFFF'}
+              />
+            </View>
+          </View>
+        </View>
+
         {/* Menu Sections */}
         {menuItems.map((section, si) => (
           <View key={si} style={styles.menuSection}>
@@ -261,7 +298,7 @@ const styles = StyleSheet.create({
     width: 90, height: 90, borderRadius: 45,
     marginBottom: 14, borderWidth: 3, borderColor: COLORS.primary + '40',
   },
-  avatarText: { fontSize: 36, color: COLORS.white, ...FONTS.bold },
+  avatarText: { fontSize: 36, color: COLORS.onAccent, ...FONTS.bold },
   userName: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold },
   userEmail: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium, marginTop: 4 },
   userPhone: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 4 },

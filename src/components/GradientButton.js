@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.5 },
   text: {
-    color: COLORS.white,
+    color: COLORS.onAccent,
     fontSize: SIZES.fontLg,
     ...FONTS.bold,
   },

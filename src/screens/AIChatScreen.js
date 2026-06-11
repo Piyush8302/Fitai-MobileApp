@@ -174,7 +174,7 @@ const AIChatScreen = ({ navigation }) => {
                     onPress={() => navigation.navigate('Subscription')}
                   >
                     <LinearGradient colors={COLORS.gradient1} style={styles.upgradeBtnGrad}>
-                      <Ionicons name="diamond" size={16} color={COLORS.white} />
+                      <Ionicons name="diamond" size={16} color={COLORS.onAccent} />
                       <Text style={styles.upgradeBtnText}>Upgrade to Premium</Text>
                     </LinearGradient>
                   </TouchableOpacity>
@@ -224,7 +224,7 @@ const AIChatScreen = ({ navigation }) => {
                   onPress={() => navigation.navigate('Subscription')}
                 >
                   <LinearGradient colors={COLORS.gradient1} style={styles.limitPromptBtnGrad}>
-                    <Ionicons name="diamond" size={18} color={COLORS.white} />
+                    <Ionicons name="diamond" size={18} color={COLORS.onAccent} />
                     <Text style={styles.limitPromptBtnText}>Go Premium</Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -251,7 +251,7 @@ const AIChatScreen = ({ navigation }) => {
               disabled={loading}
             >
               <LinearGradient colors={limitReached ? COLORS.gradient4 : COLORS.gradient1} style={styles.sendGrad}>
-                <Ionicons name={limitReached ? 'diamond' : 'send'} size={18} color={COLORS.white} />
+                <Ionicons name={limitReached ? 'diamond' : 'send'} size={18} color={COLORS.onAccent} />
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
   userBubble: { backgroundColor: COLORS.primary, borderBottomRightRadius: 4 },
   limitBubble: { borderColor: COLORS.warning + '40' },
   msgText: { fontSize: SIZES.fontMd, color: COLORS.textSecondary, ...FONTS.medium, lineHeight: 22 },
-  userText: { color: COLORS.white },
+  userText: { color: COLORS.onAccent },
 
   // Upgrade button in limit message
   upgradeBtn: { marginTop: 12, borderRadius: SIZES.radius, overflow: 'hidden' },
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 10, paddingHorizontal: 16, borderRadius: SIZES.radius, gap: 8,
   },
-  upgradeBtnText: { color: COLORS.white, fontSize: SIZES.fontSm, ...FONTS.bold },
+  upgradeBtnText: { color: COLORS.onAccent, fontSize: SIZES.fontSm, ...FONTS.bold },
 
   // Suggestions
   suggestions: { marginTop: 16, paddingBottom: 20 },
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 14, borderRadius: SIZES.radius, gap: 8,
   },
-  limitPromptBtnText: { color: COLORS.white, fontSize: SIZES.fontLg, ...FONTS.bold },
+  limitPromptBtnText: { color: COLORS.onAccent, fontSize: SIZES.fontLg, ...FONTS.bold },
 
   // Input
   inputBar: { paddingHorizontal: 16, paddingTop: 12, backgroundColor: COLORS.dark, borderTopWidth: 1, borderTopColor: COLORS.darkBorder },

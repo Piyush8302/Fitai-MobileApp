@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   ratingText: { fontSize: SIZES.fontLg, color: COLORS.primary, ...FONTS.bold, marginBottom: 32 },
   submitBtn: { borderRadius: SIZES.radius, overflow: 'hidden', width: '100%' },
   submitGrad: { paddingVertical: 16, alignItems: 'center', borderRadius: SIZES.radius },
-  submitText: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
+  submitText: { fontSize: SIZES.fontLg, color: COLORS.onAccent, ...FONTS.bold },
 });
 
 export default RateUsScreen;

@@ -165,7 +165,7 @@ const WorkoutScreen = ({ navigation }) => {
 
         {/* ===== MODE BANNER ===== */}
         <LinearGradient
-          colors={isGym ? ['#6C63FF15', '#222438'] : ['#4CAF5015', '#1A2E1A']}
+          colors={isGym ? ['#6C63FF15', COLORS.darkCard] : ['#4CAF5015', COLORS.darkCard]}
           style={styles.modeBanner}
         >
           <View style={styles.bannerContent}>
@@ -240,7 +240,7 @@ const WorkoutScreen = ({ navigation }) => {
             onPress={() => navigation.navigate('GymExercise')}
           >
             <LinearGradient
-              colors={isGym ? [COLORS.darkCard, COLORS.darkSurface] : ['#1A2E1A', COLORS.darkSurface]}
+              colors={isGym ? [COLORS.darkCard, COLORS.darkSurface] : [COLORS.darkCard, COLORS.darkSurface]}
               style={styles.exerciseGrad}
             >
               {/* Exercise Header */}
@@ -306,7 +306,7 @@ const WorkoutScreen = ({ navigation }) => {
 
         {/* ===== REST TIMER (FULLY FUNCTIONAL) ===== */}
         <Text style={styles.sectionTitle}>⏱️ Rest Timer</Text>
-        <GradientCard colors={isGym ? ['#6C63FF15', '#222438'] : ['#4CAF5015', '#1A2E1A']} style={styles.timerCard}>
+        <GradientCard colors={isGym ? ['#6C63FF15', COLORS.darkCard] : ['#4CAF5015', COLORS.darkCard]} style={styles.timerCard}>
           <View style={styles.timerContent}>
             {/* Timer Display */}
             <Text style={[

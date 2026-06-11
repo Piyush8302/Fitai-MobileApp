@@ -397,7 +397,7 @@ const EditProfileScreen = ({ navigation }) => {
                 </View>
               )}
               <View style={styles.cameraIcon}>
-                <Ionicons name="camera" size={16} color={COLORS.white} />
+                <Ionicons name="camera" size={16} color={COLORS.onAccent} />
               </View>
             </TouchableOpacity>
             <Text style={styles.avatarHint}>Tap to change photo</Text>
@@ -466,7 +466,7 @@ const EditProfileScreen = ({ navigation }) => {
               <TouchableOpacity style={styles.fieldSaveBtn} onPress={handleSaveName} disabled={saving}>
                 {saving ? <ActivityIndicator size="small" color={COLORS.white} /> : (
                   <>
-                    <Ionicons name="checkmark" size={16} color={COLORS.white} />
+                    <Ionicons name="checkmark" size={16} color={COLORS.onAccent} />
                     <Text style={styles.fieldSaveTxt}>Save Name</Text>
                   </>
                 )}
@@ -494,7 +494,7 @@ const EditProfileScreen = ({ navigation }) => {
               <TouchableOpacity style={styles.fieldSaveBtn} onPress={handleRequestEmailOtp} disabled={otpSending}>
                 {otpSending ? <ActivityIndicator size="small" color={COLORS.white} /> : (
                   <>
-                    <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.white} />
+                    <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.onAccent} />
                     <Text style={styles.fieldSaveTxt}>Verify & Update</Text>
                   </>
                 )}
@@ -522,7 +522,7 @@ const EditProfileScreen = ({ navigation }) => {
               <TouchableOpacity style={styles.fieldSaveBtn} onPress={handleRequestPhoneOtp} disabled={otpSending}>
                 {otpSending ? <ActivityIndicator size="small" color={COLORS.white} /> : (
                   <>
-                    <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.white} />
+                    <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.onAccent} />
                     <Text style={styles.fieldSaveTxt}>Verify & Update</Text>
                   </>
                 )}
@@ -808,7 +808,7 @@ const styles = StyleSheet.create({
     width: 100, height: 100, borderRadius: 50, backgroundColor: COLORS.primary,
     alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: COLORS.primary + '60',
   },
-  avatarInitials: { fontSize: 38, color: COLORS.white, ...FONTS.bold },
+  avatarInitials: { fontSize: 38, color: COLORS.onAccent, ...FONTS.bold },
   cameraIcon: {
     position: 'absolute', bottom: 2, right: 2,
     backgroundColor: COLORS.primary, width: 30, height: 30, borderRadius: 15,
@@ -819,7 +819,7 @@ const styles = StyleSheet.create({
     marginTop: 10, backgroundColor: COLORS.primary, borderRadius: SIZES.radius,
     paddingHorizontal: 20, paddingVertical: 8,
   },
-  savePhotoBtnText: { color: COLORS.white, fontSize: SIZES.fontSm, ...FONTS.bold },
+  savePhotoBtnText: { color: COLORS.onAccent, fontSize: SIZES.fontSm, ...FONTS.bold },
 
   // OTP Card
   otpCard: {
@@ -846,7 +846,7 @@ const styles = StyleSheet.create({
     flex: 1, paddingVertical: 12, borderRadius: SIZES.radius,
     backgroundColor: COLORS.primary, alignItems: 'center',
   },
-  otpVerifyText: { color: COLORS.white, fontSize: SIZES.fontMd, ...FONTS.bold },
+  otpVerifyText: { color: COLORS.onAccent, fontSize: SIZES.fontMd, ...FONTS.bold },
 
   // Field Cards
   fieldCard: {
@@ -865,7 +865,7 @@ const styles = StyleSheet.create({
     marginTop: 12, backgroundColor: COLORS.primary, borderRadius: SIZES.radius,
     paddingVertical: 10,
   },
-  fieldSaveTxt: { color: COLORS.white, fontSize: SIZES.fontSm, ...FONTS.bold },
+  fieldSaveTxt: { color: COLORS.onAccent, fontSize: SIZES.fontSm, ...FONTS.bold },
   fieldHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: 8, fontStyle: 'italic' },
 
   // Section header
@@ -901,7 +901,7 @@ const styles = StyleSheet.create({
   unitBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: SIZES.radius - 4 },
   unitBtnActive: { backgroundColor: COLORS.primary },
   unitText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium },
-  unitTextActive: { color: COLORS.white, ...FONTS.bold },
+  unitTextActive: { color: COLORS.onAccent, ...FONTS.bold },
   customHint: { fontSize: SIZES.fontXs, color: COLORS.accent, ...FONTS.medium, marginTop: 8 },
 
   // Goal Timeline plan box
@@ -925,7 +925,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 14, borderRadius: SIZES.radius,
   },
-  saveProfileText: { color: COLORS.white, fontSize: SIZES.fontMd, ...FONTS.bold },
+  saveProfileText: { color: COLORS.onAccent, fontSize: SIZES.fontMd, ...FONTS.bold },
 
   // Info Card
   infoCard: {

@@ -14,7 +14,7 @@ const HeightGrowthScreen = ({ navigation }) => {
       <Header title="Height Growth" subtitle="Posture & Growth Guidance" onBack={() => navigation.goBack()} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Disclaimer */}
-        <GradientCard colors={['#FF980020', '#222438']} style={styles.disclaimer}>
+        <GradientCard colors={['#FF980020', COLORS.darkCard]} style={styles.disclaimer}>
           <Text style={styles.disclaimerIcon}>⚠️</Text>
           <Text style={styles.disclaimerTitle}>Scientific Note</Text>
           <Text style={styles.disclaimerText}>
@@ -86,7 +86,7 @@ const HeightGrowthScreen = ({ navigation }) => {
         {activeTab === 'sleep' && (
           <>
             <Text style={styles.sectionTitle}>😴 Sleep for Growth</Text>
-            <GradientCard colors={['#9C27B015', '#222438']}>
+            <GradientCard colors={['#9C27B015', COLORS.darkCard]}>
               <Text style={styles.sleepInfo}>Growth Hormone (HGH) is released during deep sleep. Quality sleep is essential for growth.</Text>
               {[
                 { icon: '🌙', text: 'Sleep 8-10 hours every night' },
@@ -108,7 +108,7 @@ const HeightGrowthScreen = ({ navigation }) => {
         {activeTab === 'posture' && (
           <>
             <Text style={styles.sectionTitle}>🧍 Posture Correction</Text>
-            <GradientCard colors={['#00D2FF15', '#222438']}>
+            <GradientCard colors={['#00D2FF15', COLORS.darkCard]}>
               <Text style={styles.sleepInfo}>Good posture can add 1-2 inches to your appearance and prevent back pain.</Text>
               {[
                 { icon: '🪑', text: 'Sit straight with shoulders back' },
