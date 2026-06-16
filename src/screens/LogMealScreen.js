@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  ActivityIndicator, Alert, Platform, Animated, Easing,
+  ActivityIndicator, Alert, Platform, Animated, Easing, PermissionsAndroid,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -102,17 +102,51 @@ const LogMealScreen = ({ navigation, route }) => {
   }, [listening]);
 
   const startVoice = async () => {
-    if (!Voice) {
-      Alert.alert('Voice not available', 'Voice logging works in the installed app (rebuild required). For now, type the food name.');
+    if (!Voice || typeof Voice.start !== 'function') {
+      Alert.alert(
+        '🎤 Voice needs the installed app',
+        'Voice logging only works in the built APK (EAS build), not in Expo Go or a plain emulator. Build the app to use it — for now, type the food name to search.'
+      );
       return;
     }
+    // Android needs runtime RECORD_AUDIO permission
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          {
+            title: 'Microphone Permission',
+            message: 'FitAI needs the mic to log meals by voice.',
+            buttonPositive: 'Allow',
+          }
+        );
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert('Mic blocked', 'Enable Microphone permission for FitAI in Settings to use voice.');
+          return;
+        }
+      } catch (e) { /* continue — some devices auto-grant */ }
+    }
     try {
+      // Check the device actually has speech recognition available
+      if (typeof Voice.isAvailable === 'function') {
+        const avail = await Voice.isAvailable();
+        if (!avail) {
+          Alert.alert(
+            'Speech not available',
+            'This device/emulator has no speech recognition. Use a real phone with Google app installed.'
+          );
+          return;
+        }
+      }
       setSearch('');
       setListening(true);
       await Voice.start('en-IN');
     } catch (e) {
       setListening(false);
-      Alert.alert('Mic error', 'Could not start voice. Check microphone permission.');
+      Alert.alert(
+        'Could not start voice',
+        'Make sure: 1) you are on the built APK (not Expo Go), 2) testing on a real phone, 3) Google app is installed. On emulators voice usually fails.'
+      );
     }
   };
 
