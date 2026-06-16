@@ -127,25 +127,15 @@ const LogMealScreen = ({ navigation, route }) => {
       } catch (e) { /* continue — some devices auto-grant */ }
     }
     try {
-      // Check the device actually has speech recognition available
-      if (typeof Voice.isAvailable === 'function') {
-        const avail = await Voice.isAvailable();
-        if (!avail) {
-          Alert.alert(
-            'Speech not available',
-            'This device/emulator has no speech recognition. Use a real phone with Google app installed.'
-          );
-          return;
-        }
-      }
       setSearch('');
       setListening(true);
       await Voice.start('en-IN');
     } catch (e) {
       setListening(false);
+      const msg = String(e?.message || e?.code || e || 'unknown');
       Alert.alert(
         'Could not start voice',
-        'Make sure: 1) you are on the built APK (not Expo Go), 2) testing on a real phone, 3) Google app is installed. On emulators voice usually fails.'
+        `${msg}\n\nIf this keeps happening, your phone may not have Google's speech service. Open Play Store → install/enable "Google" app, then retry.`
       );
     }
   };
