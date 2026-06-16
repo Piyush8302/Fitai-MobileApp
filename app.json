@@ -55,6 +55,13 @@
         {
           "photosPermission": "Allow FitAI to access your photos for profile picture."
         }
+      ],
+      [
+        "@react-native-voice/voice",
+        {
+          "microphonePermission": "Allow FitAI to use the microphone for voice meal logging.",
+          "speechRecognitionPermission": "Allow FitAI to recognize speech for voice meal logging."
+        }
       ]
     ],
     "extra": {

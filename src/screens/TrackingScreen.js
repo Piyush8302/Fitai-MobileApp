@@ -612,7 +612,7 @@ const TrackingScreen = ({ navigation }) => {
             <Text style={styles.sectionTitle}>⚡ Quick Log</Text>
             <View style={styles.quickGrid}>
               {[
-                { icon: '🍽', label: 'Log Meal', desc: `${meals.length} meal${meals.length !== 1 ? 's' : ''} logged`, color: COLORS.warning, onPress: () => { setMealType(getMealTypeByTime()); setShowMealModal(true); }, value: `${cal} / ${calGoal} kcal` },
+                { icon: '🍽', label: 'Log Meal', desc: `${meals.length} meal${meals.length !== 1 ? 's' : ''} logged`, color: COLORS.warning, onPress: () => navigation.navigate('LogMeal', { mealType: getMealTypeByTime() }), value: `${cal} / ${calGoal} kcal` },
                 { icon: '🚶', label: 'Walk / Run', desc: `${formatSteps(steps)} steps today`, color: '#4CAF50', onPress: () => setShowWalkModal(true), value: `${burned} kcal burned` },
                 { icon: '🏋️', label: 'Log Exercise', desc: 'Pick from exercises', color: COLORS.primary, onPress: () => setShowExerciseModal(true), value: `${burned} kcal total` },
                 { icon: '😴', label: 'Log Sleep', desc: sleep > 0 ? `${sleep}h logged today` : 'Not logged yet', color: '#9C27B0', onPress: () => setShowSleepModal(true), value: sleep > 0 ? `${sleep} / ${sleepGoal}h` : '— / 8h' },

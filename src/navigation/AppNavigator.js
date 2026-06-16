@@ -38,6 +38,7 @@ import WorkoutScreen from '../screens/WorkoutScreen';
 import GymExerciseScreen from '../screens/GymExerciseScreen';
 import AIChatScreen from '../screens/AIChatScreen';
 import TrackingScreen from '../screens/TrackingScreen';
+import LogMealScreen from '../screens/LogMealScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ArticlesScreen from '../screens/ArticlesScreen';
@@ -139,6 +140,7 @@ const AppNavigator = () => (
       <Stack.Screen name="GymExercise" component={GymExerciseScreen} />
       <Stack.Screen name="AIChat" component={AIChatScreen} />
       <Stack.Screen name="Tracking" component={TrackingScreen} />
+      <Stack.Screen name="LogMeal" component={LogMealScreen} />
       <Stack.Screen name="Subscription" component={SubscriptionScreen} />
       <Stack.Screen name="Articles" component={ArticlesScreen} />
       <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
