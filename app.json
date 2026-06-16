@@ -62,7 +62,8 @@
           "microphonePermission": "Allow FitAI to use the microphone for voice meal logging.",
           "speechRecognitionPermission": "Allow FitAI to recognize speech for voice meal logging."
         }
-      ]
+      ],
+      "./plugins/withJetifier"
     ],
     "extra": {
       "eas": {
