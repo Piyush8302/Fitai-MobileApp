@@ -2,7 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, Alert, Image, DevSettings } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
+
+const APP_VERSION = Constants.expoConfig?.version || Constants.manifest?.version || '1.0.0';
 import Header from '../components/Header';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -292,7 +295,7 @@ const ProfileScreen = ({ navigation }) => {
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
-        <Text style={styles.version}>FitAI v2.1.0</Text>
+        <Text style={styles.version}>FitAI v{APP_VERSION}</Text>
         <View style={{ height: 100 }} />
       </ScrollView>
     </LinearGradient>

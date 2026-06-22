@@ -1,10 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Constants from 'expo-constants';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { savePushTokenAfterLogin } from '../utils/notifications';
+
+// Real app version from app.json (auto-updates every build)
+const APP_VERSION = Constants.expoConfig?.version || Constants.manifest?.version || '1.0.0';
 
 const SplashScreen = ({ navigation }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -57,7 +61,7 @@ const SplashScreen = ({ navigation }) => {
         <View style={styles.loader}>
           <LinearGradient colors={COLORS.gradient1} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.loaderBar} />
         </View>
-        <Text style={styles.version}>v1.0.0</Text>
+        <Text style={styles.version}>v{APP_VERSION}</Text>
       </Animated.View>
     </LinearGradient>
   );
