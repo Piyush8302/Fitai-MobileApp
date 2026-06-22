@@ -46,6 +46,14 @@ const GymAdminScreen = ({ navigation }) => {
   const [attendance, setAttendance] = useState([]);
   const [busy, setBusy] = useState(false);
 
+  // Member attendance history modal
+  const [histMember, setHistMember] = useState(null);
+  const [histData, setHistData] = useState([]);
+  const [histMonth, setHistMonth] = useState(0);
+  const [histLoading, setHistLoading] = useState(false);
+
+  const istToday = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().split('T')[0];
+
   const loadGyms = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem('token');
@@ -79,9 +87,21 @@ const GymAdminScreen = ({ navigation }) => {
   const loadAttendance = async () => {
     if (!activeGym?._id) return;
     try {
-      const res = await api.get(`/api/gym/${activeGym._id}/attendance`);
+      const res = await api.get(`/api/gym/${activeGym._id}/attendance?day=${istToday()}`);
       if (res.success) setAttendance(res.data);
     } catch (e) {}
+  };
+
+  // Open a member's monthly attendance history
+  const openHistory = async (member) => {
+    setHistMember(member);
+    setHistLoading(true);
+    setHistData([]);
+    try {
+      const res = await api.get(`/api/gym/${activeGym._id}/attendance?userId=${member.user._id}`);
+      if (res.success) { setHistData(res.data); setHistMonth(res.thisMonth || 0); }
+    } catch (e) {}
+    finally { setHistLoading(false); }
   };
 
   // ===== ACTIONS =====
@@ -215,14 +235,17 @@ const GymAdminScreen = ({ navigation }) => {
             <Text style={styles.emptyText}>No members yet. Tap "Add Member".</Text>
           ) : members.map((m) => (
             <View key={m._id} style={styles.memberCard}>
-              <View style={styles.memberAvatar}><Text style={styles.memberInitial}>{(m.user?.name || 'M')[0].toUpperCase()}</Text></View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.memberName}>{m.user?.name || 'Member'}</Text>
-                <Text style={styles.memberMeta}>{m.user?.phone} • {m.plan}</Text>
-                <Text style={[styles.memberDue, { color: m.isDue ? COLORS.error : COLORS.success }]}>
-                  {m.isDue ? '⚠️ Fee due' : m.dueDate ? `Paid till ${new Date(m.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : 'Active'}
-                </Text>
-              </View>
+              <TouchableOpacity style={styles.memberLeft} onPress={() => openHistory(m)} activeOpacity={0.7}>
+                <View style={styles.memberAvatar}><Text style={styles.memberInitial}>{(m.user?.name || 'M')[0].toUpperCase()}</Text></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.memberName}>{m.user?.name || 'Member'}</Text>
+                  <Text style={styles.memberMeta}>{m.user?.phone} • {m.plan}</Text>
+                  <Text style={[styles.memberDue, { color: m.isDue ? COLORS.error : COLORS.success }]}>
+                    {m.isDue ? '⚠️ Fee due' : m.dueDate ? `Paid till ${new Date(m.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : 'Active'}
+                  </Text>
+                  <Text style={styles.viewHistory}>📅 Tap to view attendance</Text>
+                </View>
+              </TouchableOpacity>
               <View style={{ gap: 6 }}>
                 <TouchableOpacity style={styles.miniBtn} onPress={() => markPresent(m)}>
                   <Ionicons name="checkmark" size={14} color={COLORS.success} />
@@ -245,7 +268,10 @@ const GymAdminScreen = ({ navigation }) => {
             <View key={a._id} style={styles.attRow}>
               <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
               <Text style={styles.attName}>{a.user?.name || 'Member'}</Text>
-              <Text style={styles.attTime}>{new Date(a.checkInAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.attTime}>{new Date(a.checkInAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
+                <Text style={styles.attDate}>{new Date(a.checkInAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text>
+              </View>
               <Text style={styles.attMethod}>{a.method === 'self_scan' ? '📱' : '🧑‍💼'}</Text>
             </View>
           ))
@@ -256,7 +282,12 @@ const GymAdminScreen = ({ navigation }) => {
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => gyms.length && setShowCreate(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{gyms.length ? 'Add New Branch' : 'Create Your Gym'}</Text>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>{gyms.length ? 'Add New Branch' : 'Create Your Gym'}</Text>
+              <TouchableOpacity onPress={() => { setShowCreate(false); if (gyms.length === 0) navigation.goBack(); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
             <Text style={styles.modalSub}>Apne gym ka naam daalo — phir members add kar sakte ho</Text>
             <TextInput style={styles.input} placeholder="Gym name (e.g. Anand Gym)" placeholderTextColor={COLORS.textMuted} value={gName} onChangeText={setGName} />
             <TextInput style={styles.input} placeholder="Location / area (optional)" placeholderTextColor={COLORS.textMuted} value={gLoc} onChangeText={setGLoc} />
@@ -322,6 +353,50 @@ const GymAdminScreen = ({ navigation }) => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* ===== MEMBER ATTENDANCE HISTORY MODAL ===== */}
+      <Modal visible={!!histMember} transparent animationType="slide" onRequestClose={() => setHistMember(null)}>
+        <View style={styles.modalWrap}>
+          <View style={[styles.modalCard, { maxHeight: '75%' }]}>
+            <View style={styles.modalHeaderRow}>
+              <View>
+                <Text style={styles.modalTitle}>{histMember?.user?.name || 'Member'}</Text>
+                <Text style={styles.modalSub}>{histMember?.user?.phone}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setHistMember(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.histStat}>
+              <Text style={styles.histStatNum}>{histMonth}</Text>
+              <Text style={styles.histStatLabel}>days this month</Text>
+              <View style={styles.histStatDiv} />
+              <Text style={styles.histStatNum}>{histData.length}</Text>
+              <Text style={styles.histStatLabel}>total check-ins</Text>
+            </View>
+
+            {histLoading ? (
+              <ActivityIndicator color={COLORS.primary} style={{ paddingVertical: 30 }} />
+            ) : histData.length === 0 ? (
+              <Text style={styles.emptyText}>No attendance yet</Text>
+            ) : (
+              <ScrollView style={{ marginTop: 8 }}>
+                {histData.map((a) => (
+                  <View key={a._id} style={styles.histRow}>
+                    <Ionicons name="checkmark-circle" size={18} color={COLORS.success} />
+                    <Text style={styles.histDate}>
+                      {new Date(a.checkInAt).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                    </Text>
+                    <Text style={styles.histTime}>{new Date(a.checkInAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
+                    <Text>{a.method === 'self_scan' ? '📱' : '🧑‍💼'}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 };
@@ -358,6 +433,8 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: SIZES.fontMd, color: COLORS.textMuted, textAlign: 'center', marginTop: 30, paddingHorizontal: 20 },
 
   memberCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 10, padding: 14, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
+  memberLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  viewHistory: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.medium, marginTop: 3 },
   memberAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
   memberInitial: { color: COLORS.onAccent, fontSize: SIZES.fontLg, ...FONTS.bold },
   memberName: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
@@ -368,12 +445,23 @@ const styles = StyleSheet.create({
 
   attRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginTop: 8, padding: 12, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
   attName: { flex: 1, fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.semiBold },
-  attTime: { fontSize: SIZES.fontSm, color: COLORS.textMuted },
-  attMethod: { fontSize: SIZES.fontMd },
+  attTime: { fontSize: SIZES.fontSm, color: COLORS.white, ...FONTS.semiBold },
+  attDate: { fontSize: SIZES.fontXs, color: COLORS.textMuted },
+  attMethod: { fontSize: SIZES.fontMd, marginLeft: 6 },
 
   modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
   modalCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36 },
+  modalHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   modalTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginBottom: 6 },
+
+  // Attendance history
+  histStat: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radius, paddingVertical: 14, marginVertical: 12 },
+  histStatNum: { fontSize: SIZES.fontXxl, color: COLORS.primary, ...FONTS.bold },
+  histStatLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
+  histStatDiv: { width: 1, height: 30, backgroundColor: COLORS.darkBorder, marginHorizontal: 12 },
+  histRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder },
+  histDate: { flex: 1, fontSize: SIZES.fontSm, color: COLORS.white, ...FONTS.medium },
+  histTime: { fontSize: SIZES.fontXs, color: COLORS.textMuted },
   modalSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginBottom: 16 },
   input: { backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder, paddingHorizontal: 14, paddingVertical: 12, fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.medium, marginBottom: 10 },
   inputLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, marginBottom: 8 },

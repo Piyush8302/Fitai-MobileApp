@@ -123,6 +123,30 @@ const MainTabs = () => (
   </Tab.Navigator>
 );
 
+// ===== Gym Owner bottom tabs =====
+const AdminTabs = () => (
+  <Tab.Navigator
+    screenOptions={{
+      headerShown: false,
+      tabBarStyle: styles.tabBar,
+      tabBarActiveTintColor: COLORS.primary,
+      tabBarInactiveTintColor: COLORS.textMuted,
+      tabBarShowLabel: false,
+    }}
+  >
+    <Tab.Screen
+      name="GymDashboardTab"
+      component={GymAdminScreen}
+      options={{ tabBarIcon: ({ focused, color }) => <TabIcon name={focused ? 'grid' : 'grid-outline'} color={color} label="Gym" focused={focused} /> }}
+    />
+    <Tab.Screen
+      name="AdminProfileTab"
+      component={ProfileScreen}
+      options={{ tabBarIcon: ({ focused, color }) => <TabIcon name={focused ? 'person' : 'person-outline'} color={color} label="Profile" focused={focused} /> }}
+    />
+  </Tab.Navigator>
+);
+
 const AppNavigator = () => (
   <NavigationContainer theme={DarkNavTheme}>
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: COLORS.dark } }}>
@@ -146,6 +170,7 @@ const AppNavigator = () => (
       <Stack.Screen name="LogMeal" component={LogMealScreen} />
       <Stack.Screen name="MyGymCard" component={MyGymCardScreen} />
       <Stack.Screen name="GymAdmin" component={GymAdminScreen} />
+      <Stack.Screen name="AdminMain" component={AdminTabs} />
       <Stack.Screen name="GymScan" component={GymScanScreen} />
       <Stack.Screen name="Subscription" component={SubscriptionScreen} />
       <Stack.Screen name="Articles" component={ArticlesScreen} />

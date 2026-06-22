@@ -22,7 +22,7 @@ const LoginScreen = ({ navigation }) => {
   // Where to go after a successful login, based on selected mode + role
   const routeAfterLogin = (user) => {
     if (loginMode === 'admin') {
-      navigation.replace('GymAdmin');
+      navigation.replace('AdminMain');
       return;
     }
     if (user.isProfileComplete) navigation.replace('Main');
