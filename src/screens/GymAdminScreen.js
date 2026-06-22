@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -53,6 +54,7 @@ const GymAdminScreen = ({ navigation }) => {
   const [histLoading, setHistLoading] = useState(false);
 
   const istToday = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().split('T')[0];
+  const [showGymQR, setShowGymQR] = useState(false);
 
   const loadGyms = useCallback(async () => {
     try {
@@ -177,10 +179,15 @@ const GymAdminScreen = ({ navigation }) => {
           <Text style={styles.headerSmall}>Gym Admin</Text>
           <Text style={styles.headerTitle}>{activeGym?.name || 'My Gym'}</Text>
         </View>
-        <TouchableOpacity style={styles.scanHeaderBtn} onPress={() => navigation.navigate('GymScan', { mode: 'staff', gymId: activeGym?._id })}>
-          <Ionicons name="qr-code" size={18} color={COLORS.onAccent} />
-          <Text style={styles.scanHeaderText}>Scan</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity style={styles.gymQrBtn} onPress={() => setShowGymQR(true)}>
+            <Ionicons name="qr-code-outline" size={18} color={COLORS.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.scanHeaderBtn} onPress={() => navigation.navigate('GymScan', { mode: 'staff', gymId: activeGym?._id })}>
+            <Ionicons name="scan" size={18} color={COLORS.onAccent} />
+            <Text style={styles.scanHeaderText}>Scan</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Gym switcher (multi-branch) */}
@@ -397,6 +404,33 @@ const GymAdminScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
+      {/* ===== GYM QR MODAL (print & display at counter) ===== */}
+      <Modal visible={showGymQR} transparent animationType="slide" onRequestClose={() => setShowGymQR(false)}>
+        <View style={styles.modalWrap}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Gym Check-in QR</Text>
+              <TouchableOpacity onPress={() => setShowGymQR(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSub}>Members scan this to mark their attendance</Text>
+
+            <View style={styles.gymQrBox}>
+              <QRCode value={`FITAI-GYM:${activeGym?.gymCode || ''}`} size={200} backgroundColor="#FFFFFF" color="#000000" />
+              <Text style={styles.gymQrName}>{activeGym?.name}</Text>
+              <Text style={styles.gymQrCode}>Code: {activeGym?.gymCode}</Text>
+            </View>
+
+            <View style={styles.gymQrTip}>
+              <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
+              <Text style={styles.gymQrTipText}>
+                Screenshot le ke counter pe print/laga do. Members FitAI app → "Scan Gym QR" se check-in karenge.
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 };
@@ -409,6 +443,12 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold },
   scanHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.primary, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
   scanHeaderText: { color: COLORS.onAccent, fontSize: SIZES.fontSm, ...FONTS.bold },
+  gymQrBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '15', borderWidth: 1, borderColor: COLORS.primary + '40' },
+  gymQrBox: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 24, marginVertical: 16 },
+  gymQrName: { fontSize: SIZES.fontLg, color: '#1B1D33', ...FONTS.bold, marginTop: 14 },
+  gymQrCode: { fontSize: SIZES.fontSm, color: '#6B6B8D', ...FONTS.medium, marginTop: 2 },
+  gymQrTip: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: COLORS.primary + '12', borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.primary + '25', padding: 12 },
+  gymQrTipText: { flex: 1, fontSize: SIZES.fontXs, color: COLORS.textSecondary, ...FONTS.medium, lineHeight: 17 },
 
   switcher: { maxHeight: 44, marginBottom: 8 },
   switchChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },
