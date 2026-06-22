@@ -42,8 +42,10 @@ const GymScanScreen = ({ navigation, route }) => {
           ]);
         } else { Alert.alert('Error', res.message || 'Not a valid member', [{ text: 'Retry', onPress: reset }]); }
       } else {
-        // self: gym QR payload = "FITAI-GYM:<gymCode>" or raw gymCode
-        const gymCode = String(data).startsWith('FITAI-GYM:') ? String(data).split(':')[1] : data;
+        // self: gym QR = web URL ".../g/<code>", or "FITAI-GYM:<code>", or raw code
+        let gymCode = String(data).trim();
+        if (gymCode.includes('/g/')) gymCode = gymCode.split('/g/').pop().split(/[/?#]/)[0];
+        else if (gymCode.startsWith('FITAI-GYM:')) gymCode = gymCode.split(':')[1];
         const res = await api.post(ENDPOINTS.GYM_MY_CHECKIN, { gymCode });
         if (res.success) {
           Alert.alert('✅ Checked in', res.message, [{ text: 'OK', onPress: () => navigation.goBack() }]);

@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
-import api, { ENDPOINTS } from '../config/api';
+import api, { ENDPOINTS, API_BASE_URL } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PLANS = [
@@ -444,7 +444,7 @@ const GymAdminScreen = ({ navigation }) => {
             <Text style={styles.modalSub}>Members scan this to mark their attendance</Text>
 
             <View style={styles.gymQrBox}>
-              <QRCode value={`FITAI-GYM:${activeGym?.gymCode || ''}`} size={200} backgroundColor="#FFFFFF" color="#000000" />
+              <QRCode value={`${API_BASE_URL}/g/${activeGym?.gymCode || ''}`} size={200} backgroundColor="#FFFFFF" color="#000000" />
               <Text style={styles.gymQrName}>{activeGym?.name}</Text>
               <Text style={styles.gymQrCode}>Code: {activeGym?.gymCode}</Text>
             </View>
@@ -452,7 +452,7 @@ const GymAdminScreen = ({ navigation }) => {
             <View style={styles.gymQrTip}>
               <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
               <Text style={styles.gymQrTipText}>
-                Screenshot le ke counter pe print/laga do. Members FitAI app → "Scan Gym QR" se check-in karenge.
+                Counter pe print/laga do. **Koi bhi phone** (app ho ya na ho) normal camera se scan kare → naam/phone bhare → register + attendance ho jayega.
               </Text>
             </View>
           </View>
