@@ -104,7 +104,7 @@ const GymCashbookScreen = ({ navigation }) => {
         </ScrollView>
       )}
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 200 }}>
         {/* Overview */}
         <Text style={styles.sectionLabel}>Monthly Overview</Text>
         <View style={styles.overview}>
@@ -147,8 +147,13 @@ const GymCashbookScreen = ({ navigation }) => {
               <Text style={styles.entryMonth}>{new Date(e.date).toLocaleDateString('en-IN', { month: 'short' })}</Text>
             </View>
             <View style={{ flex: 2 }}>
-              <Text style={styles.entryDesc}>{e.description || (e.type === 'income' ? 'Income' : 'Expense')}</Text>
-              <Text style={[styles.entryType, { color: e.type === 'income' ? COLORS.success : COLORS.error }]}>{e.type === 'income' ? 'Income' : 'Expense'}</Text>
+              <Text style={styles.entryDesc} numberOfLines={1}>{e.description || (e.type === 'income' ? 'Income' : 'Expense')}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                <Text style={[styles.entryType, { color: e.type === 'income' ? COLORS.success : COLORS.error }]}>{e.type === 'income' ? 'Income' : 'Expense'}</Text>
+                {e.source === 'membership' && (
+                  <View style={styles.autoBadge}><Text style={styles.autoBadgeText}>AUTO</Text></View>
+                )}
+              </View>
             </View>
             <Text style={[styles.entryAmount, { color: e.type === 'income' ? COLORS.success : COLORS.error }]}>
               {e.type === 'income' ? '+' : '−'}₹{e.amount}
@@ -215,11 +220,14 @@ const styles = StyleSheet.create({
   entryDate: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
   entryMonth: { fontSize: SIZES.fontXs, color: COLORS.textMuted },
   entryDesc: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.semiBold },
-  entryType: { fontSize: SIZES.fontXs, ...FONTS.medium, marginTop: 2 },
+  entryType: { fontSize: SIZES.fontXs, ...FONTS.medium },
+  autoBadge: { backgroundColor: COLORS.primary + '20', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 },
+  autoBadgeText: { fontSize: 8, color: COLORS.primary, ...FONTS.bold, letterSpacing: 0.5 },
   entryAmount: { fontSize: SIZES.fontMd, ...FONTS.bold },
   emptyText: { fontSize: SIZES.fontMd, color: COLORS.textMuted, textAlign: 'center', marginTop: 24, paddingHorizontal: 20 },
 
-  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', gap: 12, padding: 16, paddingBottom: 28, backgroundColor: COLORS.dark, borderTopWidth: 1, borderTopColor: COLORS.darkBorder },
+  // Sits ABOVE the bottom tab bar (tab bar is 70px tall) — no overlap
+  bottomBar: { position: 'absolute', bottom: 78, left: 0, right: 0, flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: COLORS.dark, borderTopWidth: 1, borderTopColor: COLORS.darkBorder },
   actionBtn: { flex: 1, alignItems: 'center', paddingVertical: 16, borderRadius: SIZES.radius },
   actionText: { color: '#FFF', fontSize: SIZES.fontLg, ...FONTS.bold },
 

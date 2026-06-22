@@ -204,7 +204,7 @@ const GymAdminScreen = ({ navigation }) => {
         </TouchableOpacity>
       </ScrollView>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
         {/* Stats */}
         <View style={styles.statsGrid}>
           {[

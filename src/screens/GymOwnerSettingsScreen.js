@@ -124,7 +124,7 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
       <View style={styles.header}><Text style={styles.headerTitle}>Settings</Text></View>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
         {/* Profile */}
         <View style={styles.profile}>
           <View style={styles.avatar}><Ionicons name="person" size={36} color={COLORS.textMuted} /></View>
