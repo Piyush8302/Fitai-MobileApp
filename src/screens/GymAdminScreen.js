@@ -26,6 +26,7 @@ const GymAdminScreen = ({ navigation }) => {
   const [stats, setStats] = useState(null);
   const [members, setMembers] = useState([]);
   const [tab, setTab] = useState('members'); // members | attendance
+  const [memberSearch, setMemberSearch] = useState('');
 
   // Create gym
   const [showCreate, setShowCreate] = useState(false);
@@ -190,19 +191,18 @@ const GymAdminScreen = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Gym switcher (multi-branch) */}
-      {gyms.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.switcher} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
-          {gyms.map((g) => (
-            <TouchableOpacity key={g._id} style={[styles.switchChip, activeGym?._id === g._id && styles.switchChipActive]} onPress={() => setActiveGym(g)}>
-              <Text style={[styles.switchText, activeGym?._id === g._id && { color: COLORS.onAccent }]}>{g.name}</Text>
-            </TouchableOpacity>
-          ))}
-          <TouchableOpacity style={styles.switchAdd} onPress={() => setShowCreate(true)}>
-            <Ionicons name="add" size={18} color={COLORS.primary} />
+      {/* Gym switcher (multi-branch) — always shown so "+ Add branch" is available */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.switcher} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, alignItems: 'center' }}>
+        {gyms.map((g) => (
+          <TouchableOpacity key={g._id} style={[styles.switchChip, activeGym?._id === g._id && styles.switchChipActive]} onPress={() => setActiveGym(g)}>
+            <Text style={[styles.switchText, activeGym?._id === g._id && { color: COLORS.onAccent }]}>{g.name}</Text>
           </TouchableOpacity>
-        </ScrollView>
-      )}
+        ))}
+        <TouchableOpacity style={styles.switchAdd} onPress={() => setShowCreate(true)}>
+          <Ionicons name="add" size={16} color={COLORS.primary} />
+          <Text style={styles.switchAddText}>Add Gym</Text>
+        </TouchableOpacity>
+      </ScrollView>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Stats */}
@@ -237,10 +237,35 @@ const GymAdminScreen = ({ navigation }) => {
         </View>
 
         {/* Members list */}
-        {tab === 'members' && (
-          members.length === 0 ? (
-            <Text style={styles.emptyText}>No members yet. Tap "Add Member".</Text>
-          ) : members.map((m) => (
+        {tab === 'members' && (() => {
+          const q = memberSearch.trim().toLowerCase();
+          const filtered = q
+            ? members.filter(m => (m.user?.name || '').toLowerCase().includes(q) || (m.user?.phone || '').includes(q))
+            : members;
+          return (
+          <>
+            {/* Search + count */}
+            <View style={styles.searchRow}>
+              <Ionicons name="search" size={18} color={COLORS.textMuted} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search by name or phone…"
+                placeholderTextColor={COLORS.textMuted}
+                value={memberSearch}
+                onChangeText={setMemberSearch}
+              />
+              {memberSearch.length > 0 && (
+                <TouchableOpacity onPress={() => setMemberSearch('')}>
+                  <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={styles.countLabel}>
+              {q ? `${filtered.length} of ${members.length} members` : `Total ${members.length} member${members.length !== 1 ? 's' : ''}`}
+            </Text>
+            {filtered.length === 0 ? (
+              <Text style={styles.emptyText}>{q ? 'No member matched.' : 'No members yet. Tap "Add Member".'}</Text>
+            ) : filtered.map((m) => (
             <View key={m._id} style={styles.memberCard}>
               <TouchableOpacity style={styles.memberLeft} onPress={() => openHistory(m)} activeOpacity={0.7}>
                 <View style={styles.memberAvatar}><Text style={styles.memberInitial}>{(m.user?.name || 'M')[0].toUpperCase()}</Text></View>
@@ -264,8 +289,10 @@ const GymAdminScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
             </View>
-          ))
-        )}
+            ))}
+          </>
+          );
+        })()}
 
         {/* Attendance list */}
         {tab === 'attendance' && (
@@ -454,7 +481,8 @@ const styles = StyleSheet.create({
   switchChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },
   switchChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   switchText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold },
-  switchAdd: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '15', borderWidth: 1, borderColor: COLORS.primary + '40' },
+  switchAdd: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 38, paddingHorizontal: 12, borderRadius: 19, backgroundColor: COLORS.primary + '15', borderWidth: 1, borderColor: COLORS.primary + '40' },
+  switchAddText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.bold },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 16, marginTop: 6 },
   statCard: { width: '47%', flexGrow: 1, alignItems: 'center', paddingVertical: 16, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
@@ -471,6 +499,9 @@ const styles = StyleSheet.create({
   tabText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.semiBold },
 
   emptyText: { fontSize: SIZES.fontMd, color: COLORS.textMuted, textAlign: 'center', marginTop: 30, paddingHorizontal: 20 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginTop: 14, paddingHorizontal: 14, height: 46, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
+  searchInput: { flex: 1, fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.medium },
+  countLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.semiBold, marginHorizontal: 16, marginTop: 10 },
 
   memberCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 10, padding: 14, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
   memberLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
