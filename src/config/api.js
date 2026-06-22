@@ -78,6 +78,9 @@ export const ENDPOINTS = {
   GYM_ATT_LIST: '/api/gym',           // + /:gymId/attendance
   GYM_MY_CARD: '/api/gym/my/card',
   GYM_MY_CHECKIN: '/api/gym/my/checkin',
+  GYM_CASHBOOK_ADD: '/api/gym/cashbook',     // POST
+  GYM_CASHBOOK: '/api/gym',                  // + /:gymId/cashbook
+  GYM_REPORT: '/api/gym',                    // + /:gymId/report
 
   // Exercise Library
   EXERCISES: '/api/exercises',

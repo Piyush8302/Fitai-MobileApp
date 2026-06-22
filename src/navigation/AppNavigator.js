@@ -42,6 +42,8 @@ import LogMealScreen from '../screens/LogMealScreen';
 import MyGymCardScreen from '../screens/MyGymCardScreen';
 import GymAdminScreen from '../screens/GymAdminScreen';
 import GymScanScreen from '../screens/GymScanScreen';
+import GymCashbookScreen from '../screens/GymCashbookScreen';
+import GymOwnerSettingsScreen from '../screens/GymOwnerSettingsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ArticlesScreen from '../screens/ArticlesScreen';
@@ -137,12 +139,17 @@ const AdminTabs = () => (
     <Tab.Screen
       name="GymDashboardTab"
       component={GymAdminScreen}
-      options={{ tabBarIcon: ({ focused, color }) => <TabIcon name={focused ? 'grid' : 'grid-outline'} color={color} label="Gym" focused={focused} /> }}
+      options={{ tabBarIcon: ({ focused, color }) => <TabIcon name={focused ? 'people' : 'people-outline'} color={color} label="Gym" focused={focused} /> }}
     />
     <Tab.Screen
-      name="AdminProfileTab"
-      component={ProfileScreen}
-      options={{ tabBarIcon: ({ focused, color }) => <TabIcon name={focused ? 'person' : 'person-outline'} color={color} label="Profile" focused={focused} /> }}
+      name="GymCashbookTab"
+      component={GymCashbookScreen}
+      options={{ tabBarIcon: ({ focused, color }) => <TabIcon name={focused ? 'wallet' : 'wallet-outline'} color={color} label="Cashbook" focused={focused} /> }}
+    />
+    <Tab.Screen
+      name="AdminSettingsTab"
+      component={GymOwnerSettingsScreen}
+      options={{ tabBarIcon: ({ focused, color }) => <TabIcon name={focused ? 'settings' : 'settings-outline'} color={color} label="Settings" focused={focused} /> }}
     />
   </Tab.Navigator>
 );
