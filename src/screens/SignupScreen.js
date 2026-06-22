@@ -42,6 +42,7 @@ const SignupScreen = ({ navigation, route }) => {
         await AsyncStorage.setItem('token', res.token);
         await AsyncStorage.setItem('user', JSON.stringify(res.user));
         api.setToken(res.token);
+        await AsyncStorage.setItem('loginRole', isAdmin ? 'admin' : 'user');
         // Gym owner → straight to gym admin (create gym). Normal user → fitness onboarding.
         if (isAdmin) navigation.replace('AdminMain');
         else navigation.replace('ProfileSetup');

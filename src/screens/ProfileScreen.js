@@ -86,8 +86,7 @@ const ProfileScreen = ({ navigation }) => {
         text: 'Logout',
         style: 'destructive',
         onPress: async () => {
-          await AsyncStorage.removeItem('token');
-          await AsyncStorage.removeItem('user');
+          await AsyncStorage.multiRemove(['token', 'user', 'loginRole']);
           api.setToken(null);
           navigation.getParent()?.reset({ index: 0, routes: [{ name: 'Login' }] }) ||
             navigation.reset({ index: 0, routes: [{ name: 'Login' }] });

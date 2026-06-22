@@ -20,7 +20,8 @@ const LoginScreen = ({ navigation }) => {
   const [loginMode, setLoginMode] = useState('user'); // 'user' | 'admin'
 
   // Where to go after a successful login, based on selected mode + role
-  const routeAfterLogin = (user) => {
+  const routeAfterLogin = async (user) => {
+    await AsyncStorage.setItem('loginRole', loginMode); // remember for app refresh
     if (loginMode === 'admin') {
       navigation.replace('AdminMain');
       return;

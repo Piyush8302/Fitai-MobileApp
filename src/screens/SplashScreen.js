@@ -24,14 +24,19 @@ const SplashScreen = ({ navigation }) => {
       try {
         const token = await AsyncStorage.getItem('token');
         const user = await AsyncStorage.getItem('user');
+        const loginRole = await AsyncStorage.getItem('loginRole');
 
         if (token && user) {
           api.setToken(token);
           savePushTokenAfterLogin();
           const userData = JSON.parse(user);
+          // Admin (gym owner/staff) → admin UI; else consumer app
+          const isAdmin = loginRole === 'admin' || ['gym_owner', 'gym_staff'].includes(userData.role);
 
           setTimeout(() => {
-            if (userData.isProfileComplete) {
+            if (isAdmin) {
+              navigation.replace('AdminMain');
+            } else if (userData.isProfileComplete) {
               navigation.replace('Main');
             } else {
               navigation.replace('ProfileSetup');
