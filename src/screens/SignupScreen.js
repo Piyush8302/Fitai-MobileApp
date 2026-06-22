@@ -8,7 +8,8 @@ import GradientButton from '../components/GradientButton';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SignupScreen = ({ navigation }) => {
+const SignupScreen = ({ navigation, route }) => {
+  const isAdmin = route?.params?.mode === 'admin'; // registering as a gym owner
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,7 +42,9 @@ const SignupScreen = ({ navigation }) => {
         await AsyncStorage.setItem('token', res.token);
         await AsyncStorage.setItem('user', JSON.stringify(res.user));
         api.setToken(res.token);
-        navigation.replace('ProfileSetup');
+        // Gym owner → straight to gym admin (create gym). Normal user → fitness onboarding.
+        if (isAdmin) navigation.replace('GymAdmin');
+        else navigation.replace('ProfileSetup');
       } else {
         Alert.alert('Signup Failed', res.message || 'Something went wrong');
       }
@@ -60,12 +63,14 @@ const SignupScreen = ({ navigation }) => {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color={COLORS.white} />
           </TouchableOpacity>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Start your fitness transformation today</Text>
+          <Text style={styles.title}>{isAdmin ? 'Register Your Gym' : 'Create Account'}</Text>
+          <Text style={styles.subtitle}>
+            {isAdmin ? 'Create an owner account to manage your gym' : 'Start your fitness transformation today'}
+          </Text>
         </View>
 
         <View style={styles.form}>
-          <InputField label="Full Name" icon="person-outline" placeholder="Enter your name" value={name} onChangeText={setName} />
+          <InputField label="Full Name" icon="person-outline" placeholder={isAdmin ? "Owner's name" : 'Enter your name'} value={name} onChangeText={setName} />
           <InputField label="Email" icon="mail-outline" placeholder="Enter your email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
           <InputField label="Password" icon="lock-closed-outline" placeholder="Create password (min 6 chars)" value={password} onChangeText={setPassword} secureTextEntry />
           <InputField label="Confirm Password" icon="shield-checkmark-outline" placeholder="Confirm password" value={confirm} onChangeText={setConfirm} secureTextEntry />

@@ -224,9 +224,11 @@ const LoginScreen = ({ navigation }) => {
           </TouchableOpacity>
 
           <View style={styles.signupRow}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-              <Text style={styles.signupLink}>Sign Up</Text>
+            <Text style={styles.signupText}>
+              {loginMode === 'admin' ? 'New gym owner? ' : "Don't have an account? "}
+            </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Signup', { mode: loginMode })}>
+              <Text style={styles.signupLink}>{loginMode === 'admin' ? 'Register Gym' : 'Sign Up'}</Text>
             </TouchableOpacity>
           </View>
         </View>
