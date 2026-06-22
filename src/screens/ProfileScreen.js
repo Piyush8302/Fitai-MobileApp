@@ -117,6 +117,7 @@ const ProfileScreen = ({ navigation }) => {
   const menuItems = [
     { section: 'Account', items: [
       { icon: 'person-outline', label: 'Edit Profile', screen: 'EditProfile' },
+      { icon: 'barbell-outline', label: 'My Gym & Attendance', screen: 'MyGymCard' },
       { icon: 'fitness-outline', label: 'My Goals', screen: 'GoalSelection' },
       { icon: 'card-outline', label: 'Subscription', screen: 'Subscription' },
       { icon: 'notifications-outline', label: 'Notifications', screen: 'Notifications' },
