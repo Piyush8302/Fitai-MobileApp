@@ -17,6 +17,17 @@ const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loginMode, setLoginMode] = useState('user'); // 'user' | 'admin'
+
+  // Where to go after a successful login, based on selected mode + role
+  const routeAfterLogin = (user) => {
+    if (loginMode === 'admin') {
+      navigation.replace('GymAdmin');
+      return;
+    }
+    if (user.isProfileComplete) navigation.replace('Main');
+    else navigation.replace('ProfileSetup');
+  };
 
   // Parse Google auth callback URL and handle login
   const handleAuthUrl = async (url) => {
@@ -118,12 +129,7 @@ const LoginScreen = ({ navigation }) => {
         api.setToken(res.token);
         savePushTokenAfterLogin();
 
-        // Navigate based on profile status
-        if (res.user.isProfileComplete) {
-          navigation.replace('Main');
-        } else {
-          navigation.replace('ProfileSetup');
-        }
+        routeAfterLogin(res.user);
       } else {
         Alert.alert('Login Failed', res.message || 'Invalid credentials');
       }
@@ -143,7 +149,27 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.logo}>🏋️</Text>
           </View>
           <Text style={styles.title}>Welcome Back!</Text>
-          <Text style={styles.subtitle}>Login to continue your fitness journey</Text>
+          <Text style={styles.subtitle}>
+            {loginMode === 'admin' ? 'Login to manage your gym' : 'Login to continue your fitness journey'}
+          </Text>
+        </View>
+
+        {/* Login mode toggle */}
+        <View style={styles.modeToggle}>
+          <TouchableOpacity
+            style={[styles.modeBtn, loginMode === 'user' && styles.modeBtnActive]}
+            onPress={() => setLoginMode('user')}
+          >
+            <Text style={styles.modeIcon}>🏃</Text>
+            <Text style={[styles.modeText, loginMode === 'user' && styles.modeTextActive]}>Login as User</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modeBtn, loginMode === 'admin' && styles.modeBtnActive]}
+            onPress={() => setLoginMode('admin')}
+          >
+            <Text style={styles.modeIcon}>🏋️</Text>
+            <Text style={[styles.modeText, loginMode === 'admin' && styles.modeTextActive]}>Login as Admin</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.form}>
@@ -221,6 +247,16 @@ const styles = StyleSheet.create({
   logo: { fontSize: 36 },
   title: { fontSize: SIZES.fontTitle, color: COLORS.white, ...FONTS.bold },
   subtitle: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium, marginTop: 8 },
+  modeToggle: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+  modeBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 12, borderRadius: SIZES.radius,
+    backgroundColor: COLORS.darkCard, borderWidth: 1.5, borderColor: COLORS.darkBorder,
+  },
+  modeBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '12' },
+  modeIcon: { fontSize: 16 },
+  modeText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.semiBold },
+  modeTextActive: { color: COLORS.primary },
   form: {},
   forgotBtn: { alignSelf: 'flex-end', marginBottom: 24 },
   forgotRow: { alignSelf: 'center', marginBottom: 20 },

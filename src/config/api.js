@@ -67,6 +67,18 @@ export const ENDPOINTS = {
   FOOD_CATEGORIES: '/api/food/categories',
   FOOD_CALCULATE: '/api/food/calculate',
 
+  // Gym module
+  GYM_CREATE: '/api/gym',
+  GYM_MINE: '/api/gym/mine',
+  GYM_ADD_MEMBER: '/api/gym/members',
+  GYM_MEMBERS: '/api/gym',            // + /:gymId/members
+  GYM_PAYMENT: '/api/gym/payment',
+  GYM_ATTENDANCE: '/api/gym/attendance', // POST staff scan
+  GYM_DASHBOARD: '/api/gym',          // + /:gymId/dashboard
+  GYM_ATT_LIST: '/api/gym',           // + /:gymId/attendance
+  GYM_MY_CARD: '/api/gym/my/card',
+  GYM_MY_CHECKIN: '/api/gym/my/checkin',
+
   // Exercise Library
   EXERCISES: '/api/exercises',
   EXERCISES_MUSCLES: '/api/exercises/muscles',

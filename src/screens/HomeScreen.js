@@ -126,6 +126,7 @@ const HomeScreen = ({ navigation }) => {
   ];
 
   const exploreActions = [
+    { id: 'gym', title: 'My Gym', icon: '🎫', screen: 'MyGymCard', color: '#6C63FF' },
     { id: 'articles', title: 'Articles', icon: '📰', screen: 'Articles', color: '#9C27B0' },
     { id: 'food', title: 'Food DB', icon: '🍽', screen: 'FoodDatabase', color: '#FF9800' },
     { id: 'exercises', title: 'Exercises', icon: '💪', screen: 'ExerciseLibrary', color: '#E91E63' },

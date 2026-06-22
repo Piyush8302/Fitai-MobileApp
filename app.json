@@ -63,6 +63,12 @@
           "speechRecognitionPermission": "Allow FitAI to recognize speech for voice meal logging."
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow FitAI to use the camera to scan gym QR codes for attendance."
+        }
+      ],
       "./plugins/withJetifier",
       "./plugins/withSpeechRecognition"
     ],

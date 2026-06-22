@@ -1,0 +1,388 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
+  ActivityIndicator, Alert, Modal, Platform, KeyboardAvoidingView,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, SIZES, FONTS } from '../constants/theme';
+import api, { ENDPOINTS } from '../config/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const PLANS = [
+  { key: 'trial', label: 'Trial', months: 0 },
+  { key: 'day_pass', label: 'Day Pass', months: 0 },
+  { key: 'monthly', label: 'Monthly', months: 1 },
+  { key: 'quarterly', label: '3 Months', months: 3 },
+  { key: 'half_yearly', label: '6 Months', months: 6 },
+  { key: 'yearly', label: 'Yearly', months: 12 },
+];
+
+const GymAdminScreen = ({ navigation }) => {
+  const [loading, setLoading] = useState(true);
+  const [gyms, setGyms] = useState([]);
+  const [activeGym, setActiveGym] = useState(null); // gym object
+  const [stats, setStats] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [tab, setTab] = useState('members'); // members | attendance
+
+  // Create gym
+  const [showCreate, setShowCreate] = useState(false);
+  const [gName, setGName] = useState('');
+  const [gLoc, setGLoc] = useState('');
+
+  // Add member
+  const [showAdd, setShowAdd] = useState(false);
+  const [mName, setMName] = useState('');
+  const [mPhone, setMPhone] = useState('');
+  const [mPlan, setMPlan] = useState('monthly');
+  const [mFee, setMFee] = useState('');
+
+  // Payment
+  const [payFor, setPayFor] = useState(null); // membership object
+  const [payAmount, setPayAmount] = useState('');
+  const [payPlan, setPayPlan] = useState('monthly');
+
+  const [attendance, setAttendance] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  const loadGyms = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (token) api.setToken(token);
+      const res = await api.get(ENDPOINTS.GYM_MINE);
+      if (res.success) {
+        setGyms(res.data);
+        if (res.data.length && !activeGym) setActiveGym(res.data[0]);
+        if (res.data.length === 0) setShowCreate(true);
+      }
+    } catch (e) { console.log('gyms', e); }
+    finally { setLoading(false); }
+  }, [activeGym]);
+
+  useEffect(() => { loadGyms(); }, []);
+
+  const loadGymData = useCallback(async (gymId) => {
+    if (!gymId) return;
+    try {
+      const [s, m] = await Promise.all([
+        api.get(`/api/gym/${gymId}/dashboard`),
+        api.get(`/api/gym/${gymId}/members`),
+      ]);
+      if (s.success) setStats(s.data);
+      if (m.success) setMembers(m.data);
+    } catch (e) { console.log('gymdata', e); }
+  }, []);
+
+  useEffect(() => { if (activeGym?._id) loadGymData(activeGym._id); }, [activeGym, loadGymData]);
+
+  const loadAttendance = async () => {
+    if (!activeGym?._id) return;
+    try {
+      const res = await api.get(`/api/gym/${activeGym._id}/attendance`);
+      if (res.success) setAttendance(res.data);
+    } catch (e) {}
+  };
+
+  // ===== ACTIONS =====
+  const createGym = async () => {
+    if (!gName.trim()) { Alert.alert('Required', 'Gym name daalo'); return; }
+    setBusy(true);
+    try {
+      const res = await api.post(ENDPOINTS.GYM_CREATE, { name: gName.trim(), location: gLoc.trim() });
+      if (res.success) {
+        setShowCreate(false); setGName(''); setGLoc('');
+        await loadGyms();
+        setActiveGym(res.data);
+      } else Alert.alert('Error', res.message || 'Failed');
+    } catch (e) { Alert.alert('Error', 'Failed to create gym'); }
+    finally { setBusy(false); }
+  };
+
+  const addMember = async () => {
+    if (!mPhone.trim() || mPhone.trim().length < 10) { Alert.alert('Required', 'Valid phone number daalo'); return; }
+    setBusy(true);
+    try {
+      const res = await api.post(ENDPOINTS.GYM_ADD_MEMBER, {
+        gymId: activeGym._id, name: mName.trim(), phone: mPhone.trim(),
+        plan: mPlan, fee: parseInt(mFee) || 0,
+      });
+      if (res.success) {
+        Alert.alert(res.alreadyMember ? 'Already a member' : 'Member added', `${mName || mPhone}`);
+        setShowAdd(false); setMName(''); setMPhone(''); setMFee(''); setMPlan('monthly');
+        loadGymData(activeGym._id);
+      } else Alert.alert('Error', res.message || 'Failed');
+    } catch (e) { Alert.alert('Error', 'Failed to add member'); }
+    finally { setBusy(false); }
+  };
+
+  const markPayment = async () => {
+    setBusy(true);
+    try {
+      const res = await api.post(ENDPOINTS.GYM_PAYMENT, {
+        membershipId: payFor._id, amount: parseInt(payAmount) || 0, plan: payPlan,
+      });
+      if (res.success) {
+        Alert.alert('Payment marked ✅', `${payFor.user?.name || 'Member'} • ₹${payAmount}`);
+        setPayFor(null); setPayAmount('');
+        loadGymData(activeGym._id);
+      } else Alert.alert('Error', res.message || 'Failed');
+    } catch (e) { Alert.alert('Error', 'Failed to mark payment'); }
+    finally { setBusy(false); }
+  };
+
+  const markPresent = async (member) => {
+    try {
+      const res = await api.post(ENDPOINTS.GYM_ATTENDANCE, { gymId: activeGym._id, userId: member.user._id });
+      if (res.success) {
+        Alert.alert(res.data?.duplicate ? 'Already checked in' : 'Marked present ✅', member.user?.name || '');
+        loadGymData(activeGym._id);
+      }
+    } catch (e) { Alert.alert('Error', 'Failed'); }
+  };
+
+  if (loading) {
+    return (
+      <LinearGradient colors={COLORS.gradientDark} style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </LinearGradient>
+    );
+  }
+
+  return (
+    <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerSmall}>Gym Admin</Text>
+          <Text style={styles.headerTitle}>{activeGym?.name || 'My Gym'}</Text>
+        </View>
+        <TouchableOpacity style={styles.scanHeaderBtn} onPress={() => navigation.navigate('GymScan', { mode: 'staff', gymId: activeGym?._id })}>
+          <Ionicons name="qr-code" size={18} color={COLORS.onAccent} />
+          <Text style={styles.scanHeaderText}>Scan</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Gym switcher (multi-branch) */}
+      {gyms.length > 1 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.switcher} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+          {gyms.map((g) => (
+            <TouchableOpacity key={g._id} style={[styles.switchChip, activeGym?._id === g._id && styles.switchChipActive]} onPress={() => setActiveGym(g)}>
+              <Text style={[styles.switchText, activeGym?._id === g._id && { color: COLORS.onAccent }]}>{g.name}</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity style={styles.switchAdd} onPress={() => setShowCreate(true)}>
+            <Ionicons name="add" size={18} color={COLORS.primary} />
+          </TouchableOpacity>
+        </ScrollView>
+      )}
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* Stats */}
+        <View style={styles.statsGrid}>
+          {[
+            { label: 'Members', value: stats?.totalMembers ?? 0, icon: '👥', color: COLORS.primary },
+            { label: 'Today In', value: stats?.todayFootfall ?? 0, icon: '✅', color: COLORS.success },
+            { label: 'Fee Due', value: stats?.dueMembers ?? 0, icon: '⚠️', color: COLORS.error },
+            { label: 'Pending ₹', value: stats?.pendingFees ?? 0, icon: '💰', color: COLORS.warning },
+          ].map((s, i) => (
+            <View key={i} style={styles.statCard}>
+              <Text style={styles.statIcon}>{s.icon}</Text>
+              <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
+              <Text style={styles.statLabel}>{s.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Add member button */}
+        <TouchableOpacity style={styles.addMemberBtn} onPress={() => setShowAdd(true)}>
+          <Ionicons name="person-add" size={18} color={COLORS.onAccent} />
+          <Text style={styles.addMemberText}>Add Member</Text>
+        </TouchableOpacity>
+
+        {/* Tabs */}
+        <View style={styles.tabs}>
+          {['members', 'attendance'].map((t) => (
+            <TouchableOpacity key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => { setTab(t); if (t === 'attendance') loadAttendance(); }}>
+              <Text style={[styles.tabText, tab === t && { color: COLORS.primary }]}>{t === 'members' ? 'Members' : "Today's Attendance"}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Members list */}
+        {tab === 'members' && (
+          members.length === 0 ? (
+            <Text style={styles.emptyText}>No members yet. Tap "Add Member".</Text>
+          ) : members.map((m) => (
+            <View key={m._id} style={styles.memberCard}>
+              <View style={styles.memberAvatar}><Text style={styles.memberInitial}>{(m.user?.name || 'M')[0].toUpperCase()}</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.memberName}>{m.user?.name || 'Member'}</Text>
+                <Text style={styles.memberMeta}>{m.user?.phone} • {m.plan}</Text>
+                <Text style={[styles.memberDue, { color: m.isDue ? COLORS.error : COLORS.success }]}>
+                  {m.isDue ? '⚠️ Fee due' : m.dueDate ? `Paid till ${new Date(m.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : 'Active'}
+                </Text>
+              </View>
+              <View style={{ gap: 6 }}>
+                <TouchableOpacity style={styles.miniBtn} onPress={() => markPresent(m)}>
+                  <Ionicons name="checkmark" size={14} color={COLORS.success} />
+                  <Text style={[styles.miniBtnText, { color: COLORS.success }]}>Present</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.miniBtn} onPress={() => { setPayFor(m); setPayAmount(String(m.fee || '')); setPayPlan(m.plan); }}>
+                  <Ionicons name="cash" size={14} color={COLORS.warning} />
+                  <Text style={[styles.miniBtnText, { color: COLORS.warning }]}>Pay</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))
+        )}
+
+        {/* Attendance list */}
+        {tab === 'attendance' && (
+          attendance.length === 0 ? (
+            <Text style={styles.emptyText}>No check-ins today yet.</Text>
+          ) : attendance.map((a) => (
+            <View key={a._id} style={styles.attRow}>
+              <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+              <Text style={styles.attName}>{a.user?.name || 'Member'}</Text>
+              <Text style={styles.attTime}>{new Date(a.checkInAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
+              <Text style={styles.attMethod}>{a.method === 'self_scan' ? '📱' : '🧑‍💼'}</Text>
+            </View>
+          ))
+        )}
+      </ScrollView>
+
+      {/* ===== CREATE GYM MODAL ===== */}
+      <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => gyms.length && setShowCreate(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{gyms.length ? 'Add New Branch' : 'Create Your Gym'}</Text>
+            <Text style={styles.modalSub}>Apne gym ka naam daalo — phir members add kar sakte ho</Text>
+            <TextInput style={styles.input} placeholder="Gym name (e.g. Anand Gym)" placeholderTextColor={COLORS.textMuted} value={gName} onChangeText={setGName} />
+            <TextInput style={styles.input} placeholder="Location / area (optional)" placeholderTextColor={COLORS.textMuted} value={gLoc} onChangeText={setGLoc} />
+            <TouchableOpacity style={styles.primaryBtn} onPress={createGym} disabled={busy}>
+              {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.primaryBtnText}>Create Gym</Text>}
+            </TouchableOpacity>
+            {gyms.length > 0 && (
+              <TouchableOpacity onPress={() => setShowCreate(false)} style={{ paddingVertical: 10 }}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ===== ADD MEMBER MODAL ===== */}
+      <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Add Member</Text>
+            <TextInput style={styles.input} placeholder="Name" placeholderTextColor={COLORS.textMuted} value={mName} onChangeText={setMName} />
+            <TextInput style={styles.input} placeholder="Mobile number" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" value={mPhone} onChangeText={setMPhone} />
+            <Text style={styles.inputLabel}>Plan</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+              {PLANS.map((p) => (
+                <TouchableOpacity key={p.key} style={[styles.planChip, mPlan === p.key && styles.planChipActive]} onPress={() => setMPlan(p.key)}>
+                  <Text style={[styles.planChipText, mPlan === p.key && { color: COLORS.onAccent }]}>{p.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TextInput style={styles.input} placeholder="Fee amount (₹)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={mFee} onChangeText={setMFee} />
+            <TouchableOpacity style={styles.primaryBtn} onPress={addMember} disabled={busy}>
+              {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.primaryBtnText}>Add Member</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowAdd(false)} style={{ paddingVertical: 10 }}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ===== PAYMENT MODAL ===== */}
+      <Modal visible={!!payFor} transparent animationType="slide" onRequestClose={() => setPayFor(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>💵 Mark Payment</Text>
+            <Text style={styles.modalSub}>{payFor?.user?.name} • {payFor?.user?.phone}</Text>
+            <Text style={styles.inputLabel}>Plan</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+              {PLANS.filter(p => p.months > 0).map((p) => (
+                <TouchableOpacity key={p.key} style={[styles.planChip, payPlan === p.key && styles.planChipActive]} onPress={() => setPayPlan(p.key)}>
+                  <Text style={[styles.planChipText, payPlan === p.key && { color: COLORS.onAccent }]}>{p.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TextInput style={styles.input} placeholder="Amount received (₹)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={payAmount} onChangeText={setPayAmount} />
+            <TouchableOpacity style={styles.primaryBtn} onPress={markPayment} disabled={busy}>
+              {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.primaryBtnText}>Mark as Paid</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setPayFor(null)} style={{ paddingVertical: 10 }}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </LinearGradient>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  center: { alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12 },
+  headerSmall: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
+  headerTitle: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold },
+  scanHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.primary, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+  scanHeaderText: { color: COLORS.onAccent, fontSize: SIZES.fontSm, ...FONTS.bold },
+
+  switcher: { maxHeight: 44, marginBottom: 8 },
+  switchChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },
+  switchChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  switchText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold },
+  switchAdd: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '15', borderWidth: 1, borderColor: COLORS.primary + '40' },
+
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 16, marginTop: 6 },
+  statCard: { width: '47%', flexGrow: 1, alignItems: 'center', paddingVertical: 16, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
+  statIcon: { fontSize: 22, marginBottom: 4 },
+  statValue: { fontSize: SIZES.fontXxl, ...FONTS.bold },
+  statLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
+
+  addMemberBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 16, backgroundColor: COLORS.primary, borderRadius: SIZES.radius, paddingVertical: 14 },
+  addMemberText: { color: COLORS.onAccent, fontSize: SIZES.fontMd, ...FONTS.bold },
+
+  tabs: { flexDirection: 'row', marginHorizontal: 16, marginTop: 20, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, padding: 4 },
+  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: SIZES.radiusSm },
+  tabActive: { backgroundColor: COLORS.primary + '15' },
+  tabText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.semiBold },
+
+  emptyText: { fontSize: SIZES.fontMd, color: COLORS.textMuted, textAlign: 'center', marginTop: 30, paddingHorizontal: 20 },
+
+  memberCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 10, padding: 14, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
+  memberAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
+  memberInitial: { color: COLORS.onAccent, fontSize: SIZES.fontLg, ...FONTS.bold },
+  memberName: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
+  memberMeta: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: 1, textTransform: 'capitalize' },
+  memberDue: { fontSize: SIZES.fontXs, ...FONTS.medium, marginTop: 2 },
+  miniBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: COLORS.darkSurface, borderWidth: 1, borderColor: COLORS.darkBorder },
+  miniBtnText: { fontSize: SIZES.fontXs, ...FONTS.bold },
+
+  attRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginTop: 8, padding: 12, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
+  attName: { flex: 1, fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.semiBold },
+  attTime: { fontSize: SIZES.fontSm, color: COLORS.textMuted },
+  attMethod: { fontSize: SIZES.fontMd },
+
+  modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36 },
+  modalTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginBottom: 6 },
+  modalSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginBottom: 16 },
+  input: { backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder, paddingHorizontal: 14, paddingVertical: 12, fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.medium, marginBottom: 10 },
+  inputLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, marginBottom: 8 },
+  planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, backgroundColor: COLORS.darkSurface, borderWidth: 1, borderColor: COLORS.darkBorder, marginRight: 8 },
+  planChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  planChipText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.semiBold },
+  primaryBtn: { backgroundColor: COLORS.primary, borderRadius: SIZES.radius, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
+  primaryBtnText: { color: COLORS.onAccent, fontSize: SIZES.fontMd, ...FONTS.bold },
+  cancelText: { color: COLORS.textMuted, fontSize: SIZES.fontMd, ...FONTS.medium, textAlign: 'center' },
+});
+
+export default GymAdminScreen;
