@@ -49,7 +49,7 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
     Alert.alert('Logout?', 'Aap logout karna chahte ho?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Logout', style: 'destructive', onPress: async () => {
-        await AsyncStorage.multiRemove(['token', 'user', 'loginRole']);
+        await AsyncStorage.multiRemove(['token', 'user', 'loginRole', 'activeGymId']);
         navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
       }},
     ]);

@@ -57,6 +57,12 @@ const GymAdminScreen = ({ navigation }) => {
   const istToday = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().split('T')[0];
   const [showGymQR, setShowGymQR] = useState(false);
 
+  // Select a gym AND remember it so every admin tab shows the same gym
+  const selectGym = async (gym) => {
+    setActiveGym(gym);
+    try { await AsyncStorage.setItem('activeGymId', gym._id); } catch (e) {}
+  };
+
   const loadGyms = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem('token');
@@ -64,14 +70,30 @@ const GymAdminScreen = ({ navigation }) => {
       const res = await api.get(ENDPOINTS.GYM_MINE);
       if (res.success) {
         setGyms(res.data);
-        if (res.data.length && !activeGym) setActiveGym(res.data[0]);
-        if (res.data.length === 0) setShowCreate(true);
+        if (res.data.length === 0) { setShowCreate(true); }
+        else {
+          // Restore last-selected gym (synced across tabs), else first
+          const savedId = await AsyncStorage.getItem('activeGymId');
+          const match = res.data.find(g => g._id === savedId);
+          setActiveGym(prev => prev && res.data.find(g => g._id === prev._id) ? prev : (match || res.data[0]));
+        }
       }
     } catch (e) { console.log('gyms', e); }
     finally { setLoading(false); }
-  }, [activeGym]);
+  }, []);
 
-  useEffect(() => { loadGyms(); }, []);
+  useEffect(() => { loadGyms(); }, [loadGyms]);
+  // Re-sync selected gym when this tab regains focus (owner may have switched on another tab)
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', async () => {
+      const savedId = await AsyncStorage.getItem('activeGymId');
+      if (savedId && gyms.length) {
+        const match = gyms.find(g => g._id === savedId);
+        if (match && match._id !== activeGym?._id) setActiveGym(match);
+      }
+    });
+    return unsub;
+  }, [navigation, gyms, activeGym]);
 
   const loadGymData = useCallback(async (gymId) => {
     if (!gymId) return;
@@ -121,7 +143,7 @@ const GymAdminScreen = ({ navigation }) => {
       if (res.success) {
         setShowCreate(false); setGName(''); setGLoc('');
         await loadGyms();
-        setActiveGym(res.data);
+        selectGym(res.data);
       } else Alert.alert('Error', res.message || 'Failed');
     } catch (e) { Alert.alert('Error', 'Failed to create gym'); }
     finally { setBusy(false); }
@@ -199,7 +221,7 @@ const GymAdminScreen = ({ navigation }) => {
       {/* Gym switcher (multi-branch) — always shown so "+ Add branch" is available */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.switcher} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, alignItems: 'center' }}>
         {gyms.map((g) => (
-          <TouchableOpacity key={g._id} style={[styles.switchChip, activeGym?._id === g._id && styles.switchChipActive]} onPress={() => setActiveGym(g)}>
+          <TouchableOpacity key={g._id} style={[styles.switchChip, activeGym?._id === g._id && styles.switchChipActive]} onPress={() => selectGym(g)}>
             <Text style={[styles.switchText, activeGym?._id === g._id && { color: COLORS.onAccent }]}>{g.name}</Text>
           </TouchableOpacity>
         ))}

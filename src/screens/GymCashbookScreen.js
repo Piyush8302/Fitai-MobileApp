@@ -24,17 +24,40 @@ const GymCashbookScreen = ({ navigation }) => {
   const [desc, setDesc] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const token = await AsyncStorage.getItem('token');
-      if (token) api.setToken(token);
-      try {
-        const res = await api.get(ENDPOINTS.GYM_MINE);
-        if (res.success) { setGyms(res.data); if (res.data.length) setActiveGym(res.data[0]); }
-      } catch (e) {}
-      setLoading(false);
-    })();
+  const selectGym = async (gym) => {
+    setActiveGym(gym);
+    try { await AsyncStorage.setItem('activeGymId', gym._id); } catch (e) {}
+  };
+
+  const loadGyms = useCallback(async () => {
+    const token = await AsyncStorage.getItem('token');
+    if (token) api.setToken(token);
+    try {
+      const res = await api.get(ENDPOINTS.GYM_MINE);
+      if (res.success) {
+        setGyms(res.data);
+        if (res.data.length) {
+          const savedId = await AsyncStorage.getItem('activeGymId');
+          const match = res.data.find(g => g._id === savedId);
+          setActiveGym(prev => prev && res.data.find(g => g._id === prev._id) ? prev : (match || res.data[0]));
+        }
+      }
+    } catch (e) {}
+    setLoading(false);
   }, []);
+
+  useEffect(() => { loadGyms(); }, [loadGyms]);
+  // Re-sync selected gym when returning to this tab
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', async () => {
+      const savedId = await AsyncStorage.getItem('activeGymId');
+      if (savedId && gyms.length) {
+        const match = gyms.find(g => g._id === savedId);
+        if (match && match._id !== activeGym?._id) setActiveGym(match);
+      }
+    });
+    return unsub;
+  }, [navigation, gyms, activeGym]);
 
   const load = useCallback(async () => {
     if (!activeGym?._id) return;
@@ -97,7 +120,7 @@ const GymCashbookScreen = ({ navigation }) => {
       {gyms.length > 1 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, marginBottom: 6 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
           {gyms.map((g) => (
-            <TouchableOpacity key={g._id} style={[styles.chip, activeGym?._id === g._id && styles.chipActive]} onPress={() => setActiveGym(g)}>
+            <TouchableOpacity key={g._id} style={[styles.chip, activeGym?._id === g._id && styles.chipActive]} onPress={() => selectGym(g)}>
               <Text style={[styles.chipText, activeGym?._id === g._id && { color: COLORS.onAccent }]}>{g.name}</Text>
             </TouchableOpacity>
           ))}
