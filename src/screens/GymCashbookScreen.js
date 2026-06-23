@@ -38,8 +38,11 @@ const GymCashbookScreen = ({ navigation }) => {
         setGyms(res.data);
         if (res.data.length) {
           const savedId = await AsyncStorage.getItem('activeGymId');
-          const match = res.data.find(g => g._id === savedId);
-          setActiveGym(prev => prev && res.data.find(g => g._id === prev._id) ? prev : (match || res.data[0]));
+          if (savedId === 'ALL' && res.data.length > 1) { setActiveGym({ _id: 'ALL', name: '🏢 All Gyms' }); }
+          else {
+            const match = res.data.find(g => g._id === savedId);
+            setActiveGym(prev => (prev && (prev._id === 'ALL' || res.data.find(g => g._id === prev._id))) ? prev : (match || res.data[0]));
+          }
         }
       }
     } catch (e) {}
@@ -61,8 +64,11 @@ const GymCashbookScreen = ({ navigation }) => {
 
   const load = useCallback(async () => {
     if (!activeGym?._id) return;
+    const isAll = activeGym._id === 'ALL';
     try {
-      const res = await api.get(`/api/gym/${activeGym._id}/cashbook?month=${monthKey(monthDate)}`);
+      const res = await api.get(isAll
+        ? `/api/gym/all/cashbook?month=${monthKey(monthDate)}`
+        : `/api/gym/${activeGym._id}/cashbook?month=${monthKey(monthDate)}`);
       if (res.success) setData(res.data);
     } catch (e) {}
   }, [activeGym, monthDate]);
@@ -101,7 +107,10 @@ const GymCashbookScreen = ({ navigation }) => {
     ]);
   };
 
-  const openAdd = (type) => { setAddType(type); setAmount(''); setDesc(''); setShowAdd(true); };
+  const openAdd = (type) => {
+    if (activeGym?._id === 'ALL') { Alert.alert('Select a gym', 'Combined view me entry add nahi hoti. Pehle koi ek gym select karo.'); return; }
+    setAddType(type); setAmount(''); setDesc(''); setShowAdd(true);
+  };
 
   if (loading) return <LinearGradient colors={COLORS.gradientDark} style={[styles.container, styles.center]}><ActivityIndicator size="large" color={COLORS.primary} /></LinearGradient>;
 
@@ -119,6 +128,9 @@ const GymCashbookScreen = ({ navigation }) => {
 
       {gyms.length > 1 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, marginBottom: 6 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+          <TouchableOpacity style={[styles.chip, activeGym?._id === 'ALL' && styles.chipActive]} onPress={() => selectGym({ _id: 'ALL', name: '🏢 All Gyms' })}>
+            <Text style={[styles.chipText, activeGym?._id === 'ALL' && { color: COLORS.onAccent }]}>🏢 All Gyms</Text>
+          </TouchableOpacity>
           {gyms.map((g) => (
             <TouchableOpacity key={g._id} style={[styles.chip, activeGym?._id === g._id && styles.chipActive]} onPress={() => selectGym(g)}>
               <Text style={[styles.chipText, activeGym?._id === g._id && { color: COLORS.onAccent }]}>{g.name}</Text>
@@ -171,10 +183,13 @@ const GymCashbookScreen = ({ navigation }) => {
             </View>
             <View style={{ flex: 2 }}>
               <Text style={styles.entryDesc} numberOfLines={1}>{e.description || (e.type === 'income' ? 'Income' : 'Expense')}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
                 <Text style={[styles.entryType, { color: e.type === 'income' ? COLORS.success : COLORS.error }]}>{e.type === 'income' ? 'Income' : 'Expense'}</Text>
                 {e.source === 'membership' && (
                   <View style={styles.autoBadge}><Text style={styles.autoBadgeText}>AUTO</Text></View>
+                )}
+                {activeGym?._id === 'ALL' && e.gym?.name && (
+                  <Text style={styles.entryGym}>· {e.gym.name}</Text>
                 )}
               </View>
             </View>
@@ -246,6 +261,7 @@ const styles = StyleSheet.create({
   entryType: { fontSize: SIZES.fontXs, ...FONTS.medium },
   autoBadge: { backgroundColor: COLORS.primary + '20', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 },
   autoBadgeText: { fontSize: 8, color: COLORS.primary, ...FONTS.bold, letterSpacing: 0.5 },
+  entryGym: { fontSize: SIZES.fontXs, color: COLORS.accent, ...FONTS.bold },
   entryAmount: { fontSize: SIZES.fontMd, ...FONTS.bold },
   emptyText: { fontSize: SIZES.fontMd, color: COLORS.textMuted, textAlign: 'center', marginTop: 24, paddingHorizontal: 20 },
 

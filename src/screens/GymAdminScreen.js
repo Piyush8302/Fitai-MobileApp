@@ -27,6 +27,8 @@ const GymAdminScreen = ({ navigation }) => {
   const [members, setMembers] = useState([]);
   const [tab, setTab] = useState('members'); // members | attendance
   const [memberSearch, setMemberSearch] = useState('');
+  const ALL_GYM = { _id: 'ALL', name: '🏢 All Gyms' };
+  const isAll = activeGym?._id === 'ALL';
 
   // Create gym
   const [showCreate, setShowCreate] = useState(false);
@@ -72,10 +74,13 @@ const GymAdminScreen = ({ navigation }) => {
         setGyms(res.data);
         if (res.data.length === 0) { setShowCreate(true); }
         else {
-          // Restore last-selected gym (synced across tabs), else first
+          // Restore last-selected gym (synced across tabs); 'ALL' = combined view
           const savedId = await AsyncStorage.getItem('activeGymId');
-          const match = res.data.find(g => g._id === savedId);
-          setActiveGym(prev => prev && res.data.find(g => g._id === prev._id) ? prev : (match || res.data[0]));
+          if (savedId === 'ALL' && res.data.length > 1) { setActiveGym({ _id: 'ALL', name: '🏢 All Gyms' }); }
+          else {
+            const match = res.data.find(g => g._id === savedId);
+            setActiveGym(prev => (prev && (prev._id === 'ALL' || res.data.find(g => g._id === prev._id))) ? prev : (match || res.data[0]));
+          }
         }
       }
     } catch (e) { console.log('gyms', e); }
@@ -97,10 +102,11 @@ const GymAdminScreen = ({ navigation }) => {
 
   const loadGymData = useCallback(async (gymId) => {
     if (!gymId) return;
+    const isAll = gymId === 'ALL';
     try {
       const [s, m] = await Promise.all([
-        api.get(`/api/gym/${gymId}/dashboard`),
-        api.get(`/api/gym/${gymId}/members`),
+        api.get(isAll ? '/api/gym/all/dashboard' : `/api/gym/${gymId}/dashboard`),
+        api.get(isAll ? '/api/gym/all/members' : `/api/gym/${gymId}/members`),
       ]);
       if (s.success) setStats(s.data);
       if (m.success) setMembers(m.data);
@@ -183,7 +189,8 @@ const GymAdminScreen = ({ navigation }) => {
 
   const markPresent = async (member) => {
     try {
-      const res = await api.post(ENDPOINTS.GYM_ATTENDANCE, { gymId: activeGym._id, userId: member.user._id });
+      const gid = member.gym?._id || activeGym._id; // in All-mode use the member's own gym
+      const res = await api.post(ENDPOINTS.GYM_ATTENDANCE, { gymId: gid, userId: member.user._id });
       if (res.success) {
         Alert.alert(res.data?.duplicate ? 'Already checked in' : 'Marked present ✅', member.user?.name || '');
         loadGymData(activeGym._id);
@@ -207,19 +214,26 @@ const GymAdminScreen = ({ navigation }) => {
           <Text style={styles.headerSmall}>Gym Admin</Text>
           <Text style={styles.headerTitle}>{activeGym?.name || 'My Gym'}</Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity style={styles.gymQrBtn} onPress={() => setShowGymQR(true)}>
-            <Ionicons name="qr-code-outline" size={18} color={COLORS.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.scanHeaderBtn} onPress={() => navigation.navigate('GymScan', { mode: 'staff', gymId: activeGym?._id })}>
-            <Ionicons name="scan" size={18} color={COLORS.onAccent} />
-            <Text style={styles.scanHeaderText}>Scan</Text>
-          </TouchableOpacity>
-        </View>
+        {!isAll && (
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity style={styles.gymQrBtn} onPress={() => setShowGymQR(true)}>
+              <Ionicons name="qr-code-outline" size={18} color={COLORS.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.scanHeaderBtn} onPress={() => navigation.navigate('GymScan', { mode: 'staff', gymId: activeGym?._id })}>
+              <Ionicons name="scan" size={18} color={COLORS.onAccent} />
+              <Text style={styles.scanHeaderText}>Scan</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Gym switcher (multi-branch) — always shown so "+ Add branch" is available */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.switcher} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, alignItems: 'center' }}>
+        {gyms.length > 1 && (
+          <TouchableOpacity style={[styles.switchChip, isAll && styles.switchChipActive]} onPress={() => selectGym(ALL_GYM)}>
+            <Text style={[styles.switchText, isAll && { color: COLORS.onAccent }]}>🏢 All Gyms</Text>
+          </TouchableOpacity>
+        )}
         {gyms.map((g) => (
           <TouchableOpacity key={g._id} style={[styles.switchChip, activeGym?._id === g._id && styles.switchChipActive]} onPress={() => selectGym(g)}>
             <Text style={[styles.switchText, activeGym?._id === g._id && { color: COLORS.onAccent }]}>{g.name}</Text>
@@ -248,11 +262,19 @@ const GymAdminScreen = ({ navigation }) => {
           ))}
         </View>
 
-        {/* Add member button */}
-        <TouchableOpacity style={styles.addMemberBtn} onPress={() => setShowAdd(true)}>
-          <Ionicons name="person-add" size={18} color={COLORS.onAccent} />
-          <Text style={styles.addMemberText}>Add Member</Text>
-        </TouchableOpacity>
+        {/* Add member button — disabled in All-Gyms view (which gym to add to?) */}
+        {!isAll && (
+          <TouchableOpacity style={styles.addMemberBtn} onPress={() => setShowAdd(true)}>
+            <Ionicons name="person-add" size={18} color={COLORS.onAccent} />
+            <Text style={styles.addMemberText}>Add Member</Text>
+          </TouchableOpacity>
+        )}
+        {isAll && (
+          <View style={styles.allHint}>
+            <Ionicons name="information-circle-outline" size={16} color={COLORS.textMuted} />
+            <Text style={styles.allHintText}>Combined view of all branches. Select a gym to add members or scan.</Text>
+          </View>
+        )}
 
         {/* Tabs */}
         <View style={styles.tabs}>
@@ -294,11 +316,14 @@ const GymAdminScreen = ({ navigation }) => {
               <Text style={styles.emptyText}>{q ? 'No member matched.' : 'No members yet. Tap "Add Member".'}</Text>
             ) : filtered.map((m) => (
             <View key={m._id} style={styles.memberCard}>
-              <TouchableOpacity style={styles.memberLeft} onPress={() => navigation.navigate('GymMemberDetail', { membershipId: m._id, gymId: activeGym._id })} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.memberLeft} onPress={() => navigation.navigate('GymMemberDetail', { membershipId: m._id, gymId: m.gym?._id || activeGym._id })} activeOpacity={0.7}>
                 <View style={styles.memberAvatar}><Text style={styles.memberInitial}>{(m.user?.name || 'M')[0].toUpperCase()}</Text></View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.memberName}>{m.user?.name || 'Member'}</Text>
                   <Text style={styles.memberMeta}>{m.user?.phone} • {m.plan}</Text>
+                  {isAll && m.gym?.name && (
+                    <View style={styles.gymTag}><Text style={styles.gymTagText}>🏋️ {m.gym.name}</Text></View>
+                  )}
                   <Text style={[styles.memberDue, { color: m.isDue ? COLORS.error : COLORS.success }]}>
                     {m.isDue ? '⚠️ Fee due' : m.dueDate ? `Paid till ${new Date(m.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : 'Active'}
                   </Text>
@@ -533,6 +558,10 @@ const styles = StyleSheet.create({
   memberCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 10, padding: 14, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
   memberLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   viewHistory: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.medium, marginTop: 3 },
+  gymTag: { alignSelf: 'flex-start', backgroundColor: COLORS.accent + '18', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2, marginTop: 3 },
+  gymTagText: { fontSize: SIZES.fontXs, color: COLORS.accent, ...FONTS.bold },
+  allHint: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginTop: 16, padding: 12, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
+  allHintText: { flex: 1, fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
   memberAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
   memberInitial: { color: COLORS.onAccent, fontSize: SIZES.fontLg, ...FONTS.bold },
   memberName: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
