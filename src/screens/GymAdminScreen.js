@@ -86,6 +86,11 @@ const GymAdminScreen = ({ navigation }) => {
   }, []);
 
   useEffect(() => { if (activeGym?._id) loadGymData(activeGym._id); }, [activeGym, loadGymData]);
+  // Refresh when returning from member detail (payment/attendance may have changed)
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => { if (activeGym?._id) loadGymData(activeGym._id); });
+    return unsub;
+  }, [navigation, activeGym, loadGymData]);
 
   const loadAttendance = async () => {
     if (!activeGym?._id) return;
@@ -267,7 +272,7 @@ const GymAdminScreen = ({ navigation }) => {
               <Text style={styles.emptyText}>{q ? 'No member matched.' : 'No members yet. Tap "Add Member".'}</Text>
             ) : filtered.map((m) => (
             <View key={m._id} style={styles.memberCard}>
-              <TouchableOpacity style={styles.memberLeft} onPress={() => openHistory(m)} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.memberLeft} onPress={() => navigation.navigate('GymMemberDetail', { membershipId: m._id, gymId: activeGym._id })} activeOpacity={0.7}>
                 <View style={styles.memberAvatar}><Text style={styles.memberInitial}>{(m.user?.name || 'M')[0].toUpperCase()}</Text></View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.memberName}>{m.user?.name || 'Member'}</Text>
@@ -275,7 +280,7 @@ const GymAdminScreen = ({ navigation }) => {
                   <Text style={[styles.memberDue, { color: m.isDue ? COLORS.error : COLORS.success }]}>
                     {m.isDue ? '⚠️ Fee due' : m.dueDate ? `Paid till ${new Date(m.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : 'Active'}
                   </Text>
-                  <Text style={styles.viewHistory}>📅 Tap to view attendance</Text>
+                  <Text style={styles.viewHistory}>👤 Tap for full details</Text>
                 </View>
               </TouchableOpacity>
               <View style={{ gap: 6 }}>
