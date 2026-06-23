@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -57,10 +57,11 @@
         }
       ],
       [
-        "@react-native-voice/voice",
+        "expo-speech-recognition",
         {
           "microphonePermission": "Allow FitAI to use the microphone for voice meal logging.",
-          "speechRecognitionPermission": "Allow FitAI to recognize speech for voice meal logging."
+          "speechRecognitionPermission": "Allow FitAI to recognize speech for voice meal logging.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
         }
       ],
       [
@@ -68,9 +69,7 @@
         {
           "cameraPermission": "Allow FitAI to use the camera to scan gym QR codes for attendance."
         }
-      ],
-      "./plugins/withJetifier",
-      "./plugins/withSpeechRecognition"
+      ]
     ],
     "extra": {
       "eas": {

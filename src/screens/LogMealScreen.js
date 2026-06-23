@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  ActivityIndicator, Alert, Platform, Animated, Easing, PermissionsAndroid,
+  ActivityIndicator, Alert, Platform, Animated, Easing,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,9 +10,14 @@ import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DIET_MEAL_SUGGESTIONS } from '../constants/data';
 
-// Voice is a native module — lazy require so the app never crashes in Expo Go
-let Voice = null;
-try { Voice = require('@react-native-voice/voice').default; } catch (e) { Voice = null; }
+// Modern speech recognition (Expo, new-arch compatible). Lazy require so the
+// app never crashes in Expo Go where the native module isn't bundled.
+let SpeechModule = null, useSpeechEvent = null;
+try {
+  const sr = require('expo-speech-recognition');
+  SpeechModule = sr.ExpoSpeechRecognitionModule;
+  useSpeechEvent = sr.useSpeechRecognitionEvent;
+} catch (e) { SpeechModule = null; }
 
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Breakfast', icon: '🌅' },
@@ -56,9 +61,21 @@ const LogMealScreen = ({ navigation, route }) => {
 
   // Voice
   const [listening, setListening] = useState(false);
-  const [voiceAvailable, setVoiceAvailable] = useState(!!Voice);
+  const [voiceAvailable] = useState(!!SpeechModule);
   const pulse = useRef(new Animated.Value(1)).current;
   const searchTimer = useRef(null);
+
+  // Speech recognition events (no-op hook fallback when module unavailable / Expo Go)
+  const useEvt = useSpeechEvent || (() => {});
+  useEvt('result', (event) => {
+    const transcript = event?.results?.[0]?.transcript;
+    if (transcript) handleVoiceText(transcript);
+  });
+  useEvt('end', () => setListening(false));
+  useEvt('error', (event) => {
+    setListening(false);
+    if (event?.error && event.error !== 'no-speech') console.log('Speech error:', event.error, event.message);
+  });
 
   useEffect(() => {
     (async () => {
@@ -69,22 +86,6 @@ const LogMealScreen = ({ navigation, route }) => {
         if (u.dietPreference) setDietPref(u.dietPreference);
       } catch (e) {}
     })();
-  }, []);
-
-  // ===== VOICE SETUP =====
-  useEffect(() => {
-    if (!Voice) return;
-    Voice.onSpeechResults = (e) => {
-      const text = e.value?.[0] || '';
-      if (text) handleVoiceText(text);
-    };
-    Voice.onSpeechError = (e) => {
-      setListening(false);
-      const msg = e.error?.message || '';
-      if (!msg.includes('No match')) console.log('Voice error:', msg);
-    };
-    Voice.onSpeechEnd = () => setListening(false);
-    return () => { try { Voice.destroy().then(Voice.removeAllListeners); } catch (e) {} };
   }, []);
 
   useEffect(() => {
@@ -102,46 +103,30 @@ const LogMealScreen = ({ navigation, route }) => {
   }, [listening]);
 
   const startVoice = async () => {
-    if (!Voice || typeof Voice.start !== 'function') {
+    if (!SpeechModule) {
       Alert.alert(
         '🎤 Voice needs the installed app',
-        'Voice logging only works in the built APK (EAS build), not in Expo Go or a plain emulator. Build the app to use it — for now, type the food name to search.'
+        'Voice logging works in the built APK (EAS build), not in Expo Go. For now, type the food name to search.'
       );
       return;
     }
-    // Android needs runtime RECORD_AUDIO permission
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-          {
-            title: 'Microphone Permission',
-            message: 'FitAI needs the mic to log meals by voice.',
-            buttonPositive: 'Allow',
-          }
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          Alert.alert('Mic blocked', 'Enable Microphone permission for FitAI in Settings to use voice.');
-          return;
-        }
-      } catch (e) { /* continue — some devices auto-grant */ }
-    }
     try {
+      const perm = await SpeechModule.requestPermissionsAsync();
+      if (!perm?.granted) {
+        Alert.alert('Mic permission needed', 'Enable Microphone for FitAI in Settings to use voice.');
+        return;
+      }
       setSearch('');
       setListening(true);
-      await Voice.start('en-IN');
+      SpeechModule.start({ lang: 'en-IN', interimResults: false, continuous: false });
     } catch (e) {
       setListening(false);
-      const msg = String(e?.message || e?.code || e || 'unknown');
-      Alert.alert(
-        'Could not start voice',
-        `${msg}\n\nIf this keeps happening, your phone may not have Google's speech service. Open Play Store → install/enable "Google" app, then retry.`
-      );
+      Alert.alert('Could not start voice', String(e?.message || e || 'unknown'));
     }
   };
 
-  const stopVoice = async () => {
-    try { await Voice.stop(); } catch (e) {}
+  const stopVoice = () => {
+    try { SpeechModule?.stop(); } catch (e) {}
     setListening(false);
   };
 
