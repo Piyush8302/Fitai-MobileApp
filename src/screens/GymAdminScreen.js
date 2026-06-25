@@ -6,6 +6,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS, API_BASE_URL } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -41,6 +43,7 @@ const GymAdminScreen = ({ navigation }) => {
   const [mPhone, setMPhone] = useState('');
   const [mPlan, setMPlan] = useState('monthly');
   const [mFee, setMFee] = useState('');
+  const [mPhoto, setMPhoto] = useState(''); // base64 data URI
 
   // Payment
   const [payFor, setPayFor] = useState(null); // membership object
@@ -155,17 +158,41 @@ const GymAdminScreen = ({ navigation }) => {
     finally { setBusy(false); }
   };
 
+  // Pick member photo — camera or gallery
+  const pickMemberPhoto = () => {
+    Alert.alert('Member Photo', 'Add a photo', [
+      { text: '📷 Camera', onPress: () => grabPhoto('camera') },
+      { text: '🖼 Gallery', onPress: () => grabPhoto('gallery') },
+      ...(mPhoto ? [{ text: 'Remove', style: 'destructive', onPress: () => setMPhoto('') }] : []),
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const grabPhoto = async (source) => {
+    try {
+      const perm = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { Alert.alert('Permission needed', `Allow ${source} access in Settings.`); return; }
+      const fn = source === 'camera' ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
+      const result = await fn({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.4, base64: true });
+      if (!result.canceled && result.assets?.[0]?.base64) {
+        setMPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch (e) { Alert.alert('Error', 'Could not get photo'); }
+  };
+
   const addMember = async () => {
     if (!mPhone.trim() || mPhone.trim().length < 10) { Alert.alert('Required', 'Enter a valid phone number'); return; }
     setBusy(true);
     try {
       const res = await api.post(ENDPOINTS.GYM_ADD_MEMBER, {
         gymId: activeGym._id, name: mName.trim(), phone: mPhone.trim(),
-        plan: mPlan, fee: parseInt(mFee) || 0,
+        plan: mPlan, fee: parseInt(mFee) || 0, avatar: mPhoto || undefined,
       });
       if (res.success) {
         Alert.alert(res.alreadyMember ? 'Already a member' : 'Member added', `${mName || mPhone}`);
-        setShowAdd(false); setMName(''); setMPhone(''); setMFee(''); setMPlan('monthly');
+        setShowAdd(false); setMName(''); setMPhone(''); setMFee(''); setMPlan('monthly'); setMPhoto('');
         loadGymData(activeGym._id);
       } else Alert.alert('Error', res.message || 'Failed');
     } catch (e) { Alert.alert('Error', 'Failed to add member'); }
@@ -317,7 +344,11 @@ const GymAdminScreen = ({ navigation }) => {
             ) : filtered.map((m) => (
             <View key={m._id} style={styles.memberCard}>
               <TouchableOpacity style={styles.memberLeft} onPress={() => navigation.navigate('GymMemberDetail', { membershipId: m._id, gymId: m.gym?._id || activeGym._id })} activeOpacity={0.7}>
-                <View style={styles.memberAvatar}><Text style={styles.memberInitial}>{(m.user?.name || 'M')[0].toUpperCase()}</Text></View>
+                {m.user?.avatar && m.user.avatar.startsWith('data:') ? (
+                  <Image source={{ uri: m.user.avatar }} style={styles.memberAvatar} />
+                ) : (
+                  <View style={styles.memberAvatar}><Text style={styles.memberInitial}>{(m.user?.name || 'M')[0].toUpperCase()}</Text></View>
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.memberName}>{m.user?.name || 'Member'}</Text>
                   <Text style={styles.memberMeta}>{m.user?.phone} • {m.plan}</Text>
@@ -394,6 +425,15 @@ const GymAdminScreen = ({ navigation }) => {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Add Member</Text>
+            {/* Photo picker — camera or gallery */}
+            <TouchableOpacity style={styles.photoPick} onPress={pickMemberPhoto}>
+              {mPhoto ? (
+                <Image source={{ uri: mPhoto }} style={styles.photoImg} />
+              ) : (
+                <View style={styles.photoPlaceholder}><Ionicons name="camera" size={26} color={COLORS.primary} /></View>
+              )}
+              <Text style={styles.photoText}>{mPhoto ? 'Change photo' : 'Add photo (optional)'}</Text>
+            </TouchableOpacity>
             <TextInput style={styles.input} placeholder="Name" placeholderTextColor={COLORS.textMuted} value={mName} onChangeText={setMName} />
             <TextInput style={styles.input} placeholder="Mobile number" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" value={mPhone} onChangeText={setMPhone} />
             <Text style={styles.inputLabel}>Plan</Text>
@@ -580,6 +620,10 @@ const styles = StyleSheet.create({
   modalCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36 },
   modalHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   modalTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginBottom: 6 },
+  photoPick: { alignItems: 'center', marginVertical: 12, gap: 6 },
+  photoImg: { width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: COLORS.primary + '50' },
+  photoPlaceholder: { width: 72, height: 72, borderRadius: 36, backgroundColor: COLORS.primary + '15', borderWidth: 1.5, borderColor: COLORS.primary + '40', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+  photoText: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.semiBold },
 
   // Attendance history
   histStat: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radius, paddingVertical: 14, marginVertical: 12 },
