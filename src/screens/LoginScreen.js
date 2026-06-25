@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
@@ -18,11 +18,16 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [loginMode, setLoginMode] = useState('user'); // 'user' | 'admin'
+  // Ref mirrors loginMode so the Google deep-link handler (set up once) always
+  // reads the LATEST selected chip, not a stale value.
+  const loginModeRef = useRef('user');
+  const setMode = (m) => { setLoginMode(m); loginModeRef.current = m; };
 
   // Where to go after a successful login, based on selected mode + role
   const routeAfterLogin = async (user) => {
-    await AsyncStorage.setItem('loginRole', loginMode); // remember for app refresh
-    if (loginMode === 'admin') {
+    const mode = loginModeRef.current;
+    await AsyncStorage.setItem('loginRole', mode); // remember for app refresh
+    if (mode === 'admin') {
       navigation.replace('AdminMain');
       return;
     }
@@ -57,11 +62,8 @@ const LoginScreen = ({ navigation }) => {
       api.setToken(params.token);
       savePushTokenAfterLogin();
 
-      if (user.isProfileComplete) {
-        navigation.replace('Main');
-      } else {
-        navigation.replace('ProfileSetup');
-      }
+      // Respect the selected chip (User vs Admin) — uses the ref, not stale state
+      await routeAfterLogin(user);
       return true;
     }
     return false;
@@ -144,7 +146,8 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <View style={styles.logoCircle}>
             <Text style={styles.logo}>🏋️</Text>
@@ -159,14 +162,14 @@ const LoginScreen = ({ navigation }) => {
         <View style={styles.modeToggle}>
           <TouchableOpacity
             style={[styles.modeBtn, loginMode === 'user' && styles.modeBtnActive]}
-            onPress={() => setLoginMode('user')}
+            onPress={() => setMode('user')}
           >
             <Text style={styles.modeIcon}>🏃</Text>
             <Text style={[styles.modeText, loginMode === 'user' && styles.modeTextActive]}>Login as User</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.modeBtn, loginMode === 'admin' && styles.modeBtnActive]}
-            onPress={() => setLoginMode('admin')}
+            onPress={() => setMode('admin')}
           >
             <Text style={styles.modeIcon}>🏋️</Text>
             <Text style={[styles.modeText, loginMode === 'admin' && styles.modeTextActive]}>Login as Admin</Text>
@@ -197,13 +200,11 @@ const LoginScreen = ({ navigation }) => {
           </TouchableOpacity>
 
           <GradientButton
-            title={loading ? '' : 'Login'}
+            title={loading ? 'Logging in…' : 'Login'}
             onPress={handleLogin}
             disabled={loading}
             style={styles.loginBtn}
-          >
-            {loading && <ActivityIndicator color="#fff" />}
-          </GradientButton>
+          />
 
           <View style={styles.divider}>
             <View style={styles.line} />
@@ -234,6 +235,7 @@ const LoginScreen = ({ navigation }) => {
           </View>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </LinearGradient>
   );
 };

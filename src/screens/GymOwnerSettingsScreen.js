@@ -46,7 +46,7 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
   };
 
   const logout = () => {
-    Alert.alert('Logout?', 'Aap logout karna chahte ho?', [
+    Alert.alert('Logout?', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Logout', style: 'destructive', onPress: async () => {
         await AsyncStorage.multiRemove(['token', 'user', 'loginRole', 'activeGymId']);
@@ -114,7 +114,7 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
   const pickGymForReport = () => {
     if (gyms.length === 0) { Alert.alert('No gym', 'Create a gym first'); return; }
     if (gyms.length === 1) { generateReport(gyms[0]); return; }
-    Alert.alert('Select Gym', 'Kis gym ka report?', gyms.map(g => ({ text: g.name, onPress: () => generateReport(g) })).concat([{ text: 'Cancel', style: 'cancel' }]));
+    Alert.alert('Select Gym', 'Which gym report?', gyms.map(g => ({ text: g.name, onPress: () => generateReport(g) })).concat([{ text: 'Cancel', style: 'cancel' }]));
   };
 
   if (loading) return <LinearGradient colors={COLORS.gradientDark} style={[styles.container, styles.center]}><ActivityIndicator size="large" color={COLORS.primary} /></LinearGradient>;

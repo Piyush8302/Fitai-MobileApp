@@ -49,7 +49,7 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   };
 
   const markPayment = async () => {
-    if (!payAmount || parseInt(payAmount) <= 0) { Alert.alert('Required', 'Amount daalo'); return; }
+    if (!payAmount || parseInt(payAmount) <= 0) { Alert.alert('Required', 'Enter amount'); return; }
     setBusy(true);
     try {
       const res = await api.post(ENDPOINTS.GYM_PAYMENT, { membershipId, amount: parseInt(payAmount), plan: payPlan });

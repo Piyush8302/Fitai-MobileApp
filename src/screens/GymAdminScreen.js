@@ -142,7 +142,7 @@ const GymAdminScreen = ({ navigation }) => {
 
   // ===== ACTIONS =====
   const createGym = async () => {
-    if (!gName.trim()) { Alert.alert('Required', 'Gym name daalo'); return; }
+    if (!gName.trim()) { Alert.alert('Required', 'Enter gym name'); return; }
     setBusy(true);
     try {
       const res = await api.post(ENDPOINTS.GYM_CREATE, { name: gName.trim(), location: gLoc.trim() });
@@ -156,7 +156,7 @@ const GymAdminScreen = ({ navigation }) => {
   };
 
   const addMember = async () => {
-    if (!mPhone.trim() || mPhone.trim().length < 10) { Alert.alert('Required', 'Valid phone number daalo'); return; }
+    if (!mPhone.trim() || mPhone.trim().length < 10) { Alert.alert('Required', 'Enter a valid phone number'); return; }
     setBusy(true);
     try {
       const res = await api.post(ENDPOINTS.GYM_ADD_MEMBER, {
@@ -374,7 +374,7 @@ const GymAdminScreen = ({ navigation }) => {
                 <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalSub}>Apne gym ka naam daalo — phir members add kar sakte ho</Text>
+            <Text style={styles.modalSub}>Enter your gym name — then you can add members</Text>
             <TextInput style={styles.input} placeholder="Gym name (e.g. Anand Gym)" placeholderTextColor={COLORS.textMuted} value={gName} onChangeText={setGName} />
             <TextInput style={styles.input} placeholder="Location / area (optional)" placeholderTextColor={COLORS.textMuted} value={gLoc} onChangeText={setGLoc} />
             <TouchableOpacity style={styles.primaryBtn} onPress={createGym} disabled={busy}>
@@ -504,7 +504,7 @@ const GymAdminScreen = ({ navigation }) => {
             <View style={styles.gymQrTip}>
               <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
               <Text style={styles.gymQrTipText}>
-                Counter pe print/laga do. **Koi bhi phone** (app ho ya na ho) normal camera se scan kare → naam/phone bhare → register + attendance ho jayega.
+                Print this and put it at the counter. Any phone (with or without the app) can scan it with the normal camera → enter name/phone → registered + attendance done.
               </Text>
             </View>
           </View>

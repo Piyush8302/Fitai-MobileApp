@@ -87,7 +87,7 @@ const GymCashbookScreen = ({ navigation }) => {
   };
 
   const addEntry = async () => {
-    if (!amount || parseFloat(amount) <= 0) { Alert.alert('Required', 'Amount daalo'); return; }
+    if (!amount || parseFloat(amount) <= 0) { Alert.alert('Required', 'Enter amount'); return; }
     setBusy(true);
     try {
       const res = await api.post(ENDPOINTS.GYM_CASHBOOK_ADD, {
@@ -108,7 +108,7 @@ const GymCashbookScreen = ({ navigation }) => {
   };
 
   const openAdd = (type) => {
-    if (activeGym?._id === 'ALL') { Alert.alert('Select a gym', 'Combined view me entry add nahi hoti. Pehle koi ek gym select karo.'); return; }
+    if (activeGym?._id === 'ALL') { Alert.alert('Select a gym', 'Entries cannot be added in the combined view. Select a specific gym first.'); return; }
     setAddType(type); setAmount(''); setDesc(''); setShowAdd(true);
   };
 
