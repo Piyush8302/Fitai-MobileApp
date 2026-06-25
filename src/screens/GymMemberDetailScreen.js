@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   payPlan: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium },
   payDate: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: 1 },
 
-  modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.85)' },
   modalCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36 },
   modalHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   modalTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },

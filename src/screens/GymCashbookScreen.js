@@ -200,15 +200,17 @@ const GymCashbookScreen = ({ navigation }) => {
         ))}
       </ScrollView>
 
-      {/* Bottom actions */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.success }]} onPress={() => openAdd('income')}>
-          <Text style={styles.actionText}>+ Income</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.error }]} onPress={() => openAdd('expense')}>
-          <Text style={styles.actionText}>− Expense</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Bottom actions — hidden while the Add modal is open so they don't bleed through */}
+      {!showAdd && (
+        <View style={styles.bottomBar}>
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.success }]} onPress={() => openAdd('income')}>
+            <Text style={styles.actionText}>+ Income</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.error }]} onPress={() => openAdd('expense')}>
+            <Text style={styles.actionText}>− Expense</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Add modal */}
       <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
@@ -270,7 +272,7 @@ const styles = StyleSheet.create({
   actionBtn: { flex: 1, alignItems: 'center', paddingVertical: 16, borderRadius: SIZES.radius },
   actionText: { color: '#FFF', fontSize: SIZES.fontLg, ...FONTS.bold },
 
-  modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.85)' },
   modalCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   modalTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },
