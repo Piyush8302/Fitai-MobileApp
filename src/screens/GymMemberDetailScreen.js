@@ -24,6 +24,7 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   const [payPlan, setPayPlan] = useState('monthly');
   const [payAmount, setPayAmount] = useState('');
   const [busy, setBusy] = useState(false);
+  const [calMonth, setCalMonth] = useState(new Date()); // month shown in calendar
 
   const load = useCallback(async () => {
     try {
@@ -59,6 +60,67 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
       }
     } catch (e) { Alert.alert('Error', 'Failed'); }
     finally { setBusy(false); }
+  };
+
+  // ===== ATTENDANCE CALENDAR =====
+  const pad = (n) => String(n).padStart(2, '0');
+  const renderCalendar = () => {
+    if (!data) return null;
+    const attended = new Set((data.attendance || []).map(a => a.day).filter(Boolean));
+    const joinDay = data.membership.joinDate ? new Date(data.membership.joinDate).toISOString().split('T')[0] : null;
+    const todayDay = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().split('T')[0];
+
+    const y = calMonth.getFullYear(), mo = calMonth.getMonth();
+    const daysInMonth = new Date(y, mo + 1, 0).getDate();
+    const startOffset = (new Date(y, mo, 1).getDay() + 6) % 7; // Monday-first
+    const cells = [];
+    for (let i = 0; i < startOffset; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+    const canGoNext = `${y}-${pad(mo + 1)}` < todayDay.slice(0, 7);
+
+    return (
+      <View style={styles.calCard}>
+        <View style={styles.calHead}>
+          <TouchableOpacity onPress={() => setCalMonth(new Date(y, mo - 1, 1))} style={styles.calArrow}>
+            <Ionicons name="chevron-back" size={18} color={COLORS.primary} />
+          </TouchableOpacity>
+          <Text style={styles.calTitle}>{calMonth.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</Text>
+          <TouchableOpacity onPress={() => canGoNext && setCalMonth(new Date(y, mo + 1, 1))} style={[styles.calArrow, !canGoNext && { opacity: 0.3 }]} disabled={!canGoNext}>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.primary} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.calWeekRow}>
+          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((w, i) => <Text key={i} style={styles.calWeekday}>{w}</Text>)}
+        </View>
+        <View style={styles.calGrid}>
+          {cells.map((d, i) => {
+            if (d === null) return <View key={i} style={styles.calCell} />;
+            const dayStr = `${y}-${pad(mo + 1)}-${pad(d)}`;
+            const isPresent = attended.has(dayStr);
+            const afterJoin = joinDay && dayStr >= joinDay;
+            const isPast = dayStr < todayDay;
+            const isToday = dayStr === todayDay;
+            let bg = 'transparent', color = COLORS.textMuted;
+            if (isPresent) { bg = COLORS.success; color = '#FFF'; }
+            else if (afterJoin && isPast) { bg = COLORS.error; color = '#FFF'; } // absent
+            else if (isToday) { color = COLORS.primary; }
+            return (
+              <View key={i} style={styles.calCell}>
+                <View style={[styles.calDay, { backgroundColor: bg }, isToday && bg === 'transparent' && styles.calToday]}>
+                  <Text style={[styles.calDayText, { color }]}>{d}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+        <View style={styles.calLegend}>
+          <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: COLORS.success }]} /><Text style={styles.legendText}>Present</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: COLORS.error }]} /><Text style={styles.legendText}>Absent</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: COLORS.darkBorder }]} /><Text style={styles.legendText}>Before joining</Text></View>
+        </View>
+      </View>
+    );
   };
 
   if (loading) return <LinearGradient colors={COLORS.gradientDark} style={[styles.container, styles.center]}><ActivityIndicator size="large" color={COLORS.primary} /></LinearGradient>;
@@ -128,6 +190,9 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
           <View style={styles.statBox}><Text style={styles.statNum}>{data.totalCheckins}</Text><Text style={styles.statLabel}>total check-ins</Text></View>
           <View style={styles.statBox}><Text style={[styles.statNum, { color: COLORS.success }]}>₹{data.totalPaid}</Text><Text style={styles.statLabel}>total paid</Text></View>
         </View>
+
+        {/* ===== ATTENDANCE CALENDAR (green = present, red = absent after joining) ===== */}
+        {renderCalendar()}
         {data.attendance.length === 0 ? (
           <Text style={styles.muted}>No check-ins yet</Text>
         ) : data.attendance.slice(0, 15).map((a) => (
@@ -231,6 +296,23 @@ const styles = StyleSheet.create({
   statBox: { flex: 1, alignItems: 'center', backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder, paddingVertical: 14 },
   statNum: { fontSize: SIZES.fontXl, color: COLORS.primary, ...FONTS.bold },
   statLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
+
+  // Calendar
+  calCard: { marginHorizontal: 16, marginTop: 12, padding: 14, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radiusLg, borderWidth: 1, borderColor: COLORS.darkBorder },
+  calHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  calArrow: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '12' },
+  calTitle: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
+  calWeekRow: { flexDirection: 'row', marginBottom: 6 },
+  calWeekday: { flex: 1, textAlign: 'center', fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.bold },
+  calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  calCell: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', padding: 2 },
+  calDay: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  calToday: { borderWidth: 1.5, borderColor: COLORS.primary },
+  calDayText: { fontSize: SIZES.fontSm, ...FONTS.semiBold },
+  calLegend: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.darkBorder },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
 
   histRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder },
   histDate: { flex: 1, fontSize: SIZES.fontSm, color: COLORS.white, ...FONTS.medium },
