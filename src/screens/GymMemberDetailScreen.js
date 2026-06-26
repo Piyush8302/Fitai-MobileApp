@@ -76,8 +76,32 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
     const cells = [];
     for (let i = 0; i < startOffset; i++) cells.push(null);
     for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    while (cells.length % 7 !== 0) cells.push(null); // pad to full weeks
+    // Chunk into weeks of 7 so each row always has exactly 7 columns (Sun never wraps)
+    const weeks = [];
+    for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
 
     const canGoNext = `${y}-${pad(mo + 1)}` < todayDay.slice(0, 7);
+
+    const renderCell = (d, i) => {
+      if (d === null) return <View key={i} style={styles.calCell} />;
+      const dayStr = `${y}-${pad(mo + 1)}-${pad(d)}`;
+      const isPresent = attended.has(dayStr);
+      const afterJoin = joinDay && dayStr >= joinDay;
+      const isPast = dayStr < todayDay;
+      const isToday = dayStr === todayDay;
+      let bg = 'transparent', color = COLORS.textMuted;
+      if (isPresent) { bg = COLORS.success; color = '#FFF'; }
+      else if (afterJoin && isPast) { bg = COLORS.error; color = '#FFF'; } // absent
+      else if (isToday) { color = COLORS.primary; }
+      return (
+        <View key={i} style={styles.calCell}>
+          <View style={[styles.calDay, { backgroundColor: bg }, isToday && bg === 'transparent' && styles.calToday]}>
+            <Text style={[styles.calDayText, { color }]}>{d}</Text>
+          </View>
+        </View>
+      );
+    };
 
     return (
       <View style={styles.calCard}>
@@ -94,25 +118,11 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((w, i) => <Text key={i} style={styles.calWeekday}>{w}</Text>)}
         </View>
         <View style={styles.calGrid}>
-          {cells.map((d, i) => {
-            if (d === null) return <View key={i} style={styles.calCell} />;
-            const dayStr = `${y}-${pad(mo + 1)}-${pad(d)}`;
-            const isPresent = attended.has(dayStr);
-            const afterJoin = joinDay && dayStr >= joinDay;
-            const isPast = dayStr < todayDay;
-            const isToday = dayStr === todayDay;
-            let bg = 'transparent', color = COLORS.textMuted;
-            if (isPresent) { bg = COLORS.success; color = '#FFF'; }
-            else if (afterJoin && isPast) { bg = COLORS.error; color = '#FFF'; } // absent
-            else if (isToday) { color = COLORS.primary; }
-            return (
-              <View key={i} style={styles.calCell}>
-                <View style={[styles.calDay, { backgroundColor: bg }, isToday && bg === 'transparent' && styles.calToday]}>
-                  <Text style={[styles.calDayText, { color }]}>{d}</Text>
-                </View>
-              </View>
-            );
-          })}
+          {weeks.map((week, wi) => (
+            <View key={wi} style={styles.calWeek}>
+              {week.map((d, i) => renderCell(d, `${wi}-${i}`))}
+            </View>
+          ))}
         </View>
         <View style={styles.calLegend}>
           <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: COLORS.success }]} /><Text style={styles.legendText}>Present</Text></View>
@@ -304,8 +314,9 @@ const styles = StyleSheet.create({
   calTitle: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
   calWeekRow: { flexDirection: 'row', marginBottom: 6 },
   calWeekday: { flex: 1, textAlign: 'center', fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.bold },
-  calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  calCell: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', padding: 2 },
+  calGrid: {},
+  calWeek: { flexDirection: 'row' },
+  calCell: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', padding: 2 },
   calDay: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   calToday: { borderWidth: 1.5, borderColor: COLORS.primary },
   calDayText: { fontSize: SIZES.fontSm, ...FONTS.semiBold },

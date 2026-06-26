@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,21 +9,53 @@ import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { savePushTokenAfterLogin } from '../utils/notifications';
 
-const OTPLoginScreen = ({ navigation }) => {
-  const [mode, setMode] = useState('email'); // 'email' or 'phone'
+const OTPLoginScreen = ({ navigation, route }) => {
+  // Carried from the Login screen: which chip (user/admin) + prefilled phone
+  const { loginRole = 'user', phone: phoneParam, autoSend } = route?.params || {};
+  const [mode, setMode] = useState(phoneParam ? 'phone' : 'email'); // 'email' or 'phone'
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(phoneParam || '');
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const otpRefs = useRef([]);
+  const autoSentRef = useRef(false);
+
+  // Auto-send OTP once when arriving directly from the Login screen with a phone
+  useEffect(() => {
+    if (autoSend && phoneParam && !autoSentRef.current) {
+      autoSentRef.current = true;
+      handleSendOtp();
+    }
+  }, []);
+
+  const fillOtp = (code) => {
+    const digits = String(code).replace(/\D/g, '').slice(0, 6).split('');
+    const filled = ['', '', '', '', '', ''];
+    digits.forEach((d, i) => { filled[i] = d; });
+    setOtp(filled);
+    if (digits.length === 6) {
+      otpRefs.current[5]?.blur?.();
+      setTimeout(() => handleVerifyOtp(digits.join('')), 150); // auto-submit
+    } else if (digits.length) {
+      otpRefs.current[Math.min(digits.length, 5)]?.focus();
+    }
+  };
 
   const handleOtpChange = (text, index) => {
+    // OS autofill / paste may drop the whole code into one box
+    if (text.length > 1) { fillOtp(text); return; }
     const newOtp = [...otp];
     newOtp[index] = text;
     setOtp(newOtp);
     if (text && index < 5) otpRefs.current[index + 1]?.focus();
     if (!text && index > 0) otpRefs.current[index - 1]?.focus();
+    // auto-submit once all 6 are filled
+    const code = newOtp.join('');
+    if (code.length === 6 && !newOtp.includes('')) {
+      otpRefs.current[index]?.blur?.();
+      setTimeout(() => handleVerifyOtp(code), 150);
+    }
   };
 
   const handleSendOtp = async () => {
@@ -57,12 +89,13 @@ const OTPLoginScreen = ({ navigation }) => {
     setLoading(false);
   };
 
-  const handleVerifyOtp = async () => {
-    const otpCode = otp.join('');
+  const handleVerifyOtp = async (codeArg) => {
+    const otpCode = (typeof codeArg === 'string' ? codeArg : otp.join('')).replace(/\D/g, '');
     if (otpCode.length !== 6) {
       Alert.alert('Error', 'Enter the complete 6-digit OTP');
       return;
     }
+    if (loading) return;
 
     setLoading(true);
     try {
@@ -73,11 +106,16 @@ const OTPLoginScreen = ({ navigation }) => {
       if (res.success) {
         await AsyncStorage.setItem('token', res.token);
         await AsyncStorage.setItem('user', JSON.stringify(res.user));
+        // Remember which dashboard to show (chip from the Login screen) so the
+        // app reopens into the right UI after a refresh.
+        await AsyncStorage.setItem('loginRole', loginRole);
         api.setToken(res.token);
         savePushTokenAfterLogin();
 
-        if (res.user.isProfileComplete) {
-          navigation.replace('Main');
+        if (loginRole === 'admin') {
+          navigation.replace('AdminMain'); // gym owner / admin UI
+        } else if (res.user.isProfileComplete) {
+          navigation.replace('Main');       // user UI
         } else {
           navigation.replace('ProfileSetup');
         }
@@ -183,8 +221,12 @@ const OTPLoginScreen = ({ navigation }) => {
                   value={digit}
                   onChangeText={(text) => handleOtpChange(text, i)}
                   keyboardType="number-pad"
-                  maxLength={1}
+                  maxLength={i === 0 ? 6 : 1}
                   placeholderTextColor={COLORS.textMuted}
+                  autoFocus={i === 0}
+                  autoComplete={i === 0 ? 'sms-otp' : 'off'}
+                  textContentType={i === 0 ? 'oneTimeCode' : 'none'}
+                  importantForAutofill={i === 0 ? 'yes' : 'no'}
                 />
               ))}
             </View>

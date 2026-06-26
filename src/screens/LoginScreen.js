@@ -16,6 +16,8 @@ WebBrowser.maybeCompleteAuthSession();
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [showEmailLogin, setShowEmailLogin] = useState(false); // email/password is now optional
   const [loading, setLoading] = useState(false);
   const [loginMode, setLoginMode] = useState('user'); // 'user' | 'admin'
   // Ref mirrors loginMode so the Google deep-link handler (set up once) always
@@ -115,6 +117,13 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
+  // Primary flow — phone + OTP. Carries the selected chip (User/Admin) to the OTP screen.
+  const handleSendOtp = () => {
+    const p = (phone || '').replace(/\D/g, '');
+    if (p.length < 10) { Alert.alert('Error', 'Enter a valid 10-digit mobile number'); return; }
+    navigation.navigate('OTPLogin', { loginRole: loginMode, phone: p, autoSend: true });
+  };
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter email and password');
@@ -177,32 +186,19 @@ const LoginScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.form}>
+          {/* PRIMARY — mobile number + OTP */}
           <InputField
-            label="Email"
-            icon="mail-outline"
-            placeholder="Enter your email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
+            label="Mobile Number"
+            icon="call-outline"
+            placeholder="Enter 10-digit number"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            maxLength={10}
           />
-          <InputField
-            label="Password"
-            icon="lock-closed-outline"
-            placeholder="Enter your password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-
-          <TouchableOpacity style={styles.forgotBtn} onPress={() => navigation.navigate('ForgotPassword')}>
-            <Text style={styles.forgotText}>Forgot Password?</Text>
-          </TouchableOpacity>
-
           <GradientButton
-            title={loading ? 'Logging in…' : 'Login'}
-            onPress={handleLogin}
-            disabled={loading}
+            title="Send OTP"
+            onPress={handleSendOtp}
             style={styles.loginBtn}
           />
 
@@ -212,18 +208,47 @@ const LoginScreen = ({ navigation }) => {
             <View style={styles.line} />
           </View>
 
-          <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleLogin}>
+          <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleLogin} disabled={loading}>
             <Ionicons name="logo-google" size={22} color="#DB4437" />
             <Text style={styles.socialText}>Continue with Google</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.socialBtn, { marginTop: 12 }]}
-            onPress={() => navigation.navigate('OTPLogin')}
-          >
-            <Ionicons name="phone-portrait-outline" size={22} color={COLORS.accent} />
-            <Text style={styles.socialText}>Login with OTP</Text>
+          {/* OPTIONAL — email & password */}
+          <TouchableOpacity style={[styles.socialBtn, { marginTop: 12 }]} onPress={() => setShowEmailLogin(v => !v)}>
+            <Ionicons name="mail-outline" size={22} color={COLORS.accent} />
+            <Text style={styles.socialText}>{showEmailLogin ? 'Hide email login' : 'Login with email & password'}</Text>
           </TouchableOpacity>
+
+          {showEmailLogin && (
+            <View style={{ marginTop: 16 }}>
+              <InputField
+                label="Email"
+                icon="mail-outline"
+                placeholder="Enter your email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <InputField
+                label="Password"
+                icon="lock-closed-outline"
+                placeholder="Enter your password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+              <TouchableOpacity style={styles.forgotBtn} onPress={() => navigation.navigate('ForgotPassword')}>
+                <Text style={styles.forgotText}>Forgot Password?</Text>
+              </TouchableOpacity>
+              <GradientButton
+                title={loading ? 'Logging in…' : 'Login'}
+                onPress={handleLogin}
+                disabled={loading}
+                style={styles.loginBtn}
+              />
+            </View>
+          )}
 
           <View style={styles.signupRow}>
             <Text style={styles.signupText}>

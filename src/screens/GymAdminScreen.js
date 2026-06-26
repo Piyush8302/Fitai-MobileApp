@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  ActivityIndicator, Alert, Modal, Platform, KeyboardAvoidingView,
+  ActivityIndicator, Alert, Modal, Platform, KeyboardAvoidingView, PanResponder,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,6 +36,7 @@ const GymAdminScreen = ({ navigation }) => {
   const [showCreate, setShowCreate] = useState(false);
   const [gName, setGName] = useState('');
   const [gLoc, setGLoc] = useState('');
+  const [gOwnerPhone, setGOwnerPhone] = useState(''); // required when creating the FIRST gym
 
   // Add member
   const [showAdd, setShowAdd] = useState(false);
@@ -44,6 +45,17 @@ const GymAdminScreen = ({ navigation }) => {
   const [mPlan, setMPlan] = useState('monthly');
   const [mFee, setMFee] = useState('');
   const [mPhoto, setMPhoto] = useState(''); // base64 data URI
+  const [showPhotoSheet, setShowPhotoSheet] = useState(false); // modern photo-source picker
+  const [photoFor, setPhotoFor] = useState('member'); // which form the photo sheet feeds: 'member' | 'staff'
+
+  // Staff
+  const [staff, setStaff] = useState([]);
+  const [showAddStaff, setShowAddStaff] = useState(false);
+  const [sName, setSName] = useState('');
+  const [sPhone, setSPhone] = useState('');
+  const [sRole, setSRole] = useState('');
+  const [sSalary, setSSalary] = useState('');
+  const [sPhoto, setSPhoto] = useState('');
 
   // Payment
   const [payFor, setPayFor] = useState(null); // membership object
@@ -67,6 +79,30 @@ const GymAdminScreen = ({ navigation }) => {
     setActiveGym(gym);
     try { await AsyncStorage.setItem('activeGymId', gym._id); } catch (e) {}
   };
+
+  // ===== SWIPE LEFT/RIGHT ON SCREEN → switch gym =====
+  // Keep latest list/active in a ref so the once-created PanResponder isn't stale.
+  const swipeRef = useRef({ list: [], activeId: null });
+  swipeRef.current = {
+    list: [...(gyms.length > 1 ? [ALL_GYM] : []), ...gyms],
+    activeId: activeGym?._id,
+  };
+  const pan = useRef(
+    PanResponder.create({
+      // Only claim clearly-horizontal swipes; vertical scroll & chip scroll stay untouched
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 28 && Math.abs(g.dx) > Math.abs(g.dy) * 1.6,
+      onPanResponderRelease: (_, g) => {
+        const { list, activeId } = swipeRef.current;
+        if (list.length < 2) return;
+        const idx = list.findIndex(x => x._id === activeId);
+        if (idx === -1) return;
+        let next = idx;
+        if (g.dx < -50) next = (idx + 1) % list.length;                 // swipe left → next gym
+        else if (g.dx > 50) next = (idx - 1 + list.length) % list.length; // swipe right → prev gym
+        if (next !== idx) selectGym(list[next]);
+      },
+    })
+  ).current;
 
   const loadGyms = useCallback(async () => {
     try {
@@ -117,6 +153,10 @@ const GymAdminScreen = ({ navigation }) => {
   }, []);
 
   useEffect(() => { if (activeGym?._id) loadGymData(activeGym._id); }, [activeGym, loadGymData]);
+  // Reload staff when the selected gym changes while the Staff tab is open
+  useEffect(() => { if (tab === 'staff' && activeGym?._id && !isAll) loadStaff(); }, [activeGym?._id]);
+  // Staff tab doesn't exist in All-Gyms view — fall back to Members
+  useEffect(() => { if (isAll && tab === 'staff') setTab('members'); }, [isAll]);
   // Refresh when returning from member detail (payment/attendance may have changed)
   useEffect(() => {
     const unsub = navigation.addListener('focus', () => { if (activeGym?._id) loadGymData(activeGym._id); });
@@ -146,11 +186,16 @@ const GymAdminScreen = ({ navigation }) => {
   // ===== ACTIONS =====
   const createGym = async () => {
     if (!gName.trim()) { Alert.alert('Required', 'Enter gym name'); return; }
+    // First gym → owner becomes a gym_owner, so a mobile number is mandatory
+    if (gyms.length === 0 && (!gOwnerPhone.trim() || gOwnerPhone.trim().length < 10)) {
+      Alert.alert('Mobile number required', 'Enter your 10-digit mobile number to create your gym.');
+      return;
+    }
     setBusy(true);
     try {
-      const res = await api.post(ENDPOINTS.GYM_CREATE, { name: gName.trim(), location: gLoc.trim() });
+      const res = await api.post(ENDPOINTS.GYM_CREATE, { name: gName.trim(), location: gLoc.trim(), ownerPhone: gOwnerPhone.trim() });
       if (res.success) {
-        setShowCreate(false); setGName(''); setGLoc('');
+        setShowCreate(false); setGName(''); setGLoc(''); setGOwnerPhone('');
         await loadGyms();
         selectGym(res.data);
       } else Alert.alert('Error', res.message || 'Failed');
@@ -158,17 +203,12 @@ const GymAdminScreen = ({ navigation }) => {
     finally { setBusy(false); }
   };
 
-  // Pick member photo — camera or gallery
-  const pickMemberPhoto = () => {
-    Alert.alert('Member Photo', 'Add a photo', [
-      { text: '📷 Camera', onPress: () => grabPhoto('camera') },
-      { text: '🖼 Gallery', onPress: () => grabPhoto('gallery') },
-      ...(mPhoto ? [{ text: 'Remove', style: 'destructive', onPress: () => setMPhoto('') }] : []),
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
+  // Pick a photo — open the modern source-picker sheet (shared by member & staff forms)
+  const pickMemberPhoto = () => { setPhotoFor('member'); setShowPhotoSheet(true); };
+  const pickStaffPhoto = () => { setPhotoFor('staff'); setShowPhotoSheet(true); };
 
   const grabPhoto = async (source) => {
+    setShowPhotoSheet(false);
     try {
       const perm = source === 'camera'
         ? await ImagePicker.requestCameraPermissionsAsync()
@@ -177,9 +217,59 @@ const GymAdminScreen = ({ navigation }) => {
       const fn = source === 'camera' ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
       const result = await fn({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.4, base64: true });
       if (!result.canceled && result.assets?.[0]?.base64) {
-        setMPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
+        const uri = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        if (photoFor === 'staff') setSPhoto(uri); else setMPhoto(uri);
       }
     } catch (e) { Alert.alert('Error', 'Could not get photo'); }
+  };
+
+  // ===== STAFF =====
+  const loadStaff = async () => {
+    if (!activeGym?._id || isAll) return;
+    try {
+      const res = await api.get(`/api/gym/${activeGym._id}/staff`);
+      if (res.success) setStaff(res.data);
+    } catch (e) {}
+  };
+
+  const addStaff = async () => {
+    if (!sPhone.trim() || sPhone.trim().length < 10) { Alert.alert('Required', 'Enter a valid phone number'); return; }
+    setBusy(true);
+    try {
+      const res = await api.post(ENDPOINTS.GYM_ADD_STAFF, {
+        gymId: activeGym._id, name: sName.trim(), phone: sPhone.trim(),
+        staffRole: sRole.trim(), salary: parseInt(sSalary) || undefined, avatar: sPhoto || undefined,
+      });
+      if (res.success) {
+        Alert.alert('Staff added ✅', sName || sPhone);
+        setShowAddStaff(false); setSName(''); setSPhone(''); setSRole(''); setSSalary(''); setSPhoto('');
+        loadStaff();
+      } else Alert.alert('Error', res.message || 'Failed to add staff');
+    } catch (e) { Alert.alert('Error', 'Failed to add staff'); }
+    finally { setBusy(false); }
+  };
+
+  const markStaffPresent = async (s) => {
+    try {
+      const res = await api.post(ENDPOINTS.GYM_STAFF_ATTENDANCE, { gymId: activeGym._id, staffId: s._id });
+      if (res.success) {
+        Alert.alert(res.data?.duplicate ? 'Already present' : 'Marked present ✅', s.name || 'Staff');
+        loadStaff();
+      } else Alert.alert('Error', res.message || 'Failed');
+    } catch (e) { Alert.alert('Error', 'Failed'); }
+  };
+
+  const removeStaff = (s) => {
+    Alert.alert('Remove staff?', `${s.name || 'This staff'} will lose gym access.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: async () => {
+        try {
+          const res = await api.delete(`${ENDPOINTS.GYM_STAFF_REMOVE}/${s._id}`);
+          if (res.success) loadStaff();
+          else Alert.alert('Error', res.message || 'Failed');
+        } catch (e) { Alert.alert('Error', 'Failed'); }
+      }},
+    ]);
   };
 
   const addMember = async () => {
@@ -234,7 +324,7 @@ const GymAdminScreen = ({ navigation }) => {
   }
 
   return (
-    <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
+    <LinearGradient colors={COLORS.gradientDark} style={styles.container} {...pan.panHandlers}>
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -305,9 +395,9 @@ const GymAdminScreen = ({ navigation }) => {
 
         {/* Tabs */}
         <View style={styles.tabs}>
-          {['members', 'attendance'].map((t) => (
-            <TouchableOpacity key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => { setTab(t); if (t === 'attendance') loadAttendance(); }}>
-              <Text style={[styles.tabText, tab === t && { color: COLORS.primary }]}>{t === 'members' ? 'Members' : "Today's Attendance"}</Text>
+          {['members', 'attendance', ...(isAll ? [] : ['staff'])].map((t) => (
+            <TouchableOpacity key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => { setTab(t); if (t === 'attendance') loadAttendance(); if (t === 'staff') loadStaff(); }}>
+              <Text style={[styles.tabText, tab === t && { color: COLORS.primary }]}>{t === 'members' ? 'Members' : t === 'attendance' ? 'Attendance' : 'Staff'}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -393,6 +483,51 @@ const GymAdminScreen = ({ navigation }) => {
             </View>
           ))
         )}
+
+        {/* Staff list */}
+        {tab === 'staff' && !isAll && (
+          <>
+            <TouchableOpacity style={styles.addMemberBtn} onPress={() => setShowAddStaff(true)}>
+              <Ionicons name="people" size={18} color={COLORS.onAccent} />
+              <Text style={styles.addMemberText}>Add Staff</Text>
+            </TouchableOpacity>
+            <Text style={styles.countLabel}>{staff.length} staff • mark them present at the reception</Text>
+            {staff.length === 0 ? (
+              <Text style={styles.emptyText}>No staff yet. Tap "Add Staff" to add your receptionist or trainers.</Text>
+            ) : staff.map((s) => (
+              <View key={s._id} style={styles.memberCard}>
+                <View style={styles.memberLeft}>
+                  {s.avatar && s.avatar.startsWith('data:') ? (
+                    <Image source={{ uri: s.avatar }} style={styles.memberAvatar} />
+                  ) : (
+                    <View style={[styles.memberAvatar, { backgroundColor: COLORS.accent }]}><Text style={styles.memberInitial}>{(s.name || 'S')[0].toUpperCase()}</Text></View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.memberName}>{s.name || 'Staff'}</Text>
+                    <Text style={styles.memberMeta}>{s.phone}{s.staffRole ? ` • ${s.staffRole}` : ''}</Text>
+                    {s.staffSalary ? <Text style={styles.memberMeta}>💰 ₹{s.staffSalary}/mo</Text> : null}
+                    <Text style={[styles.memberDue, { color: s.presentToday ? COLORS.success : COLORS.textMuted }]}>
+                      {s.presentToday
+                        ? `✅ Present today${s.checkInAt ? ` • ${new Date(s.checkInAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ''}`
+                        : '⚪ Not marked today'}
+                    </Text>
+                    <Text style={styles.viewHistory}>📅 {s.monthCount} days this month</Text>
+                  </View>
+                </View>
+                <View style={{ gap: 6 }}>
+                  <TouchableOpacity style={styles.miniBtn} onPress={() => markStaffPresent(s)} disabled={s.presentToday}>
+                    <Ionicons name="checkmark" size={14} color={s.presentToday ? COLORS.textMuted : COLORS.success} />
+                    <Text style={[styles.miniBtnText, { color: s.presentToday ? COLORS.textMuted : COLORS.success }]}>{s.presentToday ? 'Done' : 'Present'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.miniBtn} onPress={() => removeStaff(s)}>
+                    <Ionicons name="trash-outline" size={14} color={COLORS.error} />
+                    <Text style={[styles.miniBtnText, { color: COLORS.error }]}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </>
+        )}
       </ScrollView>
 
       {/* ===== CREATE GYM MODAL ===== */}
@@ -408,6 +543,9 @@ const GymAdminScreen = ({ navigation }) => {
             <Text style={styles.modalSub}>Enter your gym name — then you can add members</Text>
             <TextInput style={styles.input} placeholder="Gym name (e.g. Anand Gym)" placeholderTextColor={COLORS.textMuted} value={gName} onChangeText={setGName} />
             <TextInput style={styles.input} placeholder="Location / area (optional)" placeholderTextColor={COLORS.textMuted} value={gLoc} onChangeText={setGLoc} />
+            {gyms.length === 0 && (
+              <TextInput style={styles.input} placeholder="Your mobile number (required)" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" maxLength={10} value={gOwnerPhone} onChangeText={setGOwnerPhone} />
+            )}
             <TouchableOpacity style={styles.primaryBtn} onPress={createGym} disabled={busy}>
               {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.primaryBtnText}>Create Gym</Text>}
             </TouchableOpacity>
@@ -453,6 +591,75 @@ const GymAdminScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ===== ADD STAFF MODAL ===== */}
+      <Modal visible={showAddStaff} transparent animationType="slide" onRequestClose={() => setShowAddStaff(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Add Staff</Text>
+            <Text style={styles.modalSub}>Receptionist, trainer or helper — they can be marked present daily</Text>
+            {/* Photo picker — camera or gallery */}
+            <TouchableOpacity style={styles.photoPick} onPress={pickStaffPhoto}>
+              {sPhoto ? (
+                <Image source={{ uri: sPhoto }} style={styles.photoImg} />
+              ) : (
+                <View style={styles.photoPlaceholder}><Ionicons name="camera" size={26} color={COLORS.primary} /></View>
+              )}
+              <Text style={styles.photoText}>{sPhoto ? 'Change photo' : 'Add photo (optional)'}</Text>
+            </TouchableOpacity>
+            <TextInput style={styles.input} placeholder="Name" placeholderTextColor={COLORS.textMuted} value={sName} onChangeText={setSName} />
+            <TextInput style={styles.input} placeholder="Mobile number" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" value={sPhone} onChangeText={setSPhone} />
+            <TextInput style={styles.input} placeholder="Role (e.g. Receptionist, Trainer)" placeholderTextColor={COLORS.textMuted} value={sRole} onChangeText={setSRole} />
+            <TextInput style={styles.input} placeholder="Monthly salary ₹ (optional)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={sSalary} onChangeText={setSSalary} />
+            <TouchableOpacity style={styles.primaryBtn} onPress={addStaff} disabled={busy}>
+              {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.primaryBtnText}>Add Staff</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowAddStaff(false)} style={{ paddingVertical: 10 }}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ===== PHOTO SOURCE PICKER (modern bottom sheet) ===== */}
+      <Modal visible={showPhotoSheet} transparent animationType="fade" onRequestClose={() => setShowPhotoSheet(false)}>
+        <TouchableOpacity activeOpacity={1} style={styles.sheetBackdrop} onPress={() => setShowPhotoSheet(false)}>
+          <TouchableOpacity activeOpacity={1} style={styles.sheetCard} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Member Photo</Text>
+            <Text style={styles.sheetSub}>Choose how you want to add a photo</Text>
+
+            <View style={styles.sheetOptions}>
+              <TouchableOpacity style={styles.sheetOption} onPress={() => grabPhoto('camera')} activeOpacity={0.85}>
+                <View style={[styles.sheetIconWrap, { backgroundColor: COLORS.primary + '18' }]}>
+                  <Ionicons name="camera" size={26} color={COLORS.primary} />
+                </View>
+                <Text style={styles.sheetOptionText}>Camera</Text>
+                <Text style={styles.sheetOptionHint}>Take a new photo</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.sheetOption} onPress={() => grabPhoto('gallery')} activeOpacity={0.85}>
+                <View style={[styles.sheetIconWrap, { backgroundColor: COLORS.accent + '18' }]}>
+                  <Ionicons name="images" size={26} color={COLORS.accent} />
+                </View>
+                <Text style={styles.sheetOptionText}>Gallery</Text>
+                <Text style={styles.sheetOptionHint}>Pick from photos</Text>
+              </TouchableOpacity>
+            </View>
+
+            {(photoFor === 'staff' ? sPhoto : mPhoto) ? (
+              <TouchableOpacity style={styles.sheetRemove} onPress={() => { photoFor === 'staff' ? setSPhoto('') : setMPhoto(''); setShowPhotoSheet(false); }} activeOpacity={0.85}>
+                <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+                <Text style={styles.sheetRemoveText}>Remove current photo</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            <TouchableOpacity style={styles.sheetCancel} onPress={() => setShowPhotoSheet(false)} activeOpacity={0.85}>
+              <Text style={styles.sheetCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
 
       {/* ===== PAYMENT MODAL ===== */}
@@ -624,6 +831,22 @@ const styles = StyleSheet.create({
   photoImg: { width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: COLORS.primary + '50' },
   photoPlaceholder: { width: 72, height: 72, borderRadius: 36, backgroundColor: COLORS.primary + '15', borderWidth: 1.5, borderColor: COLORS.primary + '40', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   photoText: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.semiBold },
+
+  // Modern photo-source bottom sheet
+  sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  sheetCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 34 },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.darkBorder, marginBottom: 16 },
+  sheetTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, textAlign: 'center' },
+  sheetSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'center', marginTop: 4, marginBottom: 20 },
+  sheetOptions: { flexDirection: 'row', gap: 12 },
+  sheetOption: { flex: 1, alignItems: 'center', paddingVertical: 20, backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radiusLg, borderWidth: 1, borderColor: COLORS.darkBorder },
+  sheetIconWrap: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  sheetOptionText: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
+  sheetOptionHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
+  sheetRemove: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingVertical: 14, borderRadius: SIZES.radius, backgroundColor: COLORS.error + '12', borderWidth: 1, borderColor: COLORS.error + '30' },
+  sheetRemoveText: { fontSize: SIZES.fontMd, color: COLORS.error, ...FONTS.semiBold },
+  sheetCancel: { marginTop: 12, paddingVertical: 14, borderRadius: SIZES.radius, alignItems: 'center', backgroundColor: COLORS.darkSurface },
+  sheetCancelText: { fontSize: SIZES.fontMd, color: COLORS.textSecondary, ...FONTS.semiBold },
 
   // Attendance history
   histStat: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radius, paddingVertical: 14, marginVertical: 12 },

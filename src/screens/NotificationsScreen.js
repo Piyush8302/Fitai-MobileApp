@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
@@ -72,7 +72,15 @@ const NotificationsScreen = ({ navigation }) => {
         style={styles.notifGradient}
       >
         <View style={styles.notifRow}>
-          <Text style={styles.notifIcon}>{TYPE_ICONS[item.type] || '💬'}</Text>
+          {item.data?.avatar && String(item.data.avatar).startsWith('data:') ? (
+            <Image source={{ uri: item.data.avatar }} style={styles.notifAvatar} />
+          ) : (item.data?.kind === 'new_member' || item.data?.kind === 'payment') ? (
+            <View style={styles.notifInitial}>
+              <Text style={styles.notifInitialText}>{(item.data?.memberName || 'M')[0].toUpperCase()}</Text>
+            </View>
+          ) : (
+            <Text style={styles.notifIcon}>{TYPE_ICONS[item.type] || '💬'}</Text>
+          )}
           <View style={{ flex: 1 }}>
             <Text style={styles.notifTitle}>{item.title}</Text>
             <Text style={styles.notifBody}>{item.body}</Text>
@@ -128,6 +136,9 @@ const styles = StyleSheet.create({
   notifGradient: { padding: 14, borderRadius: SIZES.radiusLg },
   notifRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   notifIcon: { fontSize: 28, marginTop: 2 },
+  notifAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: COLORS.primary + '50' },
+  notifInitial: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
+  notifInitialText: { color: COLORS.onAccent, fontSize: SIZES.fontLg, ...FONTS.bold },
   notifTitle: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
   notifBody: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.regular, marginTop: 4, lineHeight: 20 },
   notifTime: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: 6 },

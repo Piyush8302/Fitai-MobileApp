@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  ActivityIndicator, Alert, Modal, Platform, KeyboardAvoidingView,
+  ActivityIndicator, Alert, Modal, Platform, KeyboardAvoidingView, PanResponder,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,10 +24,34 @@ const GymCashbookScreen = ({ navigation }) => {
   const [desc, setDesc] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const ALL_GYM = { _id: 'ALL', name: '🏢 All Gyms' };
+
   const selectGym = async (gym) => {
     setActiveGym(gym);
     try { await AsyncStorage.setItem('activeGymId', gym._id); } catch (e) {}
   };
+
+  // ===== SWIPE LEFT/RIGHT ON SCREEN → switch gym =====
+  const swipeRef = useRef({ list: [], activeId: null });
+  swipeRef.current = {
+    list: [...(gyms.length > 1 ? [ALL_GYM] : []), ...gyms],
+    activeId: activeGym?._id,
+  };
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 28 && Math.abs(g.dx) > Math.abs(g.dy) * 1.6,
+      onPanResponderRelease: (_, g) => {
+        const { list, activeId } = swipeRef.current;
+        if (list.length < 2) return;
+        const idx = list.findIndex(x => x._id === activeId);
+        if (idx === -1) return;
+        let next = idx;
+        if (g.dx < -50) next = (idx + 1) % list.length;
+        else if (g.dx > 50) next = (idx - 1 + list.length) % list.length;
+        if (next !== idx) selectGym(list[next]);
+      },
+    })
+  ).current;
 
   const loadGyms = useCallback(async () => {
     const token = await AsyncStorage.getItem('token');
@@ -123,7 +147,7 @@ const GymCashbookScreen = ({ navigation }) => {
   }
 
   return (
-    <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
+    <LinearGradient colors={COLORS.gradientDark} style={styles.container} {...pan.panHandlers}>
       <View style={styles.header}><Text style={styles.headerTitle}>Cashbook</Text></View>
 
       {gyms.length > 1 && (
@@ -200,8 +224,8 @@ const GymCashbookScreen = ({ navigation }) => {
         ))}
       </ScrollView>
 
-      {/* Bottom actions — hidden while the Add modal is open so they don't bleed through */}
-      {!showAdd && (
+      {/* Bottom actions — hidden in All-Gyms view (no single gym to add to) and while the Add modal is open */}
+      {!showAdd && activeGym?._id !== 'ALL' && (
         <View style={styles.bottomBar}>
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.success }]} onPress={() => openAdd('income')}>
             <Text style={styles.actionText}>+ Income</Text>

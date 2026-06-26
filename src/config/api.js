@@ -81,6 +81,11 @@ export const ENDPOINTS = {
   GYM_CASHBOOK_ADD: '/api/gym/cashbook',     // POST
   GYM_CASHBOOK: '/api/gym',                  // + /:gymId/cashbook
   GYM_REPORT: '/api/gym',                    // + /:gymId/report
+  // Staff
+  GYM_ADD_STAFF: '/api/gym/staff',           // POST
+  GYM_STAFF_ATTENDANCE: '/api/gym/staff/attendance', // POST mark present
+  GYM_STAFF_REMOVE: '/api/gym/staff',        // DELETE + /:staffId
+  GYM_STAFF: '/api/gym',                      // + /:gymId/staff
 
   // Exercise Library
   EXERCISES: '/api/exercises',
