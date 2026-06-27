@@ -77,33 +77,21 @@ const GymAdminScreen = ({ navigation }) => {
 
   const istToday = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().split('T')[0];
   const [showGymQR, setShowGymQR] = useState(false);
-  const [qrUrl, setQrUrl] = useState('');        // rotating, encrypted, ~4-min check-in URL
   const [hasUnread, setHasUnread] = useState(false); // gym-admin notifications unread dot
 
-  // Fetch a fresh time-limited check-in token; auto-refresh while the QR modal is open
-  const loadCheckinQR = useCallback(async () => {
+  // Owner sets the gym's GPS location once (opens a web page that captures it at the gym).
+  // Members can then check in only when they're physically at the gym.
+  const setGymLocation = async () => {
     if (!activeGym?._id || activeGym._id === 'ALL') return;
     try {
-      const res = await api.get(`/api/gym/${activeGym._id}/checkin-token`);
-      if (res.success) setQrUrl(res.data.url);
-    } catch (e) {}
-  }, [activeGym]);
-
-  useEffect(() => {
-    if (!showGymQR) { setQrUrl(''); return; }
-    loadCheckinQR();
-    const id = setInterval(loadCheckinQR, 180000); // refresh ~every 3 min (before 4-min expiry)
-    return () => clearInterval(id);
-  }, [showGymQR, loadCheckinQR]);
-
-  // Open the always-on counter display (auto-refreshing QR) on this/another screen
-  const openCounterDisplay = async () => {
-    if (!activeGym?._id || activeGym._id === 'ALL') return;
-    try {
-      const res = await api.get(`/api/gym/${activeGym._id}/kiosk-link`);
-      if (res.success && res.data?.url) Linking.openURL(res.data.url);
-      else Alert.alert('Error', 'Could not open the counter display');
-    } catch (e) { Alert.alert('Error', 'Could not open the counter display'); }
+      const res = await api.get(`/api/gym/${activeGym._id}/setloc-link`);
+      if (res.success && res.data?.url) {
+        Alert.alert('Set gym location', 'Open this while standing INSIDE your gym and allow location access. This sets the check-in area.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open', onPress: () => Linking.openURL(res.data.url) },
+        ]);
+      } else Alert.alert('Error', 'Could not start location setup');
+    } catch (e) { Alert.alert('Error', 'Could not start location setup'); }
   };
 
   const loadUnread = useCallback(async () => {
@@ -808,30 +796,24 @@ const GymAdminScreen = ({ navigation }) => {
                 <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalSub}>Members scan this live QR to mark attendance</Text>
+            <Text style={styles.modalSub}>Members scan this to mark attendance</Text>
 
             <View style={styles.gymQrBox}>
-              {qrUrl ? (
-                <QRCode value={qrUrl} size={200} backgroundColor="#FFFFFF" color="#000000" />
-              ) : (
-                <View style={{ width: 200, height: 200, alignItems: 'center', justifyContent: 'center' }}>
-                  <ActivityIndicator color={COLORS.primary} />
-                </View>
-              )}
+              <QRCode value={`${API_BASE_URL}/g/${activeGym?.gymCode || ''}`} size={200} backgroundColor="#FFFFFF" color="#000000" />
               <Text style={styles.gymQrName}>{activeGym?.name}</Text>
-              <Text style={styles.gymQrCode}>🔄 Refreshes automatically</Text>
+              <Text style={styles.gymQrCode}>Scan to check in</Text>
             </View>
 
             <View style={styles.gymQrTip}>
               <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
               <Text style={styles.gymQrTipText}>
-                The QR expires in ~4 min so it can't be saved & reused from home. Best: open the counter display on a screen/tablet — it keeps refreshing the QR by itself.
+                Print this QR & put it at the counter — it never changes. Members scan with their phone camera. Attendance only works when they're AT the gym (location-checked), so it can't be done from home. Set your gym location once below.
               </Text>
             </View>
 
-            <TouchableOpacity style={styles.kioskBtn} onPress={openCounterDisplay}>
-              <Ionicons name="tv-outline" size={18} color={COLORS.onAccent} />
-              <Text style={styles.kioskBtnText}>Open counter display</Text>
+            <TouchableOpacity style={styles.kioskBtn} onPress={setGymLocation}>
+              <Ionicons name="location-outline" size={18} color={COLORS.onAccent} />
+              <Text style={styles.kioskBtnText}>Set gym location</Text>
             </TouchableOpacity>
           </View>
         </View>
