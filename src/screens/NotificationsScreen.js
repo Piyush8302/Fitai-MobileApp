@@ -10,7 +10,12 @@ const TYPE_ICONS = {
   reminder: '⏰', achievement: '🏆', tip: '💡', update: '📢', streak: '🔥', promo: '🎁',
 };
 
-const NotificationsScreen = ({ navigation }) => {
+const NotificationsScreen = ({ navigation, route }) => {
+  // scope: 'gym' → only gym-admin notifications; 'user' → everything except gym-admin; undefined → all
+  const scope = route?.params?.scope;
+  const isGymNotif = (n) => n.data?.screen === 'GymAdmin';
+  const inScope = (n) => scope === 'gym' ? isGymNotif(n) : scope === 'user' ? !isGymNotif(n) : true;
+
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -98,8 +103,8 @@ const NotificationsScreen = ({ navigation }) => {
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
       <Header
-        title="Notifications"
-        subtitle={`${unreadCount} unread`}
+        title={scope === 'gym' ? 'Gym Notifications' : 'Notifications'}
+        subtitle={`${notifications.filter(n => inScope(n) && !n.isRead).length} unread`}
         onBack={() => navigation.goBack()}
         rightIcon="checkmark-done"
         onRightPress={markAllRead}
@@ -109,7 +114,7 @@ const NotificationsScreen = ({ navigation }) => {
         <View style={styles.center}><ActivityIndicator size="large" color={COLORS.primary} /></View>
       ) : (
         <FlatList
-          data={notifications}
+          data={notifications.filter(inScope)}
           renderItem={renderNotification}
           keyExtractor={(item) => item._id}
           contentContainerStyle={styles.list}

@@ -143,7 +143,7 @@ const HomeScreen = ({ navigation }) => {
             <Text style={styles.userName}>{user.name || 'User'}</Text>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.notifBtn} onPress={() => navigation.navigate('Notifications')}>
+            <TouchableOpacity style={styles.notifBtn} onPress={() => navigation.navigate('Notifications', { scope: 'user' })}>
               <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
               <View style={styles.notifDot} />
             </TouchableOpacity>

@@ -9,6 +9,14 @@ import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { savePushTokenAfterLogin } from '../utils/notifications';
 
+// Lazy-require so the app never crashes if the native module isn't in the build
+// (e.g. Expo Go). Auto-reads the OTP SMS via Google's SMS Retriever API (Android).
+let RNOtpVerify = null;
+try {
+  const m = require('react-native-otp-verify');
+  RNOtpVerify = m?.default || m;
+} catch (e) { /* not available */ }
+
 const OTPLoginScreen = ({ navigation, route }) => {
   // Carried from the Login screen: which chip (user/admin) + prefilled phone
   const { loginRole = 'user', phone: phoneParam, autoSend } = route?.params || {};
@@ -27,7 +35,29 @@ const OTPLoginScreen = ({ navigation, route }) => {
       autoSentRef.current = true;
       handleSendOtp();
     }
+    // Print the app hash once (needed in the backend SMS template) — dev aid
+    if (RNOtpVerify?.getHash) {
+      RNOtpVerify.getHash().then(h => console.log('📲 OTP APP HASH:', h)).catch(() => {});
+    }
   }, []);
+
+  // Auto-read the incoming OTP SMS (SMS Retriever) once the OTP step is shown
+  useEffect(() => {
+    if (!otpSent || !RNOtpVerify?.getOtp) return;
+    let mounted = true;
+    const onSms = (message) => {
+      if (!mounted || !message) return;
+      const m = /(\d{6})/.exec(String(message));
+      if (m) fillOtp(m[1]); // fills the boxes + auto-submits
+    };
+    RNOtpVerify.getOtp()
+      .then(() => RNOtpVerify.addListener(onSms))
+      .catch(() => {});
+    return () => {
+      mounted = false;
+      try { RNOtpVerify.removeListener(); } catch (e) {}
+    };
+  }, [otpSent]);
 
   const fillOtp = (code) => {
     const digits = String(code).replace(/\D/g, '').slice(0, 6).split('');

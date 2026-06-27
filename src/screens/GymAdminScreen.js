@@ -73,6 +73,20 @@ const GymAdminScreen = ({ navigation }) => {
 
   const istToday = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().split('T')[0];
   const [showGymQR, setShowGymQR] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false); // gym-admin notifications unread dot
+
+  const loadUnread = useCallback(async () => {
+    try {
+      const res = await api.get(ENDPOINTS.NOTIFICATIONS);
+      if (res.success) setHasUnread(res.data.some(n => n.data?.screen === 'GymAdmin' && !n.isRead));
+    } catch (e) {}
+  }, []);
+  // Refresh the unread dot on mount and whenever the screen regains focus
+  useEffect(() => {
+    loadUnread();
+    const unsub = navigation.addListener('focus', loadUnread);
+    return unsub;
+  }, [navigation, loadUnread]);
 
   // Select a gym AND remember it so every admin tab shows the same gym
   const selectGym = async (gym) => {
@@ -181,6 +195,12 @@ const GymAdminScreen = ({ navigation }) => {
       if (res.success) { setHistData(res.data); setHistMonth(res.thisMonth || 0); }
     } catch (e) {}
     finally { setHistLoading(false); }
+  };
+
+  // Clean exit for someone who opened admin but isn't a gym owner (clears session)
+  const logoutToLogin = async () => {
+    try { await AsyncStorage.multiRemove(['token', 'user', 'loginRole', 'activeGymId']); } catch (e) {}
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
   // ===== ACTIONS =====
@@ -331,17 +351,23 @@ const GymAdminScreen = ({ navigation }) => {
           <Text style={styles.headerSmall}>Gym Admin</Text>
           <Text style={styles.headerTitle}>{activeGym?.name || 'My Gym'}</Text>
         </View>
-        {!isAll && (
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity style={styles.gymQrBtn} onPress={() => setShowGymQR(true)}>
-              <Ionicons name="qr-code-outline" size={18} color={COLORS.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.scanHeaderBtn} onPress={() => navigation.navigate('GymScan', { mode: 'staff', gymId: activeGym?._id })}>
-              <Ionicons name="scan" size={18} color={COLORS.onAccent} />
-              <Text style={styles.scanHeaderText}>Scan</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <TouchableOpacity style={styles.gymQrBtn} onPress={() => navigation.navigate('Notifications', { scope: 'gym' })}>
+            <Ionicons name="notifications-outline" size={18} color={COLORS.primary} />
+            {hasUnread && <View style={styles.notifBadge} />}
+          </TouchableOpacity>
+          {!isAll && (
+            <>
+              <TouchableOpacity style={styles.gymQrBtn} onPress={() => setShowGymQR(true)}>
+                <Ionicons name="qr-code-outline" size={18} color={COLORS.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.scanHeaderBtn} onPress={() => navigation.navigate('GymScan', { mode: 'staff', gymId: activeGym?._id })}>
+                <Ionicons name="scan" size={18} color={COLORS.onAccent} />
+                <Text style={styles.scanHeaderText}>Scan</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </View>
 
       {/* Gym switcher (multi-branch) — always shown so "+ Add branch" is available */}
@@ -536,9 +562,12 @@ const GymAdminScreen = ({ navigation }) => {
           <View style={styles.modalCard}>
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitle}>{gyms.length ? 'Add New Branch' : 'Create Your Gym'}</Text>
-              <TouchableOpacity onPress={() => { setShowCreate(false); if (gyms.length === 0) navigation.goBack(); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
-              </TouchableOpacity>
+              {/* No close cross on the FIRST gym — a gym is mandatory to use admin */}
+              {gyms.length > 0 && (
+                <TouchableOpacity onPress={() => setShowCreate(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              )}
             </View>
             <Text style={styles.modalSub}>Enter your gym name — then you can add members</Text>
             <TextInput style={styles.input} placeholder="Gym name (e.g. Anand Gym)" placeholderTextColor={COLORS.textMuted} value={gName} onChangeText={setGName} />
@@ -549,9 +578,13 @@ const GymAdminScreen = ({ navigation }) => {
             <TouchableOpacity style={styles.primaryBtn} onPress={createGym} disabled={busy}>
               {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.primaryBtnText}>Create Gym</Text>}
             </TouchableOpacity>
-            {gyms.length > 0 && (
+            {gyms.length > 0 ? (
               <TouchableOpacity onPress={() => setShowCreate(false)} style={{ paddingVertical: 10 }}>
                 <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={logoutToLogin} style={{ paddingVertical: 10 }}>
+                <Text style={styles.cancelText}>Not a gym owner? Logout</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -770,6 +803,7 @@ const styles = StyleSheet.create({
   scanHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.primary, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
   scanHeaderText: { color: COLORS.onAccent, fontSize: SIZES.fontSm, ...FONTS.bold },
   gymQrBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '15', borderWidth: 1, borderColor: COLORS.primary + '40' },
+  notifBadge: { position: 'absolute', top: 7, right: 8, width: 9, height: 9, borderRadius: 5, backgroundColor: COLORS.error, borderWidth: 1.5, borderColor: COLORS.darkCard },
   gymQrBox: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 24, marginVertical: 16 },
   gymQrName: { fontSize: SIZES.fontLg, color: '#1B1D33', ...FONTS.bold, marginTop: 14 },
   gymQrCode: { fontSize: SIZES.fontSm, color: '#6B6B8D', ...FONTS.medium, marginTop: 2 },
