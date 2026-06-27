@@ -42,11 +42,19 @@ const GymScanScreen = ({ navigation, route }) => {
           ]);
         } else { Alert.alert('Error', res.message || 'Not a valid member', [{ text: 'Retry', onPress: reset }]); }
       } else {
-        // self: gym QR = web URL ".../g/<code>", or "FITAI-GYM:<code>", or raw code
-        let gymCode = String(data).trim();
-        if (gymCode.includes('/g/')) gymCode = gymCode.split('/g/').pop().split(/[/?#]/)[0];
-        else if (gymCode.startsWith('FITAI-GYM:')) gymCode = gymCode.split(':')[1];
-        const res = await api.post(ENDPOINTS.GYM_MY_CHECKIN, { gymCode });
+        // self: gym QR = live token URL ".../g/t/<token>" (preferred, expiring),
+        // or legacy ".../g/<code>", "FITAI-GYM:<code>", or raw code
+        const raw = String(data).trim();
+        let payload;
+        if (raw.includes('/g/t/')) {
+          payload = { token: raw.split('/g/t/').pop().split(/[/?#]/)[0] };
+        } else {
+          let gymCode = raw;
+          if (gymCode.includes('/g/')) gymCode = gymCode.split('/g/').pop().split(/[/?#]/)[0];
+          else if (gymCode.startsWith('FITAI-GYM:')) gymCode = gymCode.split(':')[1];
+          payload = { gymCode };
+        }
+        const res = await api.post(ENDPOINTS.GYM_MY_CHECKIN, payload);
         if (res.success) {
           Alert.alert('✅ Checked in', res.message, [{ text: 'OK', onPress: () => navigation.goBack() }]);
         } else { Alert.alert('Error', res.message || 'Invalid gym QR', [{ text: 'Retry', onPress: reset }]); }

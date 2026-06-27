@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 
 const DarkNavTheme = {
@@ -26,6 +27,7 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 import OTPLoginScreen from '../screens/OTPLoginScreen';
+import GymOwnerRegisterScreen from '../screens/GymOwnerRegisterScreen';
 import ProfileSetupScreen from '../screens/ProfileSetupScreen';
 import HomeScreen from '../screens/HomeScreen';
 import BMIScreen from '../screens/BMIScreen';
@@ -126,34 +128,45 @@ const MainTabs = () => (
   </Tab.Navigator>
 );
 
-// ===== Gym Owner bottom tabs =====
-const AdminTabs = () => (
-  <Tab.Navigator
-    screenOptions={{
-      headerShown: false,
-      tabBarStyle: styles.tabBar,
-      tabBarActiveTintColor: COLORS.primary,
-      tabBarInactiveTintColor: COLORS.textMuted,
-      tabBarShowLabel: false,
-    }}
-  >
-    <Tab.Screen
-      name="GymDashboardTab"
-      component={GymAdminScreen}
-      options={{ tabBarIcon: ({ focused, color }) => <TabIcon name={focused ? 'people' : 'people-outline'} color={color} label="Gym" focused={focused} /> }}
-    />
-    <Tab.Screen
-      name="GymCashbookTab"
-      component={GymCashbookScreen}
-      options={{ tabBarIcon: ({ focused, color }) => <TabIcon name={focused ? 'wallet' : 'wallet-outline'} color={color} label="Cashbook" focused={focused} /> }}
-    />
-    <Tab.Screen
-      name="AdminSettingsTab"
-      component={GymOwnerSettingsScreen}
-      options={{ tabBarIcon: ({ focused, color }) => <TabIcon name={focused ? 'settings' : 'settings-outline'} color={color} label="Settings" focused={focused} /> }}
-    />
-  </Tab.Navigator>
-);
+// ===== Gym Owner / Staff bottom tabs =====
+// Staff get a restricted set — no Cashbook (financials).
+const AdminTabs = () => {
+  const [isStaff, setIsStaff] = React.useState(false);
+  React.useEffect(() => {
+    AsyncStorage.getItem('user').then((u) => {
+      try { setIsStaff(JSON.parse(u)?.role === 'gym_staff'); } catch (e) {}
+    });
+  }, []);
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarShowLabel: false,
+      }}
+    >
+      <Tab.Screen
+        name="GymDashboardTab"
+        component={GymAdminScreen}
+        options={{ tabBarIcon: ({ focused, color }) => <TabIcon name={focused ? 'people' : 'people-outline'} color={color} label="Gym" focused={focused} /> }}
+      />
+      {!isStaff && (
+        <Tab.Screen
+          name="GymCashbookTab"
+          component={GymCashbookScreen}
+          options={{ tabBarIcon: ({ focused, color }) => <TabIcon name={focused ? 'wallet' : 'wallet-outline'} color={color} label="Cashbook" focused={focused} /> }}
+        />
+      )}
+      <Tab.Screen
+        name="AdminSettingsTab"
+        component={GymOwnerSettingsScreen}
+        options={{ tabBarIcon: ({ focused, color }) => <TabIcon name={focused ? 'settings' : 'settings-outline'} color={color} label="Settings" focused={focused} /> }}
+      />
+    </Tab.Navigator>
+  );
+};
 
 const AppNavigator = () => (
   <NavigationContainer theme={DarkNavTheme}>
@@ -163,6 +176,7 @@ const AppNavigator = () => (
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Signup" component={SignupScreen} />
       <Stack.Screen name="OTPLogin" component={OTPLoginScreen} />
+      <Stack.Screen name="GymOwnerRegister" component={GymOwnerRegisterScreen} />
       <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
       <Stack.Screen name="Main" component={MainTabs} />
       <Stack.Screen name="BMI" component={BMIScreen} />

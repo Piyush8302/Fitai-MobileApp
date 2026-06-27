@@ -194,6 +194,7 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
   if (loading) return <LinearGradient colors={COLORS.gradientDark} style={[styles.container, styles.center]}><ActivityIndicator size="large" color={COLORS.primary} /></LinearGradient>;
 
   const isPremium = sub?.isPremium;
+  const isStaff = (user?.role) === 'gym_staff';
 
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
@@ -203,35 +204,38 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
         <View style={styles.profile}>
           <View style={styles.avatar}><Ionicons name="person" size={36} color={COLORS.textMuted} /></View>
           <Text style={styles.name}>{user?.name || user?.phone || 'Gym Owner'}</Text>
-          <Text style={styles.accountType}>Gym Owner Account</Text>
+          <Text style={styles.accountType}>{isStaff ? 'Gym Staff Account' : 'Gym Owner Account'}</Text>
         </View>
 
-        {/* Subscription */}
-        <Text style={styles.sectionLabel}>Subscription</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Subscription')}>
-          <LinearGradient colors={isPremium ? ['#1554b8', '#1554b8'] : [COLORS.darkCard, COLORS.darkCard]} style={styles.subCard}>
-            <View style={styles.subIcon}><Ionicons name={isPremium ? 'shield-checkmark' : 'diamond-outline'} size={24} color={isPremium ? '#FFF' : COLORS.primary} /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.subTitle, { color: isPremium ? '#FFF' : COLORS.white }]}>{isPremium ? 'Premium Active' : 'Free Plan'}</Text>
-              <Text style={[styles.subSub, { color: isPremium ? '#FFFFFFcc' : COLORS.textMuted }]}>
-                {isPremium ? `Valid till ${sub?.expiry ? new Date(sub.expiry).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '--'}` : 'Tap to upgrade'}
-              </Text>
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
+        {/* Subscription & Reports — owner only (hidden for staff) */}
+        {!isStaff && (
+          <>
+            <Text style={styles.sectionLabel}>Subscription</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Subscription')}>
+              <LinearGradient colors={isPremium ? ['#1554b8', '#1554b8'] : [COLORS.darkCard, COLORS.darkCard]} style={styles.subCard}>
+                <View style={styles.subIcon}><Ionicons name={isPremium ? 'shield-checkmark' : 'diamond-outline'} size={24} color={isPremium ? '#FFF' : COLORS.primary} /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.subTitle, { color: isPremium ? '#FFF' : COLORS.white }]}>{isPremium ? 'Premium Active' : 'Free Plan'}</Text>
+                  <Text style={[styles.subSub, { color: isPremium ? '#FFFFFFcc' : COLORS.textMuted }]}>
+                    {isPremium ? `Valid till ${sub?.expiry ? new Date(sub.expiry).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '--'}` : 'Tap to upgrade'}
+                  </Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
 
-        {/* Reports */}
-        <Text style={styles.sectionLabel}>Reports</Text>
-        <TouchableOpacity style={styles.row} onPress={pickGymForReport} disabled={genBusy}>
-          <View style={[styles.rowIcon, { backgroundColor: COLORS.success + '15' }]}>
-            {genBusy ? <ActivityIndicator size="small" color={COLORS.success} /> : <Ionicons name="document-text" size={20} color={COLORS.success} />}
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>Monthly Report (PDF)</Text>
-            <Text style={styles.rowSub}>All members attendance & payments</Text>
-          </View>
-          <Ionicons name="download-outline" size={20} color={COLORS.textMuted} />
-        </TouchableOpacity>
+            <Text style={styles.sectionLabel}>Reports</Text>
+            <TouchableOpacity style={styles.row} onPress={pickGymForReport} disabled={genBusy}>
+              <View style={[styles.rowIcon, { backgroundColor: COLORS.success + '15' }]}>
+                {genBusy ? <ActivityIndicator size="small" color={COLORS.success} /> : <Ionicons name="document-text" size={20} color={COLORS.success} />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>Monthly Report (PDF)</Text>
+                <Text style={styles.rowSub}>All members attendance & payments</Text>
+              </View>
+              <Ionicons name="download-outline" size={20} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          </>
+        )}
 
         {/* App Info */}
         <Text style={styles.sectionLabel}>App Info</Text>

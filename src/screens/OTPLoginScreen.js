@@ -136,14 +136,16 @@ const OTPLoginScreen = ({ navigation, route }) => {
       if (res.success) {
         await AsyncStorage.setItem('token', res.token);
         await AsyncStorage.setItem('user', JSON.stringify(res.user));
-        // Remember which dashboard to show (chip from the Login screen) so the
-        // app reopens into the right UI after a refresh.
-        await AsyncStorage.setItem('loginRole', loginRole);
         api.setToken(res.token);
         savePushTokenAfterLogin();
 
-        if (loginRole === 'admin') {
-          navigation.replace('AdminMain'); // gym owner / admin UI
+        // Gym owner/staff ALWAYS land in the gym admin UI, whatever chip they picked.
+        const isGymRole = ['gym_owner', 'gym_staff'].includes(res.user.role);
+        const goAdmin = isGymRole || loginRole === 'admin';
+        await AsyncStorage.setItem('loginRole', goAdmin ? 'admin' : 'user');
+
+        if (goAdmin) {
+          navigation.replace('AdminMain'); // gym owner / staff UI
         } else if (res.user.isProfileComplete) {
           navigation.replace('Main');       // user UI
         } else {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  ActivityIndicator, Alert, Modal, Platform, KeyboardAvoidingView, PanResponder,
+  ActivityIndicator, Alert, Modal, Platform, KeyboardAvoidingView, PanResponder, Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +31,10 @@ const GymAdminScreen = ({ navigation }) => {
   const [memberSearch, setMemberSearch] = useState('');
   const ALL_GYM = { _id: 'ALL', name: '🏢 All Gyms' };
   const isAll = activeGym?._id === 'ALL';
+  const [isStaff, setIsStaff] = useState(false); // gym_staff → restricted UI
+  useEffect(() => {
+    AsyncStorage.getItem('user').then(u => { try { setIsStaff(JSON.parse(u)?.role === 'gym_staff'); } catch (e) {} });
+  }, []);
 
   // Create gym
   const [showCreate, setShowCreate] = useState(false);
@@ -73,7 +77,34 @@ const GymAdminScreen = ({ navigation }) => {
 
   const istToday = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().split('T')[0];
   const [showGymQR, setShowGymQR] = useState(false);
+  const [qrUrl, setQrUrl] = useState('');        // rotating, encrypted, ~4-min check-in URL
   const [hasUnread, setHasUnread] = useState(false); // gym-admin notifications unread dot
+
+  // Fetch a fresh time-limited check-in token; auto-refresh while the QR modal is open
+  const loadCheckinQR = useCallback(async () => {
+    if (!activeGym?._id || activeGym._id === 'ALL') return;
+    try {
+      const res = await api.get(`/api/gym/${activeGym._id}/checkin-token`);
+      if (res.success) setQrUrl(res.data.url);
+    } catch (e) {}
+  }, [activeGym]);
+
+  useEffect(() => {
+    if (!showGymQR) { setQrUrl(''); return; }
+    loadCheckinQR();
+    const id = setInterval(loadCheckinQR, 180000); // refresh ~every 3 min (before 4-min expiry)
+    return () => clearInterval(id);
+  }, [showGymQR, loadCheckinQR]);
+
+  // Open the always-on counter display (auto-refreshing QR) on this/another screen
+  const openCounterDisplay = async () => {
+    if (!activeGym?._id || activeGym._id === 'ALL') return;
+    try {
+      const res = await api.get(`/api/gym/${activeGym._id}/kiosk-link`);
+      if (res.success && res.data?.url) Linking.openURL(res.data.url);
+      else Alert.alert('Error', 'Could not open the counter display');
+    } catch (e) { Alert.alert('Error', 'Could not open the counter display'); }
+  };
 
   const loadUnread = useCallback(async () => {
     try {
@@ -347,27 +378,29 @@ const GymAdminScreen = ({ navigation }) => {
     <LinearGradient colors={COLORS.gradientDark} style={styles.container} {...pan.panHandlers}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
+        {/* Top row: label + action buttons */}
+        <View style={styles.headerTopRow}>
           <Text style={styles.headerSmall}>Gym Admin</Text>
-          <Text style={styles.headerTitle}>{activeGym?.name || 'My Gym'}</Text>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+            <TouchableOpacity style={styles.gymQrBtn} onPress={() => navigation.navigate('Notifications', { scope: 'gym' })}>
+              <Ionicons name="notifications-outline" size={18} color={COLORS.primary} />
+              {hasUnread && <View style={styles.notifBadge} />}
+            </TouchableOpacity>
+            {!isAll && (
+              <>
+                <TouchableOpacity style={styles.gymQrBtn} onPress={() => setShowGymQR(true)}>
+                  <Ionicons name="qr-code-outline" size={18} color={COLORS.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.scanHeaderBtn} onPress={() => navigation.navigate('GymScan', { mode: 'staff', gymId: activeGym?._id })}>
+                  <Ionicons name="scan" size={18} color={COLORS.onAccent} />
+                  <Text style={styles.scanHeaderText}>Scan</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         </View>
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-          <TouchableOpacity style={styles.gymQrBtn} onPress={() => navigation.navigate('Notifications', { scope: 'gym' })}>
-            <Ionicons name="notifications-outline" size={18} color={COLORS.primary} />
-            {hasUnread && <View style={styles.notifBadge} />}
-          </TouchableOpacity>
-          {!isAll && (
-            <>
-              <TouchableOpacity style={styles.gymQrBtn} onPress={() => setShowGymQR(true)}>
-                <Ionicons name="qr-code-outline" size={18} color={COLORS.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.scanHeaderBtn} onPress={() => navigation.navigate('GymScan', { mode: 'staff', gymId: activeGym?._id })}>
-                <Ionicons name="scan" size={18} color={COLORS.onAccent} />
-                <Text style={styles.scanHeaderText}>Scan</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
+        {/* Gym name on its own full-width line below */}
+        <Text style={styles.headerTitle} numberOfLines={1}>{activeGym?.name || 'My Gym'}</Text>
       </View>
 
       {/* Gym switcher (multi-branch) — always shown so "+ Add branch" is available */}
@@ -382,10 +415,12 @@ const GymAdminScreen = ({ navigation }) => {
             <Text style={[styles.switchText, activeGym?._id === g._id && { color: COLORS.onAccent }]}>{g.name}</Text>
           </TouchableOpacity>
         ))}
-        <TouchableOpacity style={styles.switchAdd} onPress={() => setShowCreate(true)}>
-          <Ionicons name="add" size={16} color={COLORS.primary} />
-          <Text style={styles.switchAddText}>Add Gym</Text>
-        </TouchableOpacity>
+        {!isStaff && (
+          <TouchableOpacity style={styles.switchAdd} onPress={() => setShowCreate(true)}>
+            <Ionicons name="add" size={16} color={COLORS.primary} />
+            <Text style={styles.switchAddText}>Add Gym</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
@@ -421,7 +456,7 @@ const GymAdminScreen = ({ navigation }) => {
 
         {/* Tabs */}
         <View style={styles.tabs}>
-          {['members', 'attendance', ...(isAll ? [] : ['staff'])].map((t) => (
+          {['members', 'attendance', ...((isAll || isStaff) ? [] : ['staff'])].map((t) => (
             <TouchableOpacity key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => { setTab(t); if (t === 'attendance') loadAttendance(); if (t === 'staff') loadStaff(); }}>
               <Text style={[styles.tabText, tab === t && { color: COLORS.primary }]}>{t === 'members' ? 'Members' : t === 'attendance' ? 'Attendance' : 'Staff'}</Text>
             </TouchableOpacity>
@@ -773,20 +808,31 @@ const GymAdminScreen = ({ navigation }) => {
                 <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalSub}>Members scan this to mark their attendance</Text>
+            <Text style={styles.modalSub}>Members scan this live QR to mark attendance</Text>
 
             <View style={styles.gymQrBox}>
-              <QRCode value={`${API_BASE_URL}/g/${activeGym?.gymCode || ''}`} size={200} backgroundColor="#FFFFFF" color="#000000" />
+              {qrUrl ? (
+                <QRCode value={qrUrl} size={200} backgroundColor="#FFFFFF" color="#000000" />
+              ) : (
+                <View style={{ width: 200, height: 200, alignItems: 'center', justifyContent: 'center' }}>
+                  <ActivityIndicator color={COLORS.primary} />
+                </View>
+              )}
               <Text style={styles.gymQrName}>{activeGym?.name}</Text>
-              <Text style={styles.gymQrCode}>Code: {activeGym?.gymCode}</Text>
+              <Text style={styles.gymQrCode}>🔄 Refreshes automatically</Text>
             </View>
 
             <View style={styles.gymQrTip}>
               <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
               <Text style={styles.gymQrTipText}>
-                Print this and put it at the counter. Any phone (with or without the app) can scan it with the normal camera → enter name/phone → registered + attendance done.
+                The QR expires in ~4 min so it can't be saved & reused from home. Best: open the counter display on a screen/tablet — it keeps refreshing the QR by itself.
               </Text>
             </View>
+
+            <TouchableOpacity style={styles.kioskBtn} onPress={openCounterDisplay}>
+              <Ionicons name="tv-outline" size={18} color={COLORS.onAccent} />
+              <Text style={styles.kioskBtnText}>Open counter display</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -797,9 +843,10 @@ const GymAdminScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12 },
+  header: { paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12 },
+  headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerSmall: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
-  headerTitle: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold },
+  headerTitle: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold, marginTop: 4 },
   scanHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.primary, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
   scanHeaderText: { color: COLORS.onAccent, fontSize: SIZES.fontSm, ...FONTS.bold },
   gymQrBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '15', borderWidth: 1, borderColor: COLORS.primary + '40' },
@@ -809,6 +856,8 @@ const styles = StyleSheet.create({
   gymQrCode: { fontSize: SIZES.fontSm, color: '#6B6B8D', ...FONTS.medium, marginTop: 2 },
   gymQrTip: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: COLORS.primary + '12', borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.primary + '25', padding: 12 },
   gymQrTipText: { flex: 1, fontSize: SIZES.fontXs, color: COLORS.textSecondary, ...FONTS.medium, lineHeight: 17 },
+  kioskBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingVertical: 14, borderRadius: SIZES.radius, backgroundColor: COLORS.primary },
+  kioskBtnText: { color: COLORS.onAccent, fontSize: SIZES.fontMd, ...FONTS.bold },
 
   switcher: { maxHeight: 44, marginBottom: 8 },
   switchChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },

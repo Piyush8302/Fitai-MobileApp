@@ -118,10 +118,32 @@ const LoginScreen = ({ navigation }) => {
   };
 
   // Primary flow — phone + OTP. Carries the selected chip (User/Admin) to the OTP screen.
-  const handleSendOtp = () => {
+  const handleSendOtp = async () => {
     const p = (phone || '').replace(/\D/g, '');
     if (p.length < 10) { Alert.alert('Error', 'Enter a valid 10-digit mobile number'); return; }
-    navigation.navigate('OTPLogin', { loginRole: loginMode, phone: p, autoSend: true });
+
+    // Admin login is gated — only registered & approved gym owners/staff can enter
+    if (loginMode === 'admin') {
+      setLoading(true);
+      try {
+        const res = await api.post(ENDPOINTS.OWNER_STATUS, { phone: p });
+        setLoading(false);
+        if (res.success && res.status === 'approved') {
+          navigation.navigate('OTPLogin', { loginRole: 'admin', phone: p, autoSend: true });
+        } else if (res.status === 'pending') {
+          Alert.alert('Pending approval', 'Your gym registration is awaiting approval. You\'ll get an email once approved.');
+        } else if (res.status === 'rejected') {
+          Alert.alert('Not approved', 'Your gym registration was not approved. Please contact support.');
+        } else {
+          Alert.alert('User not registered', 'This number is not a registered gym owner. Please register your gym first.', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Register', onPress: () => navigation.navigate('GymOwnerRegister', { phone: p }) },
+          ]);
+        }
+      } catch (e) { setLoading(false); Alert.alert('Error', 'Network error. Please try again.'); }
+      return;
+    }
+    navigation.navigate('OTPLogin', { loginRole: 'user', phone: p, autoSend: true });
   };
 
   const handleLogin = async () => {
@@ -202,59 +224,69 @@ const LoginScreen = ({ navigation }) => {
             style={styles.loginBtn}
           />
 
-          <View style={styles.divider}>
-            <View style={styles.line} />
-            <Text style={styles.orText}>OR</Text>
-            <View style={styles.line} />
-          </View>
-
-          <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleLogin} disabled={loading}>
-            <Ionicons name="logo-google" size={22} color="#DB4437" />
-            <Text style={styles.socialText}>Continue with Google</Text>
-          </TouchableOpacity>
-
-          {/* OPTIONAL — email & password */}
-          <TouchableOpacity style={[styles.socialBtn, { marginTop: 12 }]} onPress={() => setShowEmailLogin(v => !v)}>
-            <Ionicons name="mail-outline" size={22} color={COLORS.accent} />
-            <Text style={styles.socialText}>{showEmailLogin ? 'Hide email login' : 'Login with email & password'}</Text>
-          </TouchableOpacity>
-
-          {showEmailLogin && (
-            <View style={{ marginTop: 16 }}>
-              <InputField
-                label="Email"
-                icon="mail-outline"
-                placeholder="Enter your email"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              <InputField
-                label="Password"
-                icon="lock-closed-outline"
-                placeholder="Enter your password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-              <TouchableOpacity style={styles.forgotBtn} onPress={() => navigation.navigate('ForgotPassword')}>
-                <Text style={styles.forgotText}>Forgot Password?</Text>
-              </TouchableOpacity>
-              <GradientButton
-                title={loading ? 'Logging in…' : 'Login'}
-                onPress={handleLogin}
-                disabled={loading}
-                style={styles.loginBtn}
-              />
+          {loginMode === 'admin' ? (
+            // Gym owners & staff log in with OTP only — no email/password/Google
+            <View style={styles.adminNote}>
+              <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.primary} />
+              <Text style={styles.adminNoteText}>Gym owners & staff log in securely with OTP only.</Text>
             </View>
+          ) : (
+            <>
+              <View style={styles.divider}>
+                <View style={styles.line} />
+                <Text style={styles.orText}>OR</Text>
+                <View style={styles.line} />
+              </View>
+
+              <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleLogin} disabled={loading}>
+                <Ionicons name="logo-google" size={22} color="#DB4437" />
+                <Text style={styles.socialText}>Continue with Google</Text>
+              </TouchableOpacity>
+
+              {/* OPTIONAL — email & password */}
+              <TouchableOpacity style={[styles.socialBtn, { marginTop: 12 }]} onPress={() => setShowEmailLogin(v => !v)}>
+                <Ionicons name="mail-outline" size={22} color={COLORS.accent} />
+                <Text style={styles.socialText}>{showEmailLogin ? 'Hide email login' : 'Login with email & password'}</Text>
+              </TouchableOpacity>
+
+              {showEmailLogin && (
+                <View style={{ marginTop: 16 }}>
+                  <InputField
+                    label="Email"
+                    icon="mail-outline"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                  <InputField
+                    label="Password"
+                    icon="lock-closed-outline"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                  />
+                  <TouchableOpacity style={styles.forgotBtn} onPress={() => navigation.navigate('ForgotPassword')}>
+                    <Text style={styles.forgotText}>Forgot Password?</Text>
+                  </TouchableOpacity>
+                  <GradientButton
+                    title={loading ? 'Logging in…' : 'Login'}
+                    onPress={handleLogin}
+                    disabled={loading}
+                    style={styles.loginBtn}
+                  />
+                </View>
+              )}
+            </>
           )}
 
           <View style={styles.signupRow}>
             <Text style={styles.signupText}>
               {loginMode === 'admin' ? 'New gym owner? ' : "Don't have an account? "}
             </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Signup', { mode: loginMode })}>
+            <TouchableOpacity onPress={() => loginMode === 'admin' ? navigation.navigate('GymOwnerRegister', { phone: (phone || '').replace(/\D/g, '') }) : navigation.navigate('Signup', { mode: loginMode })}>
               <Text style={styles.signupLink}>{loginMode === 'admin' ? 'Register Gym' : 'Sign Up'}</Text>
             </TouchableOpacity>
           </View>
@@ -301,6 +333,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.darkBorder, paddingVertical: 14, gap: 10,
   },
   socialText: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.medium },
+  adminNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8, padding: 12, borderRadius: SIZES.radius, backgroundColor: COLORS.primary + '12', borderWidth: 1, borderColor: COLORS.primary + '30' },
+  adminNoteText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium },
   signupRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 30 },
   signupText: { fontSize: SIZES.fontMd, color: COLORS.textMuted },
   signupLink: { fontSize: SIZES.fontMd, color: COLORS.primary, ...FONTS.bold },

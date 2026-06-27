@@ -5,6 +5,8 @@ export const API_BASE_URL = 'https://fitai-backend-icbh.onrender.com';
 export const ENDPOINTS = {
   // Auth
   REGISTER: '/api/auth/register',
+  REGISTER_OWNER: '/api/auth/register-owner',
+  OWNER_STATUS: '/api/auth/owner-status',
   LOGIN: '/api/auth/login',
   SEND_OTP: '/api/auth/send-otp',
   VERIFY_OTP: '/api/auth/verify-otp',
