@@ -48,9 +48,10 @@ const SignupScreen = ({ navigation, route }) => {
         await AsyncStorage.setItem('user', JSON.stringify(res.user));
         api.setToken(res.token);
         await AsyncStorage.setItem('loginRole', isAdmin ? 'admin' : 'user');
-        // Gym owner → straight to gym admin (create gym). Normal user → fitness onboarding.
-        if (isAdmin) navigation.replace('AdminMain');
-        else navigation.replace('ProfileSetup');
+        // reset (not replace) → wipes Login/Onboarding from the back stack so Back
+        // never returns to a login page after signing up.
+        const target = isAdmin ? 'AdminMain' : 'ProfileSetup';
+        navigation.reset({ index: 0, routes: [{ name: target }] });
       } else {
         Alert.alert('Signup Failed', res.message || 'Something went wrong');
       }

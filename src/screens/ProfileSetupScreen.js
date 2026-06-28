@@ -144,7 +144,7 @@ const ProfileSetupScreen = ({ navigation }) => {
       const res = await api.put(ENDPOINTS.UPDATE_PROFILE, profileData);
       if (res.success) {
         await AsyncStorage.setItem('user', JSON.stringify(res.user));
-        navigation.replace('Main');
+        navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
       } else {
         Alert.alert('Error', res.message || 'Failed to save profile');
       }
