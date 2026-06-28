@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import Header from '../components/Header';
 
-const FAQ = [
+const USER_FAQ = [
   { q: 'How do I change my fitness goal?', a: 'Go to Profile > Edit Profile and update your fitness goal in the setup wizard.' },
   { q: 'Why is my calorie target showing BMR?', a: 'For weight loss users, we recommend eating at your BMR (Basal Metabolic Rate) to create a safe calorie deficit without harming your health.' },
   { q: 'How does the step counter work?', a: 'Enable the step counter from the Tracking screen. It uses your phone\'s motion sensor. Steps taken while the app is closed are loaded when you reopen the app.' },
@@ -14,7 +14,19 @@ const FAQ = [
   { q: 'How do I cancel my subscription?', a: 'Go to Profile > Subscription and tap Cancel Subscription. You\'ll retain access until the end of your billing period.' },
 ];
 
-const HelpSupportScreen = ({ navigation }) => {
+const ADMIN_FAQ = [
+  { q: 'How do members mark attendance?', a: 'Put your gym\'s QR at the counter — members scan it with their phone camera. Check-in only works when they\'re physically at the gym (GPS-verified), so it can\'t be done from home. You can also open a member and tap "Mark Present".' },
+  { q: 'How do I add a member?', a: 'Go to the Gym tab > Add Member. Enter their phone, plan and fee (photo optional). A new walk-in who scans your QR is also added automatically.' },
+  { q: 'How do I record a payment & set the due date?', a: 'Open a member > Mark Payment. Pick the plan and amount — the next due date auto-fills from the plan, and you can edit it to set a custom due date.' },
+  { q: 'How do I add staff and what can they do?', a: 'Gym tab > Staff > Add Staff (name + phone). Staff log in with "Login as Admin" + their phone OTP. They get a restricted view (no cashbook/reports). Tap a staff to edit their details or reassign their gym.' },
+  { q: 'Can I run multiple gyms/branches?', a: 'Yes. Tap "Add Gym" in the switcher to add a branch. Use the chips (or swipe) to switch; "All Gyms" shows a combined view.' },
+  { q: 'How do I download reports?', a: 'Settings > Reports > Monthly Report (PDF) or Last 3 Months (PDF). For multiple gyms you can pick one branch or download all combined.' },
+  { q: 'How do I become a gym owner?', a: 'Register from the login screen ("Register Gym"). A FitAI admin approves your request, then you get an email and can log in with phone/email OTP.' },
+];
+
+const HelpSupportScreen = ({ navigation, route }) => {
+  const isAdmin = route?.params?.audience === 'admin';
+  const FAQ = isAdmin ? ADMIN_FAQ : USER_FAQ;
   const [expanded, setExpanded] = useState(null);
   const [message, setMessage] = useState('');
 
@@ -26,7 +38,7 @@ const HelpSupportScreen = ({ navigation }) => {
 
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
-      <Header title="Help & Support" subtitle="We're here to help" onBack={() => navigation.goBack()} />
+      <Header title="Help & Support" subtitle={isAdmin ? 'Gym owner & staff help' : "We're here to help"} onBack={() => navigation.goBack()} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
         <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>

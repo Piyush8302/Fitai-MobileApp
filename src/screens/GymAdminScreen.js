@@ -917,7 +917,7 @@ const GymAdminScreen = ({ navigation }) => {
           ...(!isStaff ? [{ label: 'Cashbook', icon: 'wallet-outline', color: COLORS.success, onPress: () => navigation.navigate('GymCashbookTab') }] : []),
           { label: 'Settings', icon: 'settings-outline', onPress: () => navigation.navigate('AdminSettingsTab') },
           { label: 'Notifications', icon: 'notifications-outline', color: COLORS.accent, onPress: () => navigation.navigate('Notifications', { scope: 'gym' }) },
-          { label: 'Help & Support', icon: 'help-circle-outline', color: COLORS.warning, onPress: () => navigation.navigate('HelpSupport') },
+          { label: 'Help & Support', icon: 'help-circle-outline', color: COLORS.warning, onPress: () => navigation.navigate('HelpSupport', { audience: 'admin' }) },
           { label: 'Logout', icon: 'log-out-outline', color: COLORS.error, danger: true, onPress: logoutToLogin },
         ]}
       />

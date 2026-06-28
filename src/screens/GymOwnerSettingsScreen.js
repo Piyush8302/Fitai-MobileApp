@@ -258,9 +258,9 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
         <Text style={styles.sectionLabel}>App Info</Text>
         {[
           { icon: 'shield-checkmark-outline', color: '#9C27B0', title: 'Privacy Policy', sub: 'Read our privacy policy', screen: 'PrivacyPolicy' },
-          { icon: 'mail-outline', color: COLORS.warning, title: 'Contact Support', sub: 'Get help from our team', screen: 'HelpSupport' },
+          { icon: 'mail-outline', color: COLORS.warning, title: 'Contact Support', sub: 'Get help from our team', screen: 'HelpSupport', params: { audience: 'admin' } },
         ].map((it, i) => (
-          <TouchableOpacity key={i} style={styles.row} onPress={() => navigation.navigate(it.screen)}>
+          <TouchableOpacity key={i} style={styles.row} onPress={() => navigation.navigate(it.screen, it.params)}>
             <View style={[styles.rowIcon, { backgroundColor: it.color + '15' }]}><Ionicons name={it.icon} size={20} color={it.color} /></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.rowTitle}>{it.title}</Text>
