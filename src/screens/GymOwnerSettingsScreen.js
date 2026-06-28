@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { reloadApp } from '../utils/reload';
@@ -223,16 +223,16 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
       <View style={styles.header}><Text style={styles.headerTitle}>Settings</Text></View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
-        {/* Profile */}
-        <View style={styles.profile}>
+        {/* Profile — gradient hero */}
+        <LinearGradient colors={COLORS.gradient1} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.profile}>
           {user?.avatar && String(user.avatar).startsWith('data:') ? (
             <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
           ) : (
-            <View style={styles.avatar}><Ionicons name="person" size={36} color={COLORS.textMuted} /></View>
+            <View style={styles.avatar}><Ionicons name="person" size={36} color={COLORS.onAccent} /></View>
           )}
           <Text style={styles.name}>{user?.name || user?.phone || 'Gym Owner'}</Text>
           <Text style={styles.accountType}>{isStaff ? 'Gym Staff Account' : 'Gym Owner Account'}</Text>
-        </View>
+        </LinearGradient>
 
         {/* Profile details */}
         <View style={styles.profileCard}>
@@ -250,7 +250,7 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
           <>
             <Text style={styles.sectionLabel}>Subscription</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Subscription')}>
-              <LinearGradient colors={isPremium ? ['#1554b8', '#1554b8'] : [COLORS.darkCard, COLORS.darkCard]} style={styles.subCard}>
+              <LinearGradient colors={isPremium ? COLORS.gradient1 : [COLORS.darkCard, COLORS.darkCard]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.subCard, isPremium && styles.subCardPremium]}>
                 <View style={styles.subIcon}><Ionicons name={isPremium ? 'shield-checkmark' : 'diamond-outline'} size={24} color={isPremium ? '#FFF' : COLORS.primary} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.subTitle, { color: isPremium ? '#FFF' : COLORS.white }]}>{isPremium ? 'Premium Active' : 'Free Plan'}</Text>
@@ -408,11 +408,11 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12 },
   headerTitle: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold },
 
-  profile: { alignItems: 'center', marginVertical: 16 },
-  avatar: { width: 84, height: 84, borderRadius: 42, backgroundColor: COLORS.darkCard, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.darkBorder },
-  avatarImg: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, borderColor: COLORS.primary + '50' },
-  name: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginTop: 12 },
-  accountType: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
+  profile: { alignItems: 'center', marginHorizontal: 16, marginTop: 4, marginBottom: 16, paddingVertical: 24, borderRadius: SIZES.radiusXl, ...SHADOWS.medium },
+  avatar: { width: 84, height: 84, borderRadius: 42, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)' },
+  avatarImg: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)' },
+  name: { fontSize: SIZES.fontXl, color: COLORS.onAccent, ...FONTS.bold, marginTop: 12 },
+  accountType: { fontSize: SIZES.fontSm, color: 'rgba(255,255,255,0.85)', ...FONTS.medium, marginTop: 2 },
 
   profileCard: { marginHorizontal: 16, paddingHorizontal: 16, paddingVertical: 4, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
   pRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
@@ -433,6 +433,7 @@ const styles = StyleSheet.create({
 
   sectionLabel: { fontSize: SIZES.fontMd, color: COLORS.primary, ...FONTS.bold, marginHorizontal: 16, marginTop: 18, marginBottom: 10 },
   subCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: 16, padding: 16, borderRadius: SIZES.radiusLg, borderWidth: 1, borderColor: COLORS.darkBorder },
+  subCardPremium: { borderWidth: 0, ...SHADOWS.glow(COLORS.primary) },
   subIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#FFFFFF22', alignItems: 'center', justifyContent: 'center' },
   subTitle: { fontSize: SIZES.fontLg, ...FONTS.bold },
   subSub: { fontSize: SIZES.fontSm, ...FONTS.medium, marginTop: 2 },
