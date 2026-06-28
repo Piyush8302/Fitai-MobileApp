@@ -4,6 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import Header from '../components/Header';
+import api, { ENDPOINTS } from '../config/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const USER_FAQ = [
   { q: 'How do I change my fitness goal?', a: 'Go to Profile > Edit Profile and update your fitness goal in the setup wizard.' },
@@ -30,10 +32,18 @@ const HelpSupportScreen = ({ navigation, route }) => {
   const [expanded, setExpanded] = useState(null);
   const [message, setMessage] = useState('');
 
-  const handleSend = () => {
+  const [sending, setSending] = useState(false);
+  const handleSend = async () => {
     if (!message.trim()) { Alert.alert('Error', 'Please enter your message'); return; }
-    Alert.alert('Sent!', 'Your message has been received. We\'ll get back to you within 24 hours.');
-    setMessage('');
+    setSending(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (token) api.setToken(token);
+      const res = await api.post(ENDPOINTS.SUPPORT, { message: message.trim() });
+      if (res.success) { Alert.alert('Sent!', res.message || 'Your message has been received. We\'ll get back to you soon.'); setMessage(''); }
+      else Alert.alert('Error', res.message || 'Could not send your message');
+    } catch (e) { Alert.alert('Error', 'Network error. Please try again.'); }
+    setSending(false);
   };
 
   return (
@@ -64,10 +74,10 @@ const HelpSupportScreen = ({ navigation, route }) => {
             numberOfLines={4}
             textAlignVertical="top"
           />
-          <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
+          <TouchableOpacity style={styles.sendBtn} onPress={handleSend} disabled={sending}>
             <LinearGradient colors={COLORS.gradient1} style={styles.sendBtnGrad}>
               <Ionicons name="send" size={18} color={COLORS.white} />
-              <Text style={styles.sendBtnText}>Send Message</Text>
+              <Text style={styles.sendBtnText}>{sending ? 'Sending…' : 'Send Message'}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>

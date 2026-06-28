@@ -104,6 +104,9 @@ export const ENDPOINTS = {
   ACHIEVEMENTS: '/api/achievements',
   ACHIEVEMENTS_CHECK: '/api/achievements/check',
 
+  // Support
+  SUPPORT: '/api/support',
+
   // Notifications
   NOTIFICATIONS: '/api/notifications',
   NOTIFICATIONS_UNREAD: '/api/notifications/unread-count',
