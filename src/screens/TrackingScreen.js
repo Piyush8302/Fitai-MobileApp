@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert, Modal, TextInput, Platform, Animated, KeyboardAvoidingView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import Header from '../components/Header';
 import GradientCard from '../components/GradientCard';
 import ProgressRing from '../components/ProgressRing';
@@ -612,18 +612,18 @@ const TrackingScreen = ({ navigation }) => {
             <Text style={styles.sectionTitle}>⚡ Quick Log</Text>
             <View style={styles.quickGrid}>
               {[
-                { icon: '🍽', label: 'Log Meal', desc: `${meals.length} meal${meals.length !== 1 ? 's' : ''} logged`, color: COLORS.warning, onPress: () => navigation.navigate('LogMeal', { mealType: getMealTypeByTime() }), value: `${cal} / ${calGoal} kcal` },
-                { icon: '🚶', label: 'Walk / Run', desc: `${formatSteps(steps)} steps today`, color: '#4CAF50', onPress: () => setShowWalkModal(true), value: `${burned} kcal burned` },
-                { icon: '🏋️', label: 'Log Exercise', desc: 'Pick from exercises', color: COLORS.primary, onPress: () => setShowExerciseModal(true), value: `${burned} kcal total` },
-                { icon: '😴', label: 'Log Sleep', desc: sleep > 0 ? `${sleep}h logged today` : 'Not logged yet', color: '#9C27B0', onPress: () => setShowSleepModal(true), value: sleep > 0 ? `${sleep} / ${sleepGoal}h` : '— / 8h' },
-                { icon: '⚖️', label: 'Log Weight', desc: `Current: ${userProfile?.weight || '--'} kg`, color: '#607D8B', onPress: () => { setWeightInput(String(userProfile?.weight || '')); setShowWeightModal(true); }, value: `Target: ${userProfile?.targetWeight || '--'} kg` },
-                { icon: '🍎', label: 'Food Database', desc: 'Search nutrition info', color: '#FF6B6B', onPress: () => navigation.navigate('FoodDatabase'), value: 'Browse & Log' },
+                { icon: '🍽', label: 'Log Meal', desc: `${meals.length} meal${meals.length !== 1 ? 's' : ''} logged`, grad: ['#FB8C00', '#FFB300'], onPress: () => navigation.navigate('LogMeal', { mealType: getMealTypeByTime() }), value: `${cal} / ${calGoal} kcal` },
+                { icon: '🚶', label: 'Walk / Run', desc: `${formatSteps(steps)} steps today`, grad: ['#22C55E', '#16A34A'], onPress: () => setShowWalkModal(true), value: `${burned} kcal burned` },
+                { icon: '🏋️', label: 'Log Exercise', desc: 'Pick from exercises', grad: ['#6C63FF', '#8B85FF'], onPress: () => setShowExerciseModal(true), value: `${burned} kcal total` },
+                { icon: '😴', label: 'Log Sleep', desc: sleep > 0 ? `${sleep}h logged today` : 'Not logged yet', grad: ['#9C27B0', '#BA68C8'], onPress: () => setShowSleepModal(true), value: sleep > 0 ? `${sleep} / ${sleepGoal}h` : '— / 8h' },
+                { icon: '⚖️', label: 'Log Weight', desc: `Current: ${userProfile?.weight || '--'} kg`, grad: ['#546E7A', '#78909C'], onPress: () => { setWeightInput(String(userProfile?.weight || '')); setShowWeightModal(true); }, value: `Target: ${userProfile?.targetWeight || '--'} kg` },
+                { icon: '🍎', label: 'Food Database', desc: 'Search nutrition info', grad: ['#FF6B6B', '#FF8E53'], onPress: () => navigation.navigate('FoodDatabase'), value: 'Browse & Log' },
               ].map((a, i) => (
-                <TouchableOpacity key={i} style={styles.quickItem} onPress={a.onPress} activeOpacity={0.8}>
-                  <LinearGradient colors={[a.color + '18', COLORS.darkCard]} style={styles.quickItemGrad}>
+                <TouchableOpacity key={i} style={styles.quickItem} onPress={a.onPress} activeOpacity={0.85}>
+                  <LinearGradient colors={a.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.quickItemGrad}>
                     <View style={styles.quickItemHeader}>
-                      <Text style={styles.quickIcon}>{a.icon}</Text>
-                      <Text style={[styles.quickValueBadge, { color: a.color }]}>{a.value}</Text>
+                      <View style={styles.quickIconChip}><Text style={styles.quickIcon}>{a.icon}</Text></View>
+                      <Text style={styles.quickValueBadge}>{a.value}</Text>
                     </View>
                     <Text style={styles.quickLabel}>{a.label}</Text>
                     <Text style={styles.quickDesc}>{a.desc}</Text>
@@ -1367,11 +1367,11 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingBottom: 20 },
 
   // Tabs
-  tabs: { flexDirection: 'row', backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, padding: 4, marginBottom: 20 },
-  tab: { flex: 1, paddingVertical: 10, borderRadius: SIZES.radiusSm, alignItems: 'center' },
-  tabActive: { backgroundColor: COLORS.primary },
-  tabText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium },
-  tabTextActive: { color: COLORS.white, ...FONTS.bold },
+  tabs: { flexDirection: 'row', backgroundColor: COLORS.darkCard, borderRadius: SIZES.radiusFull, padding: 5, marginBottom: 20, borderWidth: 1, borderColor: COLORS.darkBorder },
+  tab: { flex: 1, paddingVertical: 11, borderRadius: SIZES.radiusFull, alignItems: 'center' },
+  tabActive: { backgroundColor: COLORS.primary, ...SHADOWS.glow(COLORS.primary) },
+  tabText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.bold },
+  tabTextActive: { color: COLORS.onAccent, ...FONTS.bold },
 
   // Section
   sectionTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginBottom: 14, marginTop: 8 },
@@ -1440,18 +1440,19 @@ const styles = StyleSheet.create({
   waterProgressLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
 
   // Quick Actions (2-column broad)
-  quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
+  quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
   quickItem: {
-    width: (width - 42) / 2,
-    borderRadius: SIZES.radius, overflow: 'hidden',
-    borderWidth: 1, borderColor: COLORS.darkBorder,
+    width: (width - 44) / 2,
+    borderRadius: 16, overflow: 'hidden',
+    ...SHADOWS.medium,
   },
-  quickItemGrad: { padding: 14, borderRadius: SIZES.radius, minHeight: 100 },
-  quickItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  quickIcon: { fontSize: 28 },
-  quickValueBadge: { fontSize: SIZES.fontXs, ...FONTS.bold },
-  quickLabel: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold, marginBottom: 2 },
-  quickDesc: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
+  quickItemGrad: { padding: 14, borderRadius: 16, minHeight: 104 },
+  quickItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  quickIconChip: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  quickIcon: { fontSize: 22 },
+  quickValueBadge: { fontSize: SIZES.fontXs, color: 'rgba(255,255,255,0.95)', ...FONTS.bold, flexShrink: 1, textAlign: 'right' },
+  quickLabel: { fontSize: SIZES.fontMd, color: '#FFFFFF', ...FONTS.extraBold, marginBottom: 2 },
+  quickDesc: { fontSize: SIZES.fontXs, color: 'rgba(255,255,255,0.85)', ...FONTS.medium },
 
   // Stats
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
