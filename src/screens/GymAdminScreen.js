@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
-import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import api, { ENDPOINTS, API_BASE_URL } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -426,19 +426,19 @@ const GymAdminScreen = ({ navigation }) => {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
-        {/* Stats */}
+        {/* Stats — vibrant gradient tiles */}
         <View style={styles.statsGrid}>
           {[
-            { label: 'Members', value: stats?.totalMembers ?? 0, icon: '👥', color: COLORS.primary },
-            { label: 'Today In', value: stats?.todayFootfall ?? 0, icon: '✅', color: COLORS.success },
-            { label: 'Fee Due', value: stats?.dueMembers ?? 0, icon: '⚠️', color: COLORS.error },
-            { label: 'Pending ₹', value: stats?.pendingFees ?? 0, icon: '💰', color: COLORS.warning },
+            { label: 'Members', value: stats?.totalMembers ?? 0, icon: 'people', grad: ['#6C63FF', '#8B85FF'] },
+            { label: 'Today In', value: stats?.todayFootfall ?? 0, icon: 'checkmark-done', grad: ['#22C55E', '#16A34A'] },
+            { label: 'Fee Due', value: stats?.dueMembers ?? 0, icon: 'alert-circle', grad: ['#FF6B6B', '#FF8E53'] },
+            { label: 'Pending ₹', value: stats?.pendingFees ?? 0, icon: 'wallet', grad: ['#FB8C00', '#FFB300'] },
           ].map((s, i) => (
-            <View key={i} style={styles.statCard}>
-              <Text style={styles.statIcon}>{s.icon}</Text>
-              <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
+            <LinearGradient key={i} colors={s.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.statCard}>
+              <View style={styles.statIconWrap}><Ionicons name={s.icon} size={18} color="#FFF" /></View>
+              <Text style={styles.statValue}>{s.value}</Text>
               <Text style={styles.statLabel}>{s.label}</Text>
-            </View>
+            </LinearGradient>
           ))}
         </View>
 
@@ -460,7 +460,7 @@ const GymAdminScreen = ({ navigation }) => {
         <View style={styles.tabs}>
           {['members', 'attendance', ...((isAll || isStaff) ? [] : ['staff'])].map((t) => (
             <TouchableOpacity key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => { setTab(t); if (t === 'attendance') loadAttendance(); if (t === 'staff') loadStaff(); }}>
-              <Text style={[styles.tabText, tab === t && { color: COLORS.primary }]}>{t === 'members' ? 'Members' : t === 'attendance' ? 'Attendance' : 'Staff'}</Text>
+              <Text style={[styles.tabText, tab === t && { color: COLORS.onAccent }]}>{t === 'members' ? 'Members' : t === 'attendance' ? 'Attendance' : 'Staff'}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -862,19 +862,19 @@ const styles = StyleSheet.create({
   switchAdd: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 38, paddingHorizontal: 12, borderRadius: 19, backgroundColor: COLORS.primary + '15', borderWidth: 1, borderColor: COLORS.primary + '40' },
   switchAddText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.bold },
 
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 16, marginTop: 6 },
-  statCard: { width: '47%', flexGrow: 1, alignItems: 'center', paddingVertical: 16, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
-  statIcon: { fontSize: 22, marginBottom: 4 },
-  statValue: { fontSize: SIZES.fontXxl, ...FONTS.bold },
-  statLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16, marginTop: 8 },
+  statCard: { width: '47%', flexGrow: 1, paddingVertical: 16, paddingHorizontal: 16, borderRadius: 20, ...SHADOWS.medium },
+  statIconWrap: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  statValue: { fontSize: 28, color: '#FFFFFF', ...FONTS.extraBold },
+  statLabel: { fontSize: SIZES.fontSm, color: 'rgba(255,255,255,0.92)', ...FONTS.semiBold, marginTop: 2 },
 
-  addMemberBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 16, backgroundColor: COLORS.primary, borderRadius: SIZES.radius, paddingVertical: 14 },
-  addMemberText: { color: COLORS.onAccent, fontSize: SIZES.fontMd, ...FONTS.bold },
+  addMemberBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 18, backgroundColor: COLORS.primary, borderRadius: SIZES.radiusLg, paddingVertical: 16, ...SHADOWS.glow(COLORS.primary) },
+  addMemberText: { color: COLORS.onAccent, fontSize: SIZES.fontLg, ...FONTS.bold },
 
-  tabs: { flexDirection: 'row', marginHorizontal: 16, marginTop: 20, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, padding: 4 },
-  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: SIZES.radiusSm },
-  tabActive: { backgroundColor: COLORS.primary + '15' },
-  tabText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.semiBold },
+  tabs: { flexDirection: 'row', marginHorizontal: 16, marginTop: 20, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radiusFull, padding: 5, borderWidth: 1, borderColor: COLORS.darkBorder },
+  tab: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: SIZES.radiusFull },
+  tabActive: { backgroundColor: COLORS.primary },
+  tabText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.bold },
 
   emptyText: { fontSize: SIZES.fontMd, color: COLORS.textMuted, textAlign: 'center', marginTop: 30, paddingHorizontal: 20 },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginTop: 14, paddingHorizontal: 14, height: 46, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
