@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityI
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 
 const APP_VERSION = Constants.expoConfig?.version || Constants.manifest?.version || '1.0.0';
 import Header from '../components/Header';
@@ -145,8 +145,11 @@ const ProfileScreen = ({ navigation }) => {
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {/* Profile Header */}
-        <View style={styles.profileHeader}>
+        {/* Profile Header — gradient hero */}
+        <LinearGradient colors={COLORS.gradient1} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+          <TouchableOpacity style={styles.heroEditBtn} onPress={() => navigation.navigate('EditProfile')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="create-outline" size={18} color={COLORS.onAccent} />
+          </TouchableOpacity>
           {user?.avatar && (user.avatar.startsWith('data:') || user.avatar.startsWith('http')) ? (
             <Image source={{ uri: user.avatar }} style={styles.avatarLargeImg} />
           ) : (
@@ -158,14 +161,14 @@ const ProfileScreen = ({ navigation }) => {
           <Text style={styles.userEmail}>{user?.email || ''}</Text>
           {user?.phone && <Text style={styles.userPhone}>📱 {user.phone}</Text>}
           <View style={styles.badgeRow}>
-            <View style={[styles.premiumBadge, !user?.isPremium && { backgroundColor: COLORS.textMuted + '15', borderColor: COLORS.textMuted + '30' }]}>
+            <View style={styles.premiumBadge}>
               <Text style={styles.premiumIcon}>{user?.isPremium ? '👑' : '🆓'}</Text>
-              <Text style={[styles.premiumText, !user?.isPremium && { color: COLORS.textMuted }]}>
+              <Text style={styles.premiumText}>
                 {user?.isPremium ? 'Premium Member' : 'Free Plan'}
               </Text>
             </View>
           </View>
-        </View>
+        </LinearGradient>
 
         {/* Stats Row - Real Data */}
         <View style={styles.statsRow}>
@@ -199,14 +202,14 @@ const ProfileScreen = ({ navigation }) => {
           const isGain = g === 'weight_gain' || g === 'muscle_building';
           return (
             <View style={styles.healthGrid}>
-              <View style={[styles.healthCell, { borderColor: COLORS.success + '40', backgroundColor: COLORS.success + '0A' }]}>
+              <LinearGradient colors={['#22C55E', '#16A34A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.healthCell, styles.healthCellHero]}>
                 <Text style={styles.healthIcon}>🎯</Text>
-                <Text style={[styles.healthValue, { color: COLORS.success }]}>{target} kcal</Text>
-                <Text style={styles.healthLabel}>Target — Eat This Daily</Text>
-                <Text style={styles.healthHint}>
+                <Text style={[styles.healthValue, { color: COLORS.onAccent }]}>{target} kcal</Text>
+                <Text style={[styles.healthLabel, { color: COLORS.onAccent }]}>Target — Eat This Daily</Text>
+                <Text style={[styles.healthHint, { color: 'rgba(255,255,255,0.9)' }]}>
                   {isLoss ? `${tdee - target} kcal deficit → fat loss` : isGain ? `${target - tdee} kcal surplus → gain` : 'maintain weight'}
                 </Text>
-              </View>
+              </LinearGradient>
               <View style={styles.healthCell}>
                 <Text style={styles.healthIcon}>🔥</Text>
                 <Text style={styles.healthValue}>{tdee} kcal</Text>
@@ -294,29 +297,37 @@ const ProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingTop: 60, paddingBottom: 20 },
-  profileHeader: { alignItems: 'center', marginBottom: 24 },
+  hero: {
+    alignItems: 'center', marginBottom: 16, paddingTop: 26, paddingBottom: 22, paddingHorizontal: 16,
+    borderRadius: SIZES.radiusXl, ...SHADOWS.medium,
+  },
+  heroEditBtn: {
+    position: 'absolute', top: 14, right: 14,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center',
+  },
   avatarLarge: {
     width: 90, height: 90, borderRadius: 45,
-    backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
-    marginBottom: 14, borderWidth: 3, borderColor: COLORS.primary + '40',
+    backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center',
+    marginBottom: 14, borderWidth: 3, borderColor: 'rgba(255,255,255,0.6)',
   },
   avatarLargeImg: {
     width: 90, height: 90, borderRadius: 45,
-    marginBottom: 14, borderWidth: 3, borderColor: COLORS.primary + '40',
+    marginBottom: 14, borderWidth: 3, borderColor: 'rgba(255,255,255,0.6)',
   },
   avatarText: { fontSize: 36, color: COLORS.onAccent, ...FONTS.bold },
-  userName: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold },
-  userEmail: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium, marginTop: 4 },
-  userPhone: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 4 },
+  userName: { fontSize: SIZES.fontXxl, color: COLORS.onAccent, ...FONTS.bold },
+  userEmail: { fontSize: SIZES.fontMd, color: 'rgba(255,255,255,0.88)', ...FONTS.medium, marginTop: 4 },
+  userPhone: { fontSize: SIZES.fontSm, color: 'rgba(255,255,255,0.8)', ...FONTS.medium, marginTop: 4 },
   badgeRow: { marginTop: 12 },
   premiumBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: COLORS.primary + '15', borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 20,
     paddingHorizontal: 16, paddingVertical: 6,
-    borderWidth: 1, borderColor: COLORS.primary + '30',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
   },
   premiumIcon: { fontSize: 14 },
-  premiumText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.bold },
+  premiumText: { fontSize: SIZES.fontSm, color: COLORS.onAccent, ...FONTS.bold },
   statsRow: {
     flexDirection: 'row', justifyContent: 'space-around',
     backgroundColor: COLORS.darkCard, borderRadius: SIZES.radiusLg,
@@ -333,6 +344,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.darkCard, borderRadius: SIZES.radiusLg,
     borderWidth: 1, borderColor: COLORS.darkBorder,
   },
+  healthCellHero: { borderWidth: 0, ...SHADOWS.medium },
   healthIcon: { fontSize: 20, marginBottom: 4 },
   healthValue: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
   healthLabel: { fontSize: SIZES.fontXs, color: COLORS.textSecondary, ...FONTS.semiBold, marginTop: 2, textAlign: 'center' },
