@@ -12,15 +12,19 @@ const SignupScreen = ({ navigation, route }) => {
   const isAdmin = route?.params?.mode === 'admin'; // registering as a gym owner
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
+    const cleanPhone = (phone || '').replace(/\D/g, '');
     if (!name || !email || !password) {
       Alert.alert('Error', 'Please fill all fields');
       return;
     }
+    if (!email.includes('@')) { Alert.alert('Error', 'Enter a valid email'); return; }
+    if (cleanPhone.length < 10) { Alert.alert('Error', 'Enter a valid 10-digit mobile number'); return; }
     if (password !== confirm) {
       Alert.alert('Error', 'Passwords do not match');
       return;
@@ -35,6 +39,7 @@ const SignupScreen = ({ navigation, route }) => {
       const res = await api.post(ENDPOINTS.REGISTER, {
         name: name.trim(),
         email: email.trim().toLowerCase(),
+        phone: cleanPhone,
         password,
       });
 
@@ -73,6 +78,7 @@ const SignupScreen = ({ navigation, route }) => {
         <View style={styles.form}>
           <InputField label="Full Name" icon="person-outline" placeholder={isAdmin ? "Owner's name" : 'Enter your name'} value={name} onChangeText={setName} />
           <InputField label="Email" icon="mail-outline" placeholder="Enter your email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          <InputField label="Mobile Number" icon="call-outline" placeholder="10-digit number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={10} />
           <InputField label="Password" icon="lock-closed-outline" placeholder="Create password (min 6 chars)" value={password} onChangeText={setPassword} secureTextEntry />
           <InputField label="Confirm Password" icon="shield-checkmark-outline" placeholder="Confirm password" value={confirm} onChangeText={setConfirm} secureTextEntry />
 
