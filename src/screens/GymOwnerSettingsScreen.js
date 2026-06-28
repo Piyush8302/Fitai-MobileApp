@@ -20,6 +20,7 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
   const [darkMode, setDarkMode] = useState(false);
   const [genBusy, setGenBusy] = useState(false);
   const [showReportPicker, setShowReportPicker] = useState(false);
+  const [reportMonths, setReportMonths] = useState(1); // 1 = current month, 3 = last 3 months
 
   const load = useCallback(async () => {
     try {
@@ -57,12 +58,13 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
   };
 
   // ===== PDF MONTHLY REPORT =====
-  const generateReport = async (gym) => {
+  const generateReport = async (gym, months = reportMonths) => {
     setGenBusy(true);
     try {
-      const res = await api.get(`/api/gym/${gym._id}/report?month=${monthKey(new Date())}`);
+      const res = await api.get(`/api/gym/${gym._id}/report?month=${monthKey(new Date())}&months=${months}`);
       if (!res.success) { Alert.alert('Error', 'Could not load report'); setGenBusy(false); return; }
       const { rows, totals, month } = res.data;
+      const reportTitle = months > 1 ? `${months}-Month Report` : 'Monthly Report';
 
       const rowsHtml = rows.map((r, i) => `
         <tr style="background:${i % 2 ? '#f5f6fb' : '#fff'}">
@@ -90,7 +92,7 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
           td{padding:8px;border-bottom:1px solid #eee}
         </style></head><body>
           <h1>${gym.name}</h1>
-          <div class="sub">${gym.location || ''} • Monthly Report — ${month}</div>
+          <div class="sub">${gym.location || ''} • ${reportTitle} — ${month}</div>
           <div class="cards">
             <div class="card"><div class="v">${totals.members}</div><div class="l">Members</div></div>
             <div class="card"><div class="v">${totals.totalPresent}</div><div class="l">Total Check-ins</div></div>
@@ -112,21 +114,22 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
     } finally { setGenBusy(false); }
   };
 
-  const pickGymForReport = () => {
+  const pickGymForReport = (months = 1) => {
     if (gyms.length === 0) { Alert.alert('No gym', 'Create a gym first'); return; }
-    if (gyms.length === 1) { generateReport(gyms[0]); return; }
+    setReportMonths(months);
+    if (gyms.length === 1) { generateReport(gyms[0], months); return; }
     setShowReportPicker(true);
   };
 
   // ===== COMBINED PDF — all gyms in one report =====
-  const generateAllReport = async () => {
+  const generateAllReport = async (months = reportMonths) => {
     setShowReportPicker(false);
     setGenBusy(true);
     try {
       const month = monthKey(new Date());
       const results = [];
       for (const g of gyms) {
-        const res = await api.get(`/api/gym/${g._id}/report?month=${month}`);
+        const res = await api.get(`/api/gym/${g._id}/report?month=${month}&months=${months}`);
         if (res.success) results.push({ gym: g, ...res.data });
       }
       if (!results.length) { Alert.alert('Error', 'Could not load reports'); setGenBusy(false); return; }
@@ -224,13 +227,24 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
             </TouchableOpacity>
 
             <Text style={styles.sectionLabel}>Reports</Text>
-            <TouchableOpacity style={styles.row} onPress={pickGymForReport} disabled={genBusy}>
+            <TouchableOpacity style={styles.row} onPress={() => pickGymForReport(1)} disabled={genBusy}>
               <View style={[styles.rowIcon, { backgroundColor: COLORS.success + '15' }]}>
                 {genBusy ? <ActivityIndicator size="small" color={COLORS.success} /> : <Ionicons name="document-text" size={20} color={COLORS.success} />}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle}>Monthly Report (PDF)</Text>
-                <Text style={styles.rowSub}>All members attendance & payments</Text>
+                <Text style={styles.rowSub}>This month's attendance & payments</Text>
+              </View>
+              <Ionicons name="download-outline" size={20} color={COLORS.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.row} onPress={() => pickGymForReport(3)} disabled={genBusy}>
+              <View style={[styles.rowIcon, { backgroundColor: COLORS.primary + '15' }]}>
+                {genBusy ? <ActivityIndicator size="small" color={COLORS.primary} /> : <Ionicons name="documents" size={20} color={COLORS.primary} />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>Last 3 Months (PDF)</Text>
+                <Text style={styles.rowSub}>Quarter attendance & payments</Text>
               </View>
               <Ionicons name="download-outline" size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
@@ -282,7 +296,7 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
           <TouchableOpacity activeOpacity={1} style={styles.pickCard} onPress={() => {}}>
             <View style={styles.pickHeader}>
               <View>
-                <Text style={styles.pickTitle}>Monthly Report</Text>
+                <Text style={styles.pickTitle}>{reportMonths > 1 ? `Last ${reportMonths} Months` : 'Monthly Report'}</Text>
                 <Text style={styles.pickSub}>Choose a gym, or download all combined</Text>
               </View>
               <TouchableOpacity onPress={() => setShowReportPicker(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -291,7 +305,7 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
             </View>
 
             {/* All gyms combined */}
-            <TouchableOpacity style={[styles.pickRow, styles.pickRowAll]} onPress={generateAllReport}>
+            <TouchableOpacity style={[styles.pickRow, styles.pickRowAll]} onPress={() => generateAllReport()}>
               <View style={[styles.rowIcon, { backgroundColor: COLORS.primary + '20' }]}>
                 <Ionicons name="albums" size={20} color={COLORS.primary} />
               </View>

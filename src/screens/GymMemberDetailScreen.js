@@ -15,6 +15,9 @@ const PLANS = [
   { key: 'yearly', label: 'Yearly', months: 12 },
 ];
 const PLAN_LABEL = { trial: 'Trial', day_pass: 'Day Pass', monthly: 'Monthly', quarterly: '3 Months', half_yearly: '6 Months', yearly: 'Yearly' };
+const PLAN_MONTHS = { monthly: 1, quarterly: 3, half_yearly: 6, yearly: 12 };
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const dueForPlan = (planKey) => { const d = new Date(); d.setMonth(d.getMonth() + (PLAN_MONTHS[planKey] || 1)); return ymd(d); };
 
 const GymMemberDetailScreen = ({ navigation, route }) => {
   const { membershipId, gymId } = route.params;
@@ -23,6 +26,7 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   const [showPay, setShowPay] = useState(false);
   const [payPlan, setPayPlan] = useState('monthly');
   const [payAmount, setPayAmount] = useState('');
+  const [payDueDate, setPayDueDate] = useState(''); // editable next-due date (YYYY-MM-DD)
   const [busy, setBusy] = useState(false);
   const [calMonth, setCalMonth] = useState(new Date()); // month shown in calendar
 
@@ -52,7 +56,7 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
     if (!payAmount || parseInt(payAmount) <= 0) { Alert.alert('Required', 'Enter amount'); return; }
     setBusy(true);
     try {
-      const res = await api.post(ENDPOINTS.GYM_PAYMENT, { membershipId, amount: parseInt(payAmount), plan: payPlan });
+      const res = await api.post(ENDPOINTS.GYM_PAYMENT, { membershipId, amount: parseInt(payAmount), plan: payPlan, dueDate: payDueDate || undefined });
       if (res.success) {
         Alert.alert('✅ Payment marked', `${PLAN_LABEL[payPlan]} • ₹${payAmount}\nNext due: ${new Date(res.data.membership.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`);
         setShowPay(false);
@@ -187,7 +191,7 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
             <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
             <Text style={[styles.actionText, { color: COLORS.success }]}>Mark Present</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.primary }]} onPress={() => setShowPay(true)}>
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.primary }]} onPress={() => { setPayDueDate(dueForPlan(payPlan)); setShowPay(true); }}>
             <Ionicons name="cash" size={20} color={COLORS.onAccent} />
             <Text style={[styles.actionText, { color: COLORS.onAccent }]}>Mark Payment</Text>
           </TouchableOpacity>
@@ -246,7 +250,7 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
             <Text style={styles.inputLabel}>Plan</Text>
             <View style={styles.planGrid}>
               {PLANS.map((p) => (
-                <TouchableOpacity key={p.key} style={[styles.planChip, payPlan === p.key && styles.planChipActive]} onPress={() => setPayPlan(p.key)}>
+                <TouchableOpacity key={p.key} style={[styles.planChip, payPlan === p.key && styles.planChipActive]} onPress={() => { setPayPlan(p.key); setPayDueDate(dueForPlan(p.key)); }}>
                   <Text style={[styles.planChipText, payPlan === p.key && { color: COLORS.onAccent }]}>{p.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -254,6 +258,10 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
 
             <Text style={styles.inputLabel}>Amount received (₹)</Text>
             <TextInput style={styles.input} placeholder="e.g. 1000" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={payAmount} onChangeText={setPayAmount} />
+
+            <Text style={styles.inputLabel}>Next due date</Text>
+            <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor={COLORS.textMuted} value={payDueDate} onChangeText={setPayDueDate} autoCapitalize="none" />
+            <Text style={styles.dueHint}>Auto-set from plan — edit to fix a custom due date.</Text>
 
             <TouchableOpacity style={styles.payBtn} onPress={markPayment} disabled={busy}>
               {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.payBtnText}>Mark as Paid</Text>}
@@ -340,6 +348,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },
   modalSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 4, marginBottom: 16 },
   inputLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, marginBottom: 8, marginTop: 8 },
+  dueHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 4 },
   planGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   planChip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 16, backgroundColor: COLORS.darkSurface, borderWidth: 1, borderColor: COLORS.darkBorder },
   planChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
