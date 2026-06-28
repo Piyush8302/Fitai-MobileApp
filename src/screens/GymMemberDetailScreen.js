@@ -239,7 +239,7 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
       </ScrollView>
 
       {/* Payment modal */}
-      <Modal visible={showPay} transparent animationType="slide" onRequestClose={() => setShowPay(false)}>
+      <Modal visible={showPay} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowPay(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
           <View style={styles.modalCard}>
             <View style={styles.modalHead}>
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
   payDate: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: 1 },
 
   modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.85)' },
-  modalCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36 },
+  modalCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 48 },
   modalHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   modalTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },
   modalSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 4, marginBottom: 16 },

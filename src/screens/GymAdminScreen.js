@@ -594,7 +594,7 @@ const GymAdminScreen = ({ navigation }) => {
       </ScrollView>
 
       {/* ===== CREATE GYM MODAL ===== */}
-      <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => gyms.length && setShowCreate(false)}>
+      <Modal visible={showCreate} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => gyms.length && setShowCreate(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeaderRow}>
@@ -629,7 +629,7 @@ const GymAdminScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== ADD MEMBER MODAL ===== */}
-      <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
+      <Modal visible={showAdd} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowAdd(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Add Member</Text>
@@ -664,7 +664,7 @@ const GymAdminScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== ADD STAFF MODAL ===== */}
-      <Modal visible={showAddStaff} transparent animationType="slide" onRequestClose={() => setShowAddStaff(false)}>
+      <Modal visible={showAddStaff} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowAddStaff(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Add Staff</Text>
@@ -693,7 +693,7 @@ const GymAdminScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== PHOTO SOURCE PICKER (modern bottom sheet) ===== */}
-      <Modal visible={showPhotoSheet} transparent animationType="fade" onRequestClose={() => setShowPhotoSheet(false)}>
+      <Modal visible={showPhotoSheet} transparent statusBarTranslucent navigationBarTranslucent animationType="fade" onRequestClose={() => setShowPhotoSheet(false)}>
         <TouchableOpacity activeOpacity={1} style={styles.sheetBackdrop} onPress={() => setShowPhotoSheet(false)}>
           <TouchableOpacity activeOpacity={1} style={styles.sheetCard} onPress={() => {}}>
             <View style={styles.sheetHandle} />
@@ -733,7 +733,7 @@ const GymAdminScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== PAYMENT MODAL ===== */}
-      <Modal visible={!!payFor} transparent animationType="slide" onRequestClose={() => setPayFor(null)}>
+      <Modal visible={!!payFor} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setPayFor(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>💵 Mark Payment</Text>
@@ -758,7 +758,7 @@ const GymAdminScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== MEMBER ATTENDANCE HISTORY MODAL ===== */}
-      <Modal visible={!!histMember} transparent animationType="slide" onRequestClose={() => setHistMember(null)}>
+      <Modal visible={!!histMember} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setHistMember(null)}>
         <View style={styles.modalWrap}>
           <View style={[styles.modalCard, { maxHeight: '75%' }]}>
             <View style={styles.modalHeaderRow}>
@@ -801,7 +801,7 @@ const GymAdminScreen = ({ navigation }) => {
         </View>
       </Modal>
       {/* ===== GYM QR MODAL (print & display at counter) ===== */}
-      <Modal visible={showGymQR} transparent animationType="slide" onRequestClose={() => setShowGymQR(false)}>
+      <Modal visible={showGymQR} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowGymQR(false)}>
         <View style={styles.modalWrap}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeaderRow}>
@@ -903,7 +903,7 @@ const styles = StyleSheet.create({
   attMethod: { fontSize: SIZES.fontMd, marginLeft: 6 },
 
   modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.85)' },
-  modalCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36 },
+  modalCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 48 },
   modalHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   modalTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginBottom: 6 },
   photoPick: { alignItems: 'center', marginVertical: 12, gap: 6 },
@@ -913,7 +913,7 @@ const styles = StyleSheet.create({
 
   // Modern photo-source bottom sheet
   sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheetCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 34 },
+  sheetCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 46 },
   sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.darkBorder, marginBottom: 16 },
   sheetTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, textAlign: 'center' },
   sheetSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, textAlign: 'center', marginTop: 4, marginBottom: 20 },

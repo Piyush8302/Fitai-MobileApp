@@ -294,7 +294,7 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
       </ScrollView>
 
       {/* ===== REPORT GYM PICKER (with close cross + All-Gyms option) ===== */}
-      <Modal visible={showReportPicker} transparent animationType="fade" onRequestClose={() => setShowReportPicker(false)}>
+      <Modal visible={showReportPicker} transparent statusBarTranslucent navigationBarTranslucent animationType="fade" onRequestClose={() => setShowReportPicker(false)}>
         <TouchableOpacity activeOpacity={1} style={styles.pickBackdrop} onPress={() => setShowReportPicker(false)}>
           <TouchableOpacity activeOpacity={1} style={styles.pickCard} onPress={() => {}}>
             <View style={styles.pickHeader}>
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
 
   // Report gym picker
   pickBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
-  pickCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 },
+  pickCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 46 },
   pickHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
   pickTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },
   pickSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
