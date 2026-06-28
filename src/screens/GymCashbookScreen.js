@@ -263,8 +263,8 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12 },
   headerTitle: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold },
 
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },
-  chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  chip: { height: 38, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 19, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },
+  chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary, ...SHADOWS.glow(COLORS.primary) },
   chipText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold },
 
   sectionLabel: { fontSize: SIZES.fontMd, color: COLORS.primary, ...FONTS.bold, marginHorizontal: 16, marginTop: 8, marginBottom: 10 },

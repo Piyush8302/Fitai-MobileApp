@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput,
-  ActivityIndicator, Alert, Modal, Platform, KeyboardAvoidingView, RefreshControl,
+  ActivityIndicator, Alert, Modal, Platform, KeyboardAvoidingView, RefreshControl, Switch,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,17 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // Cashbook permission (owner grants/revokes)
+  const [canCash, setCanCash] = useState(!!staff?.canAccessCashbook);
+  const toggleCashbook = async (val) => {
+    setCanCash(val); // optimistic
+    try {
+      const res = await api.put(`/api/gym/staff/${s._id}`, { canAccessCashbook: val });
+      if (res.success) setS((prev) => ({ ...prev, canAccessCashbook: val }));
+      else { setCanCash(!val); Alert.alert('Error', res.message || 'Failed to update'); }
+    } catch (e) { setCanCash(!val); Alert.alert('Error', 'Failed to update'); }
+  };
 
   // Edit
   const [showEdit, setShowEdit] = useState(false);
@@ -94,6 +105,24 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
           <Row icon="calendar-outline" label="Joined" value={s.staffJoinDate ? new Date(s.staffJoinDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'} last />
         </View>
 
+        {/* Permissions */}
+        <Text style={styles.sectionLabel}>Permissions</Text>
+        <View style={styles.card}>
+          <View style={styles.permRow}>
+            <View style={styles.permIcon}><Ionicons name="wallet-outline" size={20} color={COLORS.primary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.permTitle}>Cashbook access</Text>
+              <Text style={styles.permSub}>Let this staff view & add income/expense entries</Text>
+            </View>
+            <Switch
+              value={canCash}
+              onValueChange={toggleCashbook}
+              trackColor={{ false: COLORS.darkBorder, true: COLORS.primary + '70' }}
+              thumbColor={canCash ? COLORS.primary : '#FFFFFF'}
+            />
+          </View>
+        </View>
+
         {/* Attendance */}
         <Text style={styles.sectionLabel}>Attendance</Text>
         <View style={styles.statRow}>
@@ -171,6 +200,10 @@ const styles = StyleSheet.create({
 
   sectionLabel: { fontSize: SIZES.fontMd, color: COLORS.primary, ...FONTS.bold, marginHorizontal: 16, marginTop: 18, marginBottom: 8 },
   card: { marginHorizontal: 16, paddingHorizontal: 16, paddingVertical: 4, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
+  permRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  permIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.primary + '15', alignItems: 'center', justifyContent: 'center' },
+  permTitle: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.semiBold },
+  permSub: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 1 },
 
   statRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16 },
   statBox: { flex: 1, alignItems: 'center', backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder, paddingVertical: 14 },

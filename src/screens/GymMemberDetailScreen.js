@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PLANS = [
   { key: 'monthly', label: 'Monthly', months: 1 },
@@ -31,6 +32,9 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   const [calMonth, setCalMonth] = useState(new Date()); // month shown in calendar
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = async () => { setRefreshing(true); try { await load(); } catch (e) {} setRefreshing(false); };
+  // Staff can't remove members — hide the button for them (backend also blocks it)
+  const [isStaff, setIsStaff] = useState(false);
+  useEffect(() => { AsyncStorage.getItem('user').then((u) => { try { setIsStaff(JSON.parse(u)?.role === 'gym_staff'); } catch (e) {} }); }, []);
 
   const load = useCallback(async () => {
     try {
@@ -250,11 +254,13 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
           </>
         )}
 
-        {/* Remove member */}
-        <TouchableOpacity style={styles.deleteBtn} onPress={confirmDeleteMember}>
-          <Ionicons name="trash-outline" size={18} color={COLORS.error} />
-          <Text style={styles.deleteText}>Remove Member</Text>
-        </TouchableOpacity>
+        {/* Remove member — owner only (staff blocked) */}
+        {!isStaff && (
+          <TouchableOpacity style={styles.deleteBtn} onPress={confirmDeleteMember}>
+            <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+            <Text style={styles.deleteText}>Remove Member</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* Payment modal */}

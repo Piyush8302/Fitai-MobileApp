@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
+import api, { ENDPOINTS } from '../config/api';
 
 const DarkNavTheme = {
   ...DefaultTheme,
@@ -134,10 +135,32 @@ const MainTabs = () => (
 // Staff get a restricted set — no Cashbook (financials).
 const AdminTabs = () => {
   const [isStaff, setIsStaff] = React.useState(false);
+  // Cashbook tab: owner always; a staff only if the owner granted access.
+  const [showCashbook, setShowCashbook] = React.useState(false);
   React.useEffect(() => {
     AsyncStorage.getItem('user').then((u) => {
-      try { setIsStaff(JSON.parse(u)?.role === 'gym_staff'); } catch (e) {}
+      try {
+        const usr = JSON.parse(u);
+        const staff = usr?.role === 'gym_staff';
+        setIsStaff(staff);
+        setShowCashbook(!staff || !!usr?.canAccessCashbook);
+      } catch (e) {}
     });
+    // Refresh from server so a freshly-granted permission shows without re-login.
+    (async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (token) api.setToken(token);
+        const me = await api.get(ENDPOINTS.GET_ME);
+        const usr = me?.user || me?.data;
+        if (usr) {
+          const staff = usr.role === 'gym_staff';
+          setIsStaff(staff);
+          setShowCashbook(!staff || !!usr.canAccessCashbook);
+          await AsyncStorage.setItem('user', JSON.stringify(usr));
+        }
+      } catch (e) {}
+    })();
   }, []);
   return (
     <Tab.Navigator
@@ -154,7 +177,7 @@ const AdminTabs = () => {
         component={GymAdminScreen}
         options={{ tabBarIcon: ({ focused, color }) => <TabIcon name={focused ? 'people' : 'people-outline'} color={color} label="Gym" focused={focused} /> }}
       />
-      {!isStaff && (
+      {showCashbook && (
         <Tab.Screen
           name="GymCashbookTab"
           component={GymCashbookScreen}

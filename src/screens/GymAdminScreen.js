@@ -940,11 +940,11 @@ const styles = StyleSheet.create({
   kioskBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingVertical: 14, borderRadius: SIZES.radius, backgroundColor: COLORS.primary },
   kioskBtnText: { color: COLORS.onAccent, fontSize: SIZES.fontMd, ...FONTS.bold },
 
-  switcher: { maxHeight: 44, marginBottom: 8 },
-  switchChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },
-  switchChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  switcher: { maxHeight: 50, marginBottom: 8 },
+  switchChip: { height: 38, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 19, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },
+  switchChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary, ...SHADOWS.glow(COLORS.primary) },
   switchText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold },
-  switchAdd: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 38, paddingHorizontal: 12, borderRadius: 19, backgroundColor: COLORS.primary + '15', borderWidth: 1, borderColor: COLORS.primary + '40' },
+  switchAdd: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 38, paddingHorizontal: 14, borderRadius: 19, backgroundColor: COLORS.primary + '15', borderWidth: 1, borderColor: COLORS.primary + '40' },
   switchAddText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.bold },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16, marginTop: 8 },
