@@ -122,18 +122,26 @@ const HomeScreen = ({ navigation }) => {
   const calPercent = adjustedCalGoal ? Math.round((tracking.caloriesConsumed / adjustedCalGoal) * 100) : 0;
   const overallProgress = Math.round((calPercent + (tracking.waterIntake / tracking.waterGoal * 100) + (tracking.steps / tracking.stepsGoal * 100)) / 3) || 0;
   const quickActions = [
-    { id: 'bmi', title: 'BMI', icon: '⚖️', screen: 'BMI', color: '#FF6B6B' },
-    { id: 'diet', title: 'Diet', icon: '🥗', screen: 'Diet', color: '#4CAF50' },
-    { id: 'workout', title: 'Workout', icon: '🏋️', screen: 'Workout', color: '#6C63FF' },
-    { id: 'ai', title: 'AI Chat', icon: '🤖', screen: 'AIChat', color: '#00D2FF' },
+    { id: 'bmi', title: 'BMI', icon: '⚖️', screen: 'BMI', grad: ['#FF6B6B', '#FF8E53'] },
+    { id: 'diet', title: 'Diet', icon: '🥗', screen: 'Diet', grad: ['#22C55E', '#16A34A'] },
+    { id: 'workout', title: 'Workout', icon: '🏋️', screen: 'Workout', grad: ['#6C63FF', '#8B85FF'] },
+    { id: 'ai', title: 'AI Chat', icon: '🤖', screen: 'AIChat', grad: ['#00D2FF', '#4FACFE'] },
   ];
 
   const exploreActions = [
-    { id: 'gym', title: 'My Gym', icon: '🎫', screen: 'MyGymCard', color: '#6C63FF' },
-    { id: 'articles', title: 'Articles', icon: '📰', screen: 'Articles', color: '#9C27B0' },
-    { id: 'food', title: 'Food DB', icon: '🍽', screen: 'FoodDatabase', color: '#FF9800' },
-    { id: 'exercises', title: 'Exercises', icon: '💪', screen: 'ExerciseLibrary', color: '#E91E63' },
-    { id: 'achievements', title: 'Badges', icon: '🏆', screen: 'Achievements', color: '#FFD700' },
+    { id: 'gym', title: 'My Gym', icon: '🎫', screen: 'MyGymCard', grad: ['#6C63FF', '#8B85FF'] },
+    { id: 'articles', title: 'Articles', icon: '📰', screen: 'Articles', grad: ['#9C27B0', '#BA68C8'] },
+    { id: 'food', title: 'Food DB', icon: '🍽', screen: 'FoodDatabase', grad: ['#FB8C00', '#FFB300'] },
+    { id: 'exercises', title: 'Exercises', icon: '💪', screen: 'ExerciseLibrary', grad: ['#E91E63', '#FF6B6B'] },
+    { id: 'achievements', title: 'Badges', icon: '🏆', screen: 'Achievements', grad: ['#FBBF24', '#FB8C00'] },
+  ];
+
+  // Today's metrics → vibrant 2-color mini-tiles (dashboard language)
+  const progressTiles = [
+    { key: 'cal', label: 'Calories', value: `${(tracking.caloriesConsumed || 0).toLocaleString()}`, sub: `/ ${getGoalAdjustedCalories().toLocaleString()}`, grad: ['#22C55E', '#16A34A'] },
+    { key: 'water', label: 'Water', value: `${tracking.waterIntake || 0}`, sub: `/ ${tracking.waterGoal || 8} glass`, grad: ['#00D2FF', '#4FACFE'] },
+    { key: 'steps', label: 'Steps', value: `${(tracking.steps || 0).toLocaleString()}`, sub: `/ ${(tracking.stepsGoal || 10000).toLocaleString()}`, grad: ['#6C63FF', '#8B85FF'] },
+    { key: 'workout', label: 'Workout', value: `${tracking.workoutMinutes || 0}`, sub: 'min done', grad: ['#FB8C00', '#FFB300'] },
   ];
 
   return (
@@ -166,46 +174,33 @@ const HomeScreen = ({ navigation }) => {
           <Text style={styles.cardTitle}>Today's Progress</Text>
           <View style={styles.progressRow}>
             <ProgressRing progress={overallProgress} size={90} color={COLORS.primary} value={`${overallProgress}%`} label="Overall" />
-            <View style={styles.progressStats}>
-              <View style={styles.progressItem}>
-                <View style={[styles.progressDot, { backgroundColor: COLORS.success }]} />
-                <Text style={styles.progressLabel}>Calories</Text>
-                <Text style={styles.progressValue}>{tracking.caloriesConsumed.toLocaleString()} / {getGoalAdjustedCalories().toLocaleString()}</Text>
-              </View>
-              <View style={styles.progressItem}>
-                <View style={[styles.progressDot, { backgroundColor: COLORS.accent }]} />
-                <Text style={styles.progressLabel}>Water</Text>
-                <Text style={styles.progressValue}>{tracking.waterIntake} / {tracking.waterGoal} glasses</Text>
-              </View>
-              <View style={styles.progressItem}>
-                <View style={[styles.progressDot, { backgroundColor: COLORS.secondary }]} />
-                <Text style={styles.progressLabel}>Steps</Text>
-                <Text style={styles.progressValue}>{(tracking.steps || 0).toLocaleString()} / {(tracking.stepsGoal || 10000).toLocaleString()}</Text>
-              </View>
-              <View style={styles.progressItem}>
-                <View style={[styles.progressDot, { backgroundColor: COLORS.warning }]} />
-                <Text style={styles.progressLabel}>Workout</Text>
-                <Text style={styles.progressValue}>{tracking.workoutMinutes || 0} min done</Text>
-              </View>
+            <View style={styles.progressTiles}>
+              {progressTiles.map((t) => (
+                <LinearGradient key={t.key} colors={t.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.miniTile}>
+                  <Text style={styles.miniLabel}>{t.label}</Text>
+                  <Text style={styles.miniValue} numberOfLines={1}>{t.value}</Text>
+                  <Text style={styles.miniSub} numberOfLines={1}>{t.sub}</Text>
+                </LinearGradient>
+              ))}
             </View>
           </View>
         </GradientCard>
 
         {/* Quick Actions */}
         <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.quickGrid}>
+        <View style={styles.actionGrid}>
           {quickActions.map((a) => (
             <TouchableOpacity
               key={a.id}
-              style={styles.quickCard}
+              style={styles.actionCard}
               onPress={() => navigation.navigate(a.screen)}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
-              <LinearGradient colors={[a.color + '20', COLORS.darkCard]} style={styles.quickGradient}>
-                <View style={[styles.quickIcon, { backgroundColor: a.color + '30' }]}>
-                  <Text style={{ fontSize: 26 }}>{a.icon}</Text>
+              <LinearGradient colors={a.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.actionGradient}>
+                <View style={styles.actionChip}>
+                  <Text style={{ fontSize: 24 }}>{a.icon}</Text>
                 </View>
-                <Text style={styles.quickTitle}>{a.title}</Text>
+                <Text style={styles.actionTitle}>{a.title}</Text>
               </LinearGradient>
             </TouchableOpacity>
           ))}
@@ -213,19 +208,19 @@ const HomeScreen = ({ navigation }) => {
 
         {/* Explore Section */}
         <Text style={styles.sectionTitle}>Explore</Text>
-        <View style={styles.quickGrid}>
+        <View style={styles.actionGrid}>
           {exploreActions.map((a) => (
             <TouchableOpacity
               key={a.id}
-              style={styles.quickCard}
+              style={styles.actionCard}
               onPress={() => navigation.navigate(a.screen)}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
-              <LinearGradient colors={[a.color + '20', COLORS.darkCard]} style={styles.quickGradient}>
-                <View style={[styles.quickIcon, { backgroundColor: a.color + '30' }]}>
-                  <Text style={{ fontSize: 26 }}>{a.icon}</Text>
+              <LinearGradient colors={a.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.actionGradient}>
+                <View style={styles.actionChip}>
+                  <Text style={{ fontSize: 24 }}>{a.icon}</Text>
                 </View>
-                <Text style={styles.quickTitle}>{a.title}</Text>
+                <Text style={styles.actionTitle}>{a.title}</Text>
               </LinearGradient>
             </TouchableOpacity>
           ))}
@@ -422,20 +417,24 @@ const styles = StyleSheet.create({
   progressCard: { marginBottom: 24 },
   cardTitle: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, marginBottom: 16 },
   progressRow: { flexDirection: 'row', alignItems: 'center' },
-  progressStats: { flex: 1, marginLeft: 20 },
-  progressItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  progressDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  progressLabel: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, flex: 1 },
-  progressValue: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold },
-  sectionTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginBottom: 14, marginTop: 8 },
-  quickGrid: { flexDirection: 'row', gap: 10, marginBottom: 24 },
-  quickCard: { flex: 1, borderRadius: SIZES.radius, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.darkBorder },
-  quickGradient: { paddingVertical: 14, paddingHorizontal: 8, alignItems: 'center', borderRadius: SIZES.radius },
-  quickIcon: {
-    width: 50, height: 50, borderRadius: 25,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+  progressTiles: { flex: 1, marginLeft: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  miniTile: {
+    width: '47%', flexGrow: 1, borderRadius: 14,
+    paddingVertical: 10, paddingHorizontal: 12, ...SHADOWS.small,
   },
-  quickTitle: { fontSize: SIZES.fontXs, color: COLORS.textSecondary, ...FONTS.semiBold, textAlign: 'center' },
+  miniLabel: { fontSize: SIZES.fontXs, color: 'rgba(255,255,255,0.9)', ...FONTS.semiBold },
+  miniValue: { fontSize: SIZES.fontLg, color: '#FFFFFF', ...FONTS.extraBold, marginTop: 2 },
+  miniSub: { fontSize: 9, color: 'rgba(255,255,255,0.85)', ...FONTS.medium, marginTop: 1 },
+  sectionTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginBottom: 14, marginTop: 8 },
+  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
+  actionCard: { width: '47%', flexGrow: 1, borderRadius: 16, overflow: 'hidden', ...SHADOWS.medium },
+  actionGradient: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, paddingHorizontal: 14, borderRadius: 16 },
+  actionChip: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  actionTitle: { fontSize: SIZES.fontMd, color: '#FFFFFF', ...FONTS.bold, flexShrink: 1 },
   goalCard: { marginBottom: 24 },
   goalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   goalBadge: { backgroundColor: COLORS.secondary + '20', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
