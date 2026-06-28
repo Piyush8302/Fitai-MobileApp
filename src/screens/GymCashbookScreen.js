@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -170,21 +170,17 @@ const GymCashbookScreen = ({ navigation }) => {
         {/* Overview */}
         <Text style={styles.sectionLabel}>Monthly Overview</Text>
         <View style={styles.overview}>
-          <View style={styles.ovCard}>
-            <Ionicons name="trending-up" size={20} color={COLORS.success} />
-            <Text style={[styles.ovValue, { color: COLORS.success }]}>₹{data.income}</Text>
-            <Text style={styles.ovLabel}>Income</Text>
-          </View>
-          <View style={styles.ovCard}>
-            <Ionicons name="trending-down" size={20} color={COLORS.error} />
-            <Text style={[styles.ovValue, { color: COLORS.error }]}>₹{data.expense}</Text>
-            <Text style={styles.ovLabel}>Expense</Text>
-          </View>
-          <View style={styles.ovCard}>
-            <Ionicons name="wallet" size={20} color={COLORS.primary} />
-            <Text style={[styles.ovValue, { color: COLORS.primary }]}>₹{data.balance}</Text>
-            <Text style={styles.ovLabel}>Balance</Text>
-          </View>
+          {[
+            { icon: 'trending-up', value: data.income, label: 'Income', grad: ['#22C55E', '#16A34A'] },
+            { icon: 'trending-down', value: data.expense, label: 'Expense', grad: ['#FF6B6B', '#FF8E53'] },
+            { icon: 'wallet', value: data.balance, label: 'Balance', grad: ['#6C63FF', '#8B85FF'] },
+          ].map((o, i) => (
+            <LinearGradient key={i} colors={o.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ovCard}>
+              <View style={styles.ovIconChip}><Ionicons name={o.icon} size={16} color="#FFF" /></View>
+              <Text style={styles.ovValue} numberOfLines={1} adjustsFontSizeToFit>₹{o.value}</Text>
+              <Text style={styles.ovLabel}>{o.label}</Text>
+            </LinearGradient>
+          ))}
         </View>
 
         {/* Month nav */}
@@ -273,9 +269,10 @@ const styles = StyleSheet.create({
 
   sectionLabel: { fontSize: SIZES.fontMd, color: COLORS.primary, ...FONTS.bold, marginHorizontal: 16, marginTop: 8, marginBottom: 10 },
   overview: { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },
-  ovCard: { flex: 1, alignItems: 'center', backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder, paddingVertical: 16 },
-  ovValue: { fontSize: SIZES.fontXl, ...FONTS.bold, marginTop: 6 },
-  ovLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
+  ovCard: { flex: 1, alignItems: 'center', borderRadius: 16, paddingVertical: 16, paddingHorizontal: 6, ...SHADOWS.medium },
+  ovIconChip: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  ovValue: { fontSize: SIZES.fontXl, color: '#FFFFFF', ...FONTS.extraBold },
+  ovLabel: { fontSize: SIZES.fontXs, color: 'rgba(255,255,255,0.9)', ...FONTS.semiBold, marginTop: 2 },
 
   monthNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 14, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder, padding: 10 },
   monthArrow: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '12' },
