@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import { MEAL_PLAN_SAMPLE } from '../constants/data';
 import Header from '../components/Header';
 import GradientCard from '../components/GradientCard';
@@ -342,16 +342,16 @@ const DietScreen = ({ navigation }) => {
         <Text style={styles.sectionTitle}>👤 Your Diet Profile</Text>
         <View style={styles.profileCards}>
           {[
-            { icon: '⚖️', label: 'BMI', value: `${user?.bmi || '--'}`, color: COLORS.accent },
-            { icon: '🔥', label: 'BMR', value: `${bmr}`, color: COLORS.secondary },
-            { icon: '🎯', label: isWeightLoss ? 'Target' : 'TDEE', value: `${targetCal}`, color: COLORS.primary },
-            { icon: '🥗', label: 'Diet', value: (preference || 'veg').replace(/_/g, ' '), color: COLORS.success },
+            { icon: '⚖️', label: 'BMI', value: `${user?.bmi || '--'}`, grad: ['#00D2FF', '#4FACFE'] },
+            { icon: '🔥', label: 'BMR', value: `${bmr}`, grad: ['#FF6B6B', '#FF8E53'] },
+            { icon: '🎯', label: isWeightLoss ? 'Target' : 'TDEE', value: `${targetCal}`, grad: ['#6C63FF', '#8B85FF'] },
+            { icon: '🥗', label: 'Diet', value: (preference || 'veg').replace(/_/g, ' '), grad: ['#22C55E', '#16A34A'] },
           ].map((p, i) => (
-            <View key={i} style={[styles.profileCard, { borderColor: p.color + '30' }]}>
-              <Text style={styles.profileCardIcon}>{p.icon}</Text>
-              <Text style={[styles.profileCardValue, { color: p.color }]}>{p.value}</Text>
+            <LinearGradient key={i} colors={p.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.profileCard}>
+              <View style={styles.profileCardChip}><Text style={styles.profileCardIcon}>{p.icon}</Text></View>
+              <Text style={styles.profileCardValue}>{p.value}</Text>
               <Text style={styles.profileCardLabel}>{p.label}</Text>
-            </View>
+            </LinearGradient>
           ))}
         </View>
 
@@ -371,7 +371,7 @@ const DietScreen = ({ navigation }) => {
               onPress={() => setDietType(d.id)}
             >
               <Text style={styles.dietChipIcon}>{d.icon}</Text>
-              <Text style={[styles.dietChipText, dietType === d.id && { color: COLORS.primary }]}>{d.name}</Text>
+              <Text style={[styles.dietChipText, dietType === d.id && { color: COLORS.onAccent }]}>{d.name}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -653,12 +653,12 @@ const styles = StyleSheet.create({
   profileCards: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   profileCard: {
     flex: 1, alignItems: 'center', paddingVertical: 14,
-    backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius,
-    borderWidth: 1,
+    borderRadius: 16, ...SHADOWS.medium,
   },
-  profileCardIcon: { fontSize: 22, marginBottom: 4 },
-  profileCardValue: { fontSize: SIZES.fontMd, ...FONTS.bold, textTransform: 'capitalize' },
-  profileCardLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
+  profileCardChip: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  profileCardIcon: { fontSize: 18 },
+  profileCardValue: { fontSize: SIZES.fontLg, color: '#FFFFFF', ...FONTS.extraBold, textTransform: 'capitalize' },
+  profileCardLabel: { fontSize: SIZES.fontXs, color: 'rgba(255,255,255,0.9)', ...FONTS.semiBold, marginTop: 2 },
 
   // Section
   sectionTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginBottom: 14, marginTop: 8 },
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.darkCard, borderRadius: 24, marginRight: 10,
     borderWidth: 1, borderColor: COLORS.darkBorder,
   },
-  dietChipActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10' },
+  dietChipActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary, ...SHADOWS.glow(COLORS.primary) },
   dietChipIcon: { fontSize: 18, marginRight: 6 },
   dietChipText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium },
 
