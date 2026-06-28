@@ -596,7 +596,7 @@ const GymAdminScreen = ({ navigation }) => {
               <Text style={styles.emptyText}>No staff yet. Tap "Add Staff" to add your receptionist or trainers.</Text>
             ) : staff.map((s) => (
               <View key={s._id} style={styles.memberCard}>
-                <TouchableOpacity style={styles.memberLeft} onPress={() => openEditStaff(s)} activeOpacity={0.7}>
+                <TouchableOpacity style={styles.memberLeft} onPress={() => navigation.navigate('GymStaffDetail', { staff: s, gymId: activeGym._id })} activeOpacity={0.7}>
                   {s.avatar && s.avatar.startsWith('data:') ? (
                     <Image source={{ uri: s.avatar }} style={styles.memberAvatar} />
                   ) : (
@@ -611,17 +611,13 @@ const GymAdminScreen = ({ navigation }) => {
                         ? `✅ Present today${s.checkInAt ? ` • ${new Date(s.checkInAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ''}`
                         : '⚪ Not marked today'}
                     </Text>
-                    <Text style={styles.viewHistory}>📅 {s.monthCount} days this month  •  ✏️ Tap to edit</Text>
+                    <Text style={styles.viewHistory}>📅 {s.monthCount} days this month  •  👤 Tap for details</Text>
                   </View>
                 </TouchableOpacity>
                 <View style={{ gap: 6 }}>
                   <TouchableOpacity style={styles.miniBtn} onPress={() => markStaffPresent(s)} disabled={s.presentToday}>
                     <Ionicons name="checkmark" size={14} color={s.presentToday ? COLORS.textMuted : COLORS.success} />
                     <Text style={[styles.miniBtnText, { color: s.presentToday ? COLORS.textMuted : COLORS.success }]}>{s.presentToday ? 'Done' : 'Present'}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.miniBtn} onPress={() => removeStaff(s)}>
-                    <Ionicons name="trash-outline" size={14} color={COLORS.error} />
-                    <Text style={[styles.miniBtnText, { color: COLORS.error }]}>Remove</Text>
                   </TouchableOpacity>
                 </View>
               </View>

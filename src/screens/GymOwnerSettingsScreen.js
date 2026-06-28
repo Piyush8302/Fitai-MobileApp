@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Switch, Platform, Modal, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Switch, Platform, Modal, RefreshControl, Image, TextInput, KeyboardAvoidingView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -23,6 +23,20 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
   const [reportMonths, setReportMonths] = useState(1); // 1 = current month, 3 = last 3 months
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = async () => { setRefreshing(true); try { await load(); } catch (e) {} setRefreshing(false); };
+  const [showChangeReq, setShowChangeReq] = useState(false);
+  const [changeMsg, setChangeMsg] = useState('');
+  const [reqBusy, setReqBusy] = useState(false);
+
+  const submitChangeReq = async () => {
+    if (!changeMsg.trim()) { Alert.alert('Required', 'Describe the change you want'); return; }
+    setReqBusy(true);
+    try {
+      const res = await api.post(ENDPOINTS.SUPPORT, { message: `[Profile change request] ${changeMsg.trim()}` });
+      if (res.success) { setShowChangeReq(false); Alert.alert('Request sent', 'Our team will review your email/phone change request.'); }
+      else Alert.alert('Error', res.message || 'Could not send');
+    } catch (e) { Alert.alert('Error', 'Network error. Please try again.'); }
+    finally { setReqBusy(false); }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -200,6 +214,7 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
 
   const isPremium = sub?.isPremium;
   const isStaff = (user?.role) === 'gym_staff';
+  const realEmail = user?.email && !/@fitai\.(temp|local)$/.test(user.email) ? user.email : null;
 
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
@@ -208,10 +223,25 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
         {/* Profile */}
         <View style={styles.profile}>
-          <View style={styles.avatar}><Ionicons name="person" size={36} color={COLORS.textMuted} /></View>
+          {user?.avatar && String(user.avatar).startsWith('data:') ? (
+            <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
+          ) : (
+            <View style={styles.avatar}><Ionicons name="person" size={36} color={COLORS.textMuted} /></View>
+          )}
           <Text style={styles.name}>{user?.name || user?.phone || 'Gym Owner'}</Text>
           <Text style={styles.accountType}>{isStaff ? 'Gym Staff Account' : 'Gym Owner Account'}</Text>
         </View>
+
+        {/* Profile details */}
+        <View style={styles.profileCard}>
+          <PRow icon="call-outline" label="Phone" value={user?.phone || '—'} />
+          <PRow icon="mail-outline" label="Email" value={realEmail || 'Not set'} />
+          <PRow icon="calendar-outline" label="Joined" value={user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'} last />
+        </View>
+        <TouchableOpacity style={styles.reqBtn} onPress={() => { setChangeMsg(''); setShowChangeReq(true); }}>
+          <Ionicons name="create-outline" size={16} color={COLORS.primary} />
+          <Text style={styles.reqText}>Request email / phone change</Text>
+        </TouchableOpacity>
 
         {/* Subscription & Reports — owner only (hidden for staff) */}
         {!isStaff && (
@@ -331,9 +361,44 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* ===== REQUEST EMAIL/PHONE CHANGE ===== */}
+      <Modal visible={showChangeReq} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowChangeReq(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.reqWrap}>
+          <View style={styles.reqCard}>
+            <View style={styles.reqHead}>
+              <Text style={styles.reqTitle}>Request a change</Text>
+              <TouchableOpacity onPress={() => setShowChangeReq(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.reqSub}>For security, email & phone are changed by our team. Tell us your new email/phone and we'll update it.</Text>
+            <TextInput
+              style={styles.reqInput}
+              placeholder="e.g. Please change my phone to 98xxxxxxxx / email to me@email.com"
+              placeholderTextColor={COLORS.textMuted}
+              value={changeMsg}
+              onChangeText={setChangeMsg}
+              multiline
+              textAlignVertical="top"
+            />
+            <TouchableOpacity style={styles.reqSubmit} onPress={submitChangeReq} disabled={reqBusy}>
+              {reqBusy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.reqSubmitText}>Send Request</Text>}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </LinearGradient>
   );
 };
+
+const PRow = ({ icon, label, value, last }) => (
+  <View style={[styles.pRow, !last && styles.pRowBorder]}>
+    <Ionicons name={icon} size={18} color={COLORS.textMuted} />
+    <Text style={styles.pLabel}>{label}</Text>
+    <Text style={styles.pValue} numberOfLines={1}>{value}</Text>
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -343,8 +408,26 @@ const styles = StyleSheet.create({
 
   profile: { alignItems: 'center', marginVertical: 16 },
   avatar: { width: 84, height: 84, borderRadius: 42, backgroundColor: COLORS.darkCard, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.darkBorder },
+  avatarImg: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, borderColor: COLORS.primary + '50' },
   name: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginTop: 12 },
   accountType: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
+
+  profileCard: { marginHorizontal: 16, paddingHorizontal: 16, paddingVertical: 4, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
+  pRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
+  pRowBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder },
+  pLabel: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, width: 70 },
+  pValue: { flex: 1, fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.semiBold, textAlign: 'right' },
+  reqBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginHorizontal: 16, marginTop: 10, paddingVertical: 10 },
+  reqText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.semiBold },
+
+  reqWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  reqCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, paddingBottom: 44 },
+  reqHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  reqTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },
+  reqSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 6, marginBottom: 14, lineHeight: 19 },
+  reqInput: { backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder, padding: 14, fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.medium, minHeight: 90 },
+  reqSubmit: { backgroundColor: COLORS.primary, borderRadius: SIZES.radius, paddingVertical: 14, alignItems: 'center', marginTop: 14 },
+  reqSubmitText: { color: COLORS.onAccent, fontSize: SIZES.fontMd, ...FONTS.bold },
 
   sectionLabel: { fontSize: SIZES.fontMd, color: COLORS.primary, ...FONTS.bold, marginHorizontal: 16, marginTop: 18, marginBottom: 10 },
   subCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: 16, padding: 16, borderRadius: SIZES.radiusLg, borderWidth: 1, borderColor: COLORS.darkBorder },

@@ -68,6 +68,19 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
     finally { setBusy(false); }
   };
 
+  const confirmDeleteMember = () => {
+    Alert.alert('Remove member?', `${data?.membership?.user?.name || 'This member'} will be removed from the gym. This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: async () => {
+        try {
+          const res = await api.delete(`/api/gym/member/${membershipId}`);
+          if (res.success) navigation.goBack();
+          else Alert.alert('Error', res.message || 'Failed');
+        } catch (e) { Alert.alert('Error', 'Failed to remove'); }
+      } },
+    ]);
+  };
+
   // ===== ATTENDANCE CALENDAR =====
   const pad = (n) => String(n).padStart(2, '0');
   const renderCalendar = () => {
@@ -236,6 +249,12 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
             ))}
           </>
         )}
+
+        {/* Remove member */}
+        <TouchableOpacity style={styles.deleteBtn} onPress={confirmDeleteMember}>
+          <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+          <Text style={styles.deleteText}>Remove Member</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* Payment modal */}
@@ -344,6 +363,8 @@ const styles = StyleSheet.create({
   payAmount: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
   payPlan: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium },
   payDate: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: 1 },
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 26, paddingVertical: 14, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.error + '40', backgroundColor: COLORS.error + '10' },
+  deleteText: { color: COLORS.error, fontSize: SIZES.fontMd, ...FONTS.bold },
 
   modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.85)' },
   modalCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 48 },

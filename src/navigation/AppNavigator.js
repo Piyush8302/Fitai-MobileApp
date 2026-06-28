@@ -48,6 +48,7 @@ import GymScanScreen from '../screens/GymScanScreen';
 import GymCashbookScreen from '../screens/GymCashbookScreen';
 import GymOwnerSettingsScreen from '../screens/GymOwnerSettingsScreen';
 import GymMemberDetailScreen from '../screens/GymMemberDetailScreen';
+import GymStaffDetailScreen from '../screens/GymStaffDetailScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ArticlesScreen from '../screens/ArticlesScreen';
@@ -196,6 +197,7 @@ const AppNavigator = () => (
       <Stack.Screen name="GymAdmin" component={GymAdminScreen} />
       <Stack.Screen name="AdminMain" component={AdminTabs} />
       <Stack.Screen name="GymMemberDetail" component={GymMemberDetailScreen} />
+      <Stack.Screen name="GymStaffDetail" component={GymStaffDetailScreen} />
       <Stack.Screen name="GymScan" component={GymScanScreen} />
       <Stack.Screen name="Subscription" component={SubscriptionScreen} />
       <Stack.Screen name="Articles" component={ArticlesScreen} />
