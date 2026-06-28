@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, Alert, Image, DevSettings } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, Alert, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -9,6 +9,7 @@ const APP_VERSION = Constants.expoConfig?.version || Constants.manifest?.version
 import Header from '../components/Header';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { reloadApp } from '../utils/reload';
 
 const ProfileScreen = ({ navigation }) => {
   const [user, setUser] = useState(null);
@@ -23,20 +24,9 @@ const ProfileScreen = ({ navigation }) => {
     setDarkMode(value);
     try {
       await AsyncStorage.setItem('themeMode', value ? 'dark' : 'light');
-      // Reload the JS bundle so every screen re-styles with the new palette
-      if (__DEV__) {
-        DevSettings.reload();
-        return;
-      }
-      try {
-        const Updates = require('expo-updates');
-        await Updates.reloadAsync();
-      } catch (e) {
-        Alert.alert(
-          value ? '🌙 Dark Mode' : '☀️ Light Mode',
-          'Theme saved! Close and reopen the app to apply.',
-        );
-      }
+      // Reload the JS bundle so every screen re-styles with the new palette (instant)
+      const ok = await reloadApp();
+      if (!ok) Alert.alert(value ? '🌙 Dark Mode' : '☀️ Light Mode', 'Theme saved! Reopen the app to apply.');
     } catch (e) { console.log('Theme save error:', e); }
   };
 

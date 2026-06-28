@@ -8,6 +8,7 @@ import * as Sharing from 'expo-sharing';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { reloadApp } from '../utils/reload';
 
 const APP_VERSION = Constants.expoConfig?.version || '1.0.0';
 const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -60,7 +61,8 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
   const toggleDark = async (v) => {
     setDarkMode(v);
     await AsyncStorage.setItem('themeMode', v ? 'dark' : 'light');
-    Alert.alert(v ? '🌙 Dark Mode' : '☀️ Light Mode', 'Reopen the app to apply the theme.');
+    const ok = await reloadApp();
+    if (!ok) Alert.alert(v ? '🌙 Dark Mode' : '☀️ Light Mode', 'Theme saved! Reopen the app to apply.');
   };
 
   const logout = () => {
