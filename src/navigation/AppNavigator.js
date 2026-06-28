@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
+import { navigationRef } from './navigationRef';
 
 const DarkNavTheme = {
   ...DefaultTheme,
@@ -194,7 +195,7 @@ const AdminTabs = () => {
 };
 
 const AppNavigator = () => (
-  <NavigationContainer theme={DarkNavTheme}>
+  <NavigationContainer ref={navigationRef} theme={DarkNavTheme}>
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: COLORS.dark } }}>
       <Stack.Screen name="Splash" component={SplashScreen} />
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />

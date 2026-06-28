@@ -4,7 +4,9 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, applyTheme } from './src/constants/theme';
+import * as Notifications from 'expo-notifications';
 import { registerForPushNotifications, addNotificationListeners } from './src/utils/notifications';
+import { routeFromNotificationData, navigationRef } from './src/navigation/navigationRef';
 
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
@@ -45,11 +47,32 @@ export default function App() {
 
   useEffect(() => {
     registerForPushNotifications();
+    // Tap on a notification (app foreground/background) → open the relevant screen.
     const cleanup = addNotificationListeners(
-      (notification) => console.log('Notification received:', notification),
-      (response) => console.log('Notification tapped:', response),
+      (notification) => {},
+      (response) => routeFromNotificationData(response?.notification?.request?.content?.data),
     );
-    return cleanup;
+    // App opened from a KILLED state by tapping a notification → route once the
+    // navigator is ready. Dedupe by notification id so a stale "last response"
+    // doesn't re-route on every normal launch.
+    let done = false;
+    const coldStart = setInterval(async () => {
+      if (done) { clearInterval(coldStart); return; }
+      try {
+        const last = await Notifications.getLastNotificationResponseAsync();
+        const id = last?.notification?.request?.identifier;
+        if (last && id && navigationRef.isReady()) {
+          const prev = await AsyncStorage.getItem('lastHandledNotifId');
+          if (prev !== id) {
+            await AsyncStorage.setItem('lastHandledNotifId', id);
+            routeFromNotificationData(last?.notification?.request?.content?.data);
+          }
+          done = true;
+        }
+      } catch (e) {}
+    }, 500);
+    const coldStop = setTimeout(() => clearInterval(coldStart), 6000); // give up after ~6s
+    return () => { cleanup && cleanup(); clearInterval(coldStart); clearTimeout(coldStop); };
   }, []);
 
   if (!themeReady) {
