@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
-  Alert, Modal, TextInput, Platform, KeyboardAvoidingView,
+  Alert, Modal, TextInput, Platform, KeyboardAvoidingView, RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +29,8 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   const [payDueDate, setPayDueDate] = useState(''); // editable next-due date (YYYY-MM-DD)
   const [busy, setBusy] = useState(false);
   const [calMonth, setCalMonth] = useState(new Date()); // month shown in calendar
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => { setRefreshing(true); try { await load(); } catch (e) {} setRefreshing(false); };
 
   const load = useCallback(async () => {
     try {
@@ -154,7 +156,8 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
         {/* Profile */}
         <View style={styles.profile}>
           <View style={styles.avatar}><Text style={styles.avatarText}>{(u.name || 'M')[0].toUpperCase()}</Text></View>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  ActivityIndicator, Alert, Modal, Platform, KeyboardAvoidingView, PanResponder, Linking,
+  ActivityIndicator, Alert, Modal, Platform, KeyboardAvoidingView, PanResponder, Linking, RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -78,6 +78,19 @@ const GymAdminScreen = ({ navigation }) => {
   const istToday = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().split('T')[0];
   const [showGymQR, setShowGymQR] = useState(false);
   const [hasUnread, setHasUnread] = useState(false); // gym-admin notifications unread dot
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadGyms();
+      if (activeGym?._id) await loadGymData(activeGym._id);
+      await loadUnread();
+      if (tab === 'attendance') await loadAttendance();
+      if (tab === 'staff') await loadStaff();
+    } catch (e) {}
+    setRefreshing(false);
+  };
 
   // Owner sets the gym's GPS location once (opens a web page that captures it at the gym).
   // Members can then check in only when they're physically at the gym.
@@ -411,7 +424,8 @@ const GymAdminScreen = ({ navigation }) => {
         )}
       </ScrollView>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
         {/* Stats */}
         <View style={styles.statsGrid}>
           {[

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Image, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
@@ -79,6 +79,9 @@ const HomeScreen = ({ navigation }) => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => { setRefreshing(true); try { await loadData(); } catch (e) {} setRefreshing(false); };
+
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadData();
@@ -135,7 +138,8 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
         {/* Header */}
         <View style={styles.header}>
           <View>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  ActivityIndicator, Alert, Modal, Platform, KeyboardAvoidingView, PanResponder,
+  ActivityIndicator, Alert, Modal, Platform, KeyboardAvoidingView, PanResponder, RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +23,8 @@ const GymCashbookScreen = ({ navigation }) => {
   const [amount, setAmount] = useState('');
   const [desc, setDesc] = useState('');
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => { setRefreshing(true); try { await load(); } catch (e) {} setRefreshing(false); };
 
   const ALL_GYM = { _id: 'ALL', name: '🏢 All Gyms' };
 
@@ -163,7 +165,8 @@ const GymCashbookScreen = ({ navigation }) => {
         </ScrollView>
       )}
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 200 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 200 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
         {/* Overview */}
         <Text style={styles.sectionLabel}>Monthly Overview</Text>
         <View style={styles.overview}>

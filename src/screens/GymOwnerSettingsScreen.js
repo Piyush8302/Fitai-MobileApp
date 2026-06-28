@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Switch, Platform, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Switch, Platform, Modal, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -21,6 +21,8 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
   const [genBusy, setGenBusy] = useState(false);
   const [showReportPicker, setShowReportPicker] = useState(false);
   const [reportMonths, setReportMonths] = useState(1); // 1 = current month, 3 = last 3 months
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => { setRefreshing(true); try { await load(); } catch (e) {} setRefreshing(false); };
 
   const load = useCallback(async () => {
     try {
@@ -202,7 +204,8 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
       <View style={styles.header}><Text style={styles.headerTitle}>Settings</Text></View>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
         {/* Profile */}
         <View style={styles.profile}>
           <View style={styles.avatar}><Ionicons name="person" size={36} color={COLORS.textMuted} /></View>
