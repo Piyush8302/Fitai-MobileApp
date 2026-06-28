@@ -28,17 +28,23 @@ const OTPLoginScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const otpRefs = useRef([]);
   const autoSentRef = useRef(false);
+  const appHashRef = useRef(null); // this build's SMS-Retriever app hash
 
-  // Auto-send OTP once when arriving directly from the Login screen with a phone
+  // Fetch the app hash FIRST (so the OTP SMS carries it), then auto-send
   useEffect(() => {
-    if (autoSend && phoneParam && !autoSentRef.current) {
-      autoSentRef.current = true;
-      handleSendOtp();
-    }
-    // Print the app hash once (needed in the backend SMS template) — dev aid
-    if (RNOtpVerify?.getHash) {
-      RNOtpVerify.getHash().then(h => console.log('📲 OTP APP HASH:', h)).catch(() => {});
-    }
+    (async () => {
+      if (RNOtpVerify?.getHash) {
+        try {
+          const h = await RNOtpVerify.getHash();
+          appHashRef.current = Array.isArray(h) ? h[0] : h;
+          console.log('📲 OTP APP HASH:', h);
+        } catch (e) {}
+      }
+      if (autoSend && phoneParam && !autoSentRef.current) {
+        autoSentRef.current = true;
+        handleSendOtp();
+      }
+    })();
   }, []);
 
   // Auto-read the incoming OTP SMS (SMS Retriever) once the OTP step is shown
@@ -104,6 +110,7 @@ const OTPLoginScreen = ({ navigation, route }) => {
     setLoading(true);
     try {
       const payload = mode === 'email' ? { email: email.trim().toLowerCase() } : { phone: phone.trim() };
+      if (appHashRef.current) payload.appHash = appHashRef.current; // lets the SMS be auto-read
       const res = await api.post(ENDPOINTS.SEND_OTP, payload);
       if (res.success) {
         setOtpSent(true);

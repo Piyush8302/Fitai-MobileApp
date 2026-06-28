@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import InputField from '../components/InputField';
 import GradientButton from '../components/GradientButton';
+import AppDialog from '../components/AppDialog';
 import api, { API_BASE_URL, ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
@@ -17,6 +18,8 @@ const LoginScreen = ({ navigation }) => {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [loginMode, setLoginMode] = useState('user'); // 'user' | 'admin'
+  const [dialog, setDialog] = useState({ visible: false });
+  const closeDialog = () => setDialog({ visible: false });
   // Ref mirrors loginMode so the Google deep-link handler (set up once) always
   // reads the LATEST selected chip, not a stale value.
   const loginModeRef = useRef('user');
@@ -128,14 +131,14 @@ const LoginScreen = ({ navigation }) => {
         if (res.success && res.status === 'approved') {
           navigation.navigate('OTPLogin', { loginRole: 'admin', phone: p, autoSend: true });
         } else if (res.status === 'pending') {
-          Alert.alert('Pending approval', 'Your gym registration is awaiting approval. You\'ll get an email once approved.');
+          setDialog({ visible: true, icon: 'time-outline', iconColor: COLORS.warning, title: 'Pending approval', message: "Your gym registration is awaiting approval. You'll get an email once approved.", buttons: [{ label: 'OK', variant: 'primary', onPress: closeDialog }] });
         } else if (res.status === 'rejected') {
-          Alert.alert('Not approved', 'Your gym registration was not approved. Please contact support.');
+          setDialog({ visible: true, icon: 'close-circle-outline', iconColor: COLORS.error, title: 'Not approved', message: 'Your gym registration was not approved. Please contact support.', buttons: [{ label: 'OK', variant: 'primary', onPress: closeDialog }] });
         } else {
-          Alert.alert('User not registered', 'This number is not a registered gym owner. Please register your gym first.', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Register', onPress: () => navigation.navigate('GymOwnerRegister', { phone: p }) },
-          ]);
+          setDialog({ visible: true, icon: 'business-outline', title: 'User not registered', message: 'This number is not a registered gym owner. Please register your gym first.', buttons: [
+            { label: 'Register Gym', variant: 'primary', onPress: () => { closeDialog(); navigation.navigate('GymOwnerRegister', { phone: p }); } },
+            { label: 'Cancel', variant: 'ghost', onPress: closeDialog },
+          ] });
         }
       } catch (e) { setLoading(false); Alert.alert('Error', 'Network error. Please try again.'); }
       return;
@@ -149,11 +152,11 @@ const LoginScreen = ({ navigation }) => {
       if (res.success && res.exists) {
         navigation.navigate('OTPLogin', { loginRole: 'user', phone: p, autoSend: true });
       } else {
-        Alert.alert('User not registered', 'This number is not registered. Sign up, or log in with email & password.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Email login', onPress: () => navigation.navigate('EmailLogin') },
-          { text: 'Sign Up', onPress: () => navigation.navigate('Signup', { mode: 'user' }) },
-        ]);
+        setDialog({ visible: true, icon: 'person-add-outline', title: 'User not registered', message: 'This number is not registered. Sign up, or log in with email & password.', buttons: [
+          { label: 'Sign Up', variant: 'primary', onPress: () => { closeDialog(); navigation.navigate('Signup', { mode: 'user' }); } },
+          { label: 'Login with Email', variant: 'ghost', onPress: () => { closeDialog(); navigation.navigate('EmailLogin'); } },
+          { label: 'Cancel', variant: 'ghost', onPress: closeDialog },
+        ] });
       }
     } catch (e) { setLoading(false); Alert.alert('Error', 'Network error. Please try again.'); }
   };
@@ -245,6 +248,16 @@ const LoginScreen = ({ navigation }) => {
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
+
+      <AppDialog
+        visible={dialog.visible}
+        icon={dialog.icon}
+        iconColor={dialog.iconColor}
+        title={dialog.title}
+        message={dialog.message}
+        buttons={dialog.buttons || []}
+        onRequestClose={closeDialog}
+      />
     </LinearGradient>
   );
 };
