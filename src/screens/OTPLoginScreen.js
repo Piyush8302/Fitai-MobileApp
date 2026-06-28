@@ -18,10 +18,10 @@ try {
 } catch (e) { /* not available */ }
 
 const OTPLoginScreen = ({ navigation, route }) => {
-  // Carried from the Login screen: which chip (user/admin) + prefilled phone
-  const { loginRole = 'user', phone: phoneParam, autoSend } = route?.params || {};
+  // Carried from the Login screen: which chip (user/admin) + prefilled phone/email
+  const { loginRole = 'user', phone: phoneParam, email: emailParam, autoSend } = route?.params || {};
   const [mode, setMode] = useState(phoneParam ? 'phone' : 'email'); // 'email' or 'phone'
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(emailParam || '');
   const [phone, setPhone] = useState(phoneParam || '');
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -40,7 +40,7 @@ const OTPLoginScreen = ({ navigation, route }) => {
           console.log('📲 OTP APP HASH:', h);
         } catch (e) {}
       }
-      if (autoSend && phoneParam && !autoSentRef.current) {
+      if (autoSend && (phoneParam || emailParam) && !autoSentRef.current) {
         autoSentRef.current = true;
         handleSendOtp();
       }
@@ -151,13 +151,9 @@ const OTPLoginScreen = ({ navigation, route }) => {
         const goAdmin = isGymRole || loginRole === 'admin';
         await AsyncStorage.setItem('loginRole', goAdmin ? 'admin' : 'user');
 
-        if (goAdmin) {
-          navigation.replace('AdminMain'); // gym owner / staff UI
-        } else if (res.user.isProfileComplete) {
-          navigation.replace('Main');       // user UI
-        } else {
-          navigation.replace('ProfileSetup');
-        }
+        // reset (not replace) → wipes Login/OTP from the back stack so Back never returns to a login page
+        const target = goAdmin ? 'AdminMain' : (res.user.isProfileComplete ? 'Main' : 'ProfileSetup');
+        navigation.reset({ index: 0, routes: [{ name: target }] });
       } else {
         Alert.alert('Error', res.message || 'Invalid or expired OTP');
       }

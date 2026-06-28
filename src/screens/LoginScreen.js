@@ -15,7 +15,7 @@ import { savePushTokenAfterLogin } from '../utils/notifications';
 WebBrowser.maybeCompleteAuthSession();
 
 const LoginScreen = ({ navigation }) => {
-  const [phone, setPhone] = useState('');
+  const [loginId, setLoginId] = useState(''); // phone number OR email
   const [loading, setLoading] = useState(false);
   const [loginMode, setLoginMode] = useState('user'); // 'user' | 'admin'
   const [dialog, setDialog] = useState({ visible: false });
@@ -25,16 +25,14 @@ const LoginScreen = ({ navigation }) => {
   const loginModeRef = useRef('user');
   const setMode = (m) => { setLoginMode(m); loginModeRef.current = m; };
 
-  // Where to go after a successful login, based on selected mode + role
+  // Where to go after a successful login, based on selected mode + role.
+  // Uses reset (not replace) so the auth screens are wiped from the back stack —
+  // pressing Back from the app no longer returns to any login page.
   const routeAfterLogin = async (user) => {
     const mode = loginModeRef.current;
     await AsyncStorage.setItem('loginRole', mode); // remember for app refresh
-    if (mode === 'admin') {
-      navigation.replace('AdminMain');
-      return;
-    }
-    if (user.isProfileComplete) navigation.replace('Main');
-    else navigation.replace('ProfileSetup');
+    const target = mode === 'admin' ? 'AdminMain' : (user.isProfileComplete ? 'Main' : 'ProfileSetup');
+    navigation.reset({ index: 0, routes: [{ name: target }] });
   };
 
   // Parse Google auth callback URL and handle login
@@ -117,10 +115,27 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
-  // Primary flow — phone + OTP. Carries the selected chip (User/Admin) to the OTP screen.
+  // Primary flow — phone OR email + OTP. Carries the selected chip (User/Admin) to the OTP screen.
   const handleSendOtp = async () => {
-    const p = (phone || '').replace(/\D/g, '');
-    if (p.length < 10) { Alert.alert('Error', 'Enter a valid 10-digit mobile number'); return; }
+    const raw = (loginId || '').trim();
+    const isEmail = raw.includes('@');
+
+    // ===== EMAIL path — single field accepts email too =====
+    if (isEmail) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) { Alert.alert('Error', 'Enter a valid email address'); return; }
+      // Gym owners/staff are gated by their registered phone number — keep admin on phone.
+      if (loginMode === 'admin') {
+        Alert.alert('Use your phone number', 'Gym owners & staff log in with their registered phone number, not email.');
+        return;
+      }
+      // Backend send-otp auto-creates the account if new, so email works for login or first-time.
+      navigation.navigate('OTPLogin', { loginRole: 'user', email: raw.toLowerCase(), autoSend: true });
+      return;
+    }
+
+    // ===== PHONE path =====
+    const p = raw.replace(/\D/g, '');
+    if (p.length < 10) { Alert.alert('Error', 'Enter a valid 10-digit mobile number or an email address'); return; }
 
     // Admin login is gated — only registered & approved gym owners/staff can enter
     if (loginMode === 'admin') {
@@ -194,15 +209,16 @@ const LoginScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.form}>
-          {/* PRIMARY — mobile number + OTP */}
+          {/* PRIMARY — mobile number OR email + OTP */}
           <InputField
-            label="Mobile Number"
-            icon="call-outline"
-            placeholder="Enter 10-digit number"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            maxLength={10}
+            label={loginMode === 'admin' ? 'Mobile Number' : 'Mobile Number or Email'}
+            icon="person-outline"
+            placeholder={loginMode === 'admin' ? 'Enter 10-digit number' : 'Phone number or email'}
+            value={loginId}
+            onChangeText={setLoginId}
+            keyboardType={loginMode === 'admin' ? 'phone-pad' : 'default'}
+            autoCapitalize="none"
+            maxLength={loginMode === 'admin' ? 10 : undefined}
           />
           <GradientButton
             title="Send OTP"
@@ -241,7 +257,7 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.signupText}>
               {loginMode === 'admin' ? 'New gym owner? ' : "Don't have an account? "}
             </Text>
-            <TouchableOpacity onPress={() => loginMode === 'admin' ? navigation.navigate('GymOwnerRegister', { phone: (phone || '').replace(/\D/g, '') }) : navigation.navigate('Signup', { mode: loginMode })}>
+            <TouchableOpacity onPress={() => loginMode === 'admin' ? navigation.navigate('GymOwnerRegister', { phone: (loginId || '').replace(/\D/g, '') }) : navigation.navigate('Signup', { mode: loginMode })}>
               <Text style={styles.signupLink}>{loginMode === 'admin' ? 'Register Gym' : 'Sign Up'}</Text>
             </TouchableOpacity>
           </View>

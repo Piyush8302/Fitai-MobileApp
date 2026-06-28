@@ -32,9 +32,9 @@ const EmailLoginScreen = ({ navigation, route }) => {
 
         const isGymRole = ['gym_owner', 'gym_staff', 'admin'].includes(res.user?.role);
         await AsyncStorage.setItem('loginRole', isGymRole ? 'admin' : 'user');
-        if (isGymRole) navigation.replace('AdminMain');
-        else if (res.user?.isProfileComplete) navigation.replace('Main');
-        else navigation.replace('ProfileSetup');
+        // reset (not replace) so Back doesn't return to any login screen
+        const target = isGymRole ? 'AdminMain' : (res.user?.isProfileComplete ? 'Main' : 'ProfileSetup');
+        navigation.reset({ index: 0, routes: [{ name: target }] });
       } else {
         Alert.alert('Login failed', res.message || 'Invalid email or password');
       }
