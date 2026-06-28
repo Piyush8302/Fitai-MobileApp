@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,8 @@ const EmailLoginScreen = ({ navigation, route }) => {
   const [email, setEmail] = useState(route?.params?.email || '');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const scrollRef = useRef(null);
+  const scrollToEnd = () => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
 
   const handleLogin = async () => {
     if (!email.trim() || !password) { Alert.alert('Required', 'Enter your email and password'); return; }
@@ -44,8 +46,8 @@ const EmailLoginScreen = ({ navigation, route }) => {
 
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color={COLORS.white} />
           </TouchableOpacity>
@@ -57,8 +59,8 @@ const EmailLoginScreen = ({ navigation, route }) => {
           </View>
 
           <View style={styles.form}>
-            <InputField label="Email" icon="mail-outline" placeholder="Enter your email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-            <InputField label="Password" icon="lock-closed-outline" placeholder="Enter your password" value={password} onChangeText={setPassword} secureTextEntry />
+            <InputField label="Email" icon="mail-outline" placeholder="Enter your email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" onFocus={scrollToEnd} returnKeyType="next" />
+            <InputField label="Password" icon="lock-closed-outline" placeholder="Enter your password" value={password} onChangeText={setPassword} secureTextEntry onFocus={scrollToEnd} returnKeyType="done" onSubmitEditing={handleLogin} />
 
             <TouchableOpacity style={styles.forgotBtn} onPress={() => navigation.navigate('ForgotPassword')}>
               <Text style={styles.forgotText}>Forgot Password?</Text>
@@ -81,7 +83,7 @@ const EmailLoginScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
+  scroll: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 60, paddingBottom: 140 },
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.darkCard, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   header: { alignItems: 'center', marginBottom: 28 },
   logoCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.primary + '20', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },

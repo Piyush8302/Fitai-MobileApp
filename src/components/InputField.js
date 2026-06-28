@@ -3,7 +3,7 @@ import { View, TextInput, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 
-const InputField = ({ label, icon, placeholder, value, onChangeText, keyboardType, secureTextEntry, error }) => {
+const InputField = ({ label, icon, placeholder, value, onChangeText, keyboardType, secureTextEntry, error, onFocus, onBlur, ...rest }) => {
   const [focused, setFocused] = useState(false);
 
   return (
@@ -19,8 +19,9 @@ const InputField = ({ label, icon, placeholder, value, onChangeText, keyboardTyp
           onChangeText={onChangeText}
           keyboardType={keyboardType}
           secureTextEntry={secureTextEntry}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onFocus={(e) => { setFocused(true); onFocus && onFocus(e); }}
+          onBlur={(e) => { setFocused(false); onBlur && onBlur(e); }}
+          {...rest}
         />
       </View>
       {error && <Text style={styles.error}>{error}</Text>}
