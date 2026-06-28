@@ -9,6 +9,7 @@ import QRCode from 'react-native-qrcode-svg';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
+import AdminDrawer from '../components/AdminDrawer';
 import api, { ENDPOINTS, API_BASE_URL } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -32,8 +33,12 @@ const GymAdminScreen = ({ navigation }) => {
   const ALL_GYM = { _id: 'ALL', name: '🏢 All Gyms' };
   const isAll = activeGym?._id === 'ALL';
   const [isStaff, setIsStaff] = useState(false); // gym_staff → restricted UI
+  const [userName, setUserName] = useState('');
+  const [showDrawer, setShowDrawer] = useState(false);
   useEffect(() => {
-    AsyncStorage.getItem('user').then(u => { try { setIsStaff(JSON.parse(u)?.role === 'gym_staff'); } catch (e) {} });
+    AsyncStorage.getItem('user').then(u => {
+      try { const p = JSON.parse(u); setIsStaff(p?.role === 'gym_staff'); setUserName(p?.name || ''); } catch (e) {}
+    });
   }, []);
 
   // Create gym
@@ -381,7 +386,12 @@ const GymAdminScreen = ({ navigation }) => {
       <View style={styles.header}>
         {/* Top row: label + action buttons */}
         <View style={styles.headerTopRow}>
-          <Text style={styles.headerSmall}>Gym Admin</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity onPress={() => setShowDrawer(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="menu" size={26} color={COLORS.white} />
+            </TouchableOpacity>
+            <Text style={styles.headerSmall}>Gym Admin</Text>
+          </View>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             <TouchableOpacity style={styles.gymQrBtn} onPress={() => navigation.navigate('Notifications', { scope: 'gym' })}>
               <Ionicons name="notifications-outline" size={18} color={COLORS.primary} />
@@ -832,6 +842,22 @@ const GymAdminScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
+
+      {/* ===== LEFT DRAWER (hamburger menu) ===== */}
+      <AdminDrawer
+        visible={showDrawer}
+        onClose={() => setShowDrawer(false)}
+        userName={userName}
+        subtitle={isStaff ? 'Gym Staff' : 'Gym Admin'}
+        items={[
+          { label: 'Gym Dashboard', icon: 'grid-outline', onPress: () => {} },
+          ...(!isStaff ? [{ label: 'Cashbook', icon: 'wallet-outline', color: COLORS.success, onPress: () => navigation.navigate('GymCashbookTab') }] : []),
+          { label: 'Settings', icon: 'settings-outline', onPress: () => navigation.navigate('AdminSettingsTab') },
+          { label: 'Notifications', icon: 'notifications-outline', color: COLORS.accent, onPress: () => navigation.navigate('Notifications', { scope: 'gym' }) },
+          { label: 'Help & Support', icon: 'help-circle-outline', color: COLORS.warning, onPress: () => navigation.navigate('HelpSupport') },
+          { label: 'Logout', icon: 'log-out-outline', color: COLORS.error, danger: true, onPress: logoutToLogin },
+        ]}
+      />
     </LinearGradient>
   );
 };
