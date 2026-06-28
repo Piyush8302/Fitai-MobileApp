@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Vibration } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import { WORKOUT_CATEGORIES, EXERCISES, WEEKLY_WORKOUT_PLAN, HOME_WORKOUT_CATEGORIES, HOME_EXERCISES, HOME_WEEKLY_PLAN } from '../constants/data';
 import Header from '../components/Header';
 import GradientCard from '../components/GradientCard';
@@ -146,16 +146,16 @@ const WorkoutScreen = ({ navigation }) => {
                 key={type}
                 style={[
                   styles.toggleBtn,
-                  active && { borderColor: color, backgroundColor: color + '10' },
+                  active && { borderColor: color, backgroundColor: color, ...SHADOWS.glow(color) },
                 ]}
                 onPress={() => setWorkoutType(type)}
               >
                 <Ionicons
                   name={type === 'gym' ? 'barbell-outline' : 'home-outline'}
                   size={22}
-                  color={active ? color : COLORS.textMuted}
+                  color={active ? COLORS.onAccent : COLORS.textMuted}
                 />
-                <Text style={[styles.toggleText, active && { color }]}>
+                <Text style={[styles.toggleText, active && { color: COLORS.onAccent }]}>
                   {type === 'gym' ? 'Gym Workout' : 'Home Workout'}
                 </Text>
               </TouchableOpacity>
@@ -196,15 +196,16 @@ const WorkoutScreen = ({ navigation }) => {
                 activeOpacity={0.7}
               >
                 <LinearGradient
-                  colors={isSelected ? [day.color + '30', COLORS.darkCard] : [COLORS.darkCard, COLORS.darkSurface]}
+                  colors={isSelected ? [day.color, day.color + 'BB'] : [COLORS.darkCard, COLORS.darkSurface]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                   style={styles.dayGrad}
                 >
                   <Text style={styles.dayIcon}>{day.icon}</Text>
-                  <Text style={[styles.dayName, isSelected && { color: day.color }]}>{day.day.slice(0, 3)}</Text>
-                  <Text style={styles.dayFocus}>{day.focus}</Text>
+                  <Text style={[styles.dayName, isSelected && { color: COLORS.onAccent }]}>{day.day.slice(0, 3)}</Text>
+                  <Text style={[styles.dayFocus, isSelected && { color: 'rgba(255,255,255,0.9)' }]}>{day.focus}</Text>
                   {isSelected && (
-                    <View style={[styles.todayBadge, { backgroundColor: day.color }]}>
-                      <Text style={styles.todayText}>{i === 0 ? 'Today' : 'Selected'}</Text>
+                    <View style={styles.todayBadge}>
+                      <Text style={[styles.todayText, { color: day.color }]}>{i === 0 ? 'Today' : 'Selected'}</Text>
                     </View>
                   )}
                 </LinearGradient>
@@ -219,11 +220,11 @@ const WorkoutScreen = ({ navigation }) => {
           {categories.map((cat) => (
             <TouchableOpacity
               key={cat.id}
-              style={[styles.catChip, selectedCategory === cat.id && { borderColor: cat.color, backgroundColor: cat.color + '15' }]}
+              style={[styles.catChip, selectedCategory === cat.id && { borderColor: cat.color, backgroundColor: cat.color, ...SHADOWS.glow(cat.color) }]}
               onPress={() => setSelectedCategory(cat.id)}
             >
               <Text style={styles.catIcon}>{cat.icon}</Text>
-              <Text style={[styles.catText, selectedCategory === cat.id && { color: cat.color }]}>{cat.name}</Text>
+              <Text style={[styles.catText, selectedCategory === cat.id && { color: COLORS.onAccent }]}>{cat.name}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -418,8 +419,8 @@ const styles = StyleSheet.create({
   dayIcon: { fontSize: 24, marginBottom: 6 },
   dayName: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
   dayFocus: { fontSize: SIZES.fontXs, color: COLORS.textMuted, textAlign: 'center', marginTop: 4 },
-  todayBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginTop: 8 },
-  todayText: { fontSize: SIZES.fontXs, color: COLORS.white, ...FONTS.bold },
+  todayBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginTop: 8, backgroundColor: '#FFFFFF' },
+  todayText: { fontSize: SIZES.fontXs, ...FONTS.bold },
 
   // Categories
   catScroll: { marginBottom: 24 },
