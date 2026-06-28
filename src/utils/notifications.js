@@ -10,7 +10,9 @@ import api, { ENDPOINTS } from '../config/api';
 try {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowAlert: true,
+      // New SDK 53+ API (shouldShowAlert is deprecated → foreground banner wouldn't show)
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
     }),

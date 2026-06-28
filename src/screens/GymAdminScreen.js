@@ -65,6 +65,12 @@ const GymAdminScreen = ({ navigation }) => {
   const [sRole, setSRole] = useState('');
   const [sSalary, setSSalary] = useState('');
   const [sPhoto, setSPhoto] = useState('');
+  // Edit staff
+  const [editStaff, setEditStaff] = useState(null);
+  const [eName, setEName] = useState('');
+  const [eRole, setERole] = useState('');
+  const [eSalary, setESalary] = useState('');
+  const [eGym, setEGym] = useState('');
 
   // Payment
   const [payFor, setPayFor] = useState(null); // membership object
@@ -314,6 +320,27 @@ const GymAdminScreen = ({ navigation }) => {
         loadStaff();
       } else Alert.alert('Error', res.message || 'Failed');
     } catch (e) { Alert.alert('Error', 'Failed'); }
+  };
+
+  const openEditStaff = (s) => {
+    setEditStaff(s);
+    setEName(s.name || '');
+    setERole(s.staffRole || '');
+    setESalary(s.staffSalary ? String(s.staffSalary) : '');
+    setEGym(activeGym?._id && activeGym._id !== 'ALL' ? activeGym._id : '');
+  };
+
+  const saveStaffEdit = async () => {
+    if (!eName.trim()) { Alert.alert('Required', 'Enter staff name'); return; }
+    setBusy(true);
+    try {
+      const res = await api.put(`/api/gym/staff/${editStaff._id}`, {
+        name: eName.trim(), staffRole: eRole.trim(), salary: eSalary, gymId: eGym || undefined,
+      });
+      if (res.success) { setEditStaff(null); loadStaff(); }
+      else Alert.alert('Error', res.message || 'Failed to update');
+    } catch (e) { Alert.alert('Error', 'Failed to update'); }
+    finally { setBusy(false); }
   };
 
   const removeStaff = (s) => {
@@ -569,7 +596,7 @@ const GymAdminScreen = ({ navigation }) => {
               <Text style={styles.emptyText}>No staff yet. Tap "Add Staff" to add your receptionist or trainers.</Text>
             ) : staff.map((s) => (
               <View key={s._id} style={styles.memberCard}>
-                <View style={styles.memberLeft}>
+                <TouchableOpacity style={styles.memberLeft} onPress={() => openEditStaff(s)} activeOpacity={0.7}>
                   {s.avatar && s.avatar.startsWith('data:') ? (
                     <Image source={{ uri: s.avatar }} style={styles.memberAvatar} />
                   ) : (
@@ -584,9 +611,9 @@ const GymAdminScreen = ({ navigation }) => {
                         ? `✅ Present today${s.checkInAt ? ` • ${new Date(s.checkInAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ''}`
                         : '⚪ Not marked today'}
                     </Text>
-                    <Text style={styles.viewHistory}>📅 {s.monthCount} days this month</Text>
+                    <Text style={styles.viewHistory}>📅 {s.monthCount} days this month  •  ✏️ Tap to edit</Text>
                   </View>
-                </View>
+                </TouchableOpacity>
                 <View style={{ gap: 6 }}>
                   <TouchableOpacity style={styles.miniBtn} onPress={() => markStaffPresent(s)} disabled={s.presentToday}>
                     <Ionicons name="checkmark" size={14} color={s.presentToday ? COLORS.textMuted : COLORS.success} />
@@ -605,7 +632,7 @@ const GymAdminScreen = ({ navigation }) => {
 
       {/* ===== CREATE GYM MODAL ===== */}
       <Modal visible={showCreate} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => gyms.length && setShowCreate(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
+        <KeyboardAvoidingView behavior="padding" style={styles.modalWrap}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitle}>{gyms.length ? 'Add New Branch' : 'Create Your Gym'}</Text>
@@ -640,7 +667,7 @@ const GymAdminScreen = ({ navigation }) => {
 
       {/* ===== ADD MEMBER MODAL ===== */}
       <Modal visible={showAdd} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowAdd(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
+        <KeyboardAvoidingView behavior="padding" style={styles.modalWrap}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Add Member</Text>
             {/* Photo picker — camera or gallery */}
@@ -675,7 +702,7 @@ const GymAdminScreen = ({ navigation }) => {
 
       {/* ===== ADD STAFF MODAL ===== */}
       <Modal visible={showAddStaff} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowAddStaff(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
+        <KeyboardAvoidingView behavior="padding" style={styles.modalWrap}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Add Staff</Text>
             <Text style={styles.modalSub}>Receptionist, trainer or helper — they can be marked present daily</Text>
@@ -696,6 +723,42 @@ const GymAdminScreen = ({ navigation }) => {
               {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.primaryBtnText}>Add Staff</Text>}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setShowAddStaff(false)} style={{ paddingVertical: 10 }}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ===== EDIT STAFF MODAL ===== */}
+      <Modal visible={!!editStaff} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setEditStaff(null)}>
+        <KeyboardAvoidingView behavior="padding" style={styles.modalWrap}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Edit Staff</Text>
+              <TouchableOpacity onPress={() => setEditStaff(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSub}>{editStaff?.phone}</Text>
+            <TextInput style={styles.input} placeholder="Name" placeholderTextColor={COLORS.textMuted} value={eName} onChangeText={setEName} />
+            <TextInput style={styles.input} placeholder="Role (e.g. Receptionist, Trainer)" placeholderTextColor={COLORS.textMuted} value={eRole} onChangeText={setERole} />
+            <TextInput style={styles.input} placeholder="Monthly salary ₹ (optional)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={eSalary} onChangeText={setESalary} />
+            {gyms.length > 1 && (
+              <>
+                <Text style={styles.inputLabel}>Assign to gym</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+                  {gyms.map((g) => (
+                    <TouchableOpacity key={g._id} style={[styles.planChip, eGym === g._id && styles.planChipActive]} onPress={() => setEGym(g._id)}>
+                      <Text style={[styles.planChipText, eGym === g._id && { color: COLORS.onAccent }]}>{g.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+            <TouchableOpacity style={styles.primaryBtn} onPress={saveStaffEdit} disabled={busy}>
+              {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.primaryBtnText}>Save Changes</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setEditStaff(null)} style={{ paddingVertical: 10 }}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -744,7 +807,7 @@ const GymAdminScreen = ({ navigation }) => {
 
       {/* ===== PAYMENT MODAL ===== */}
       <Modal visible={!!payFor} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setPayFor(null)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
+        <KeyboardAvoidingView behavior="padding" style={styles.modalWrap}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>💵 Mark Payment</Text>
             <Text style={styles.modalSub}>{payFor?.user?.name} • {payFor?.user?.phone}</Text>
