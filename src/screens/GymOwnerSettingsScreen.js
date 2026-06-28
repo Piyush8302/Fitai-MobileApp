@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -27,6 +28,28 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
   const [showChangeReq, setShowChangeReq] = useState(false);
   const [changeMsg, setChangeMsg] = useState('');
   const [reqBusy, setReqBusy] = useState(false);
+
+  // Owner & staff can change their profile photo
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const pickAndUploadPhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') { Alert.alert('Permission needed', 'Allow photo access to set a profile picture.'); return; }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.5, base64: true,
+      });
+      if (result.canceled || !result.assets?.[0]?.base64) return;
+      const avatar = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      setPhotoBusy(true);
+      const res = await api.put(ENDPOINTS.UPLOAD_AVATAR, { avatar });
+      if (res.success) {
+        const updated = { ...(user || {}), avatar };
+        setUser(updated);
+        await AsyncStorage.setItem('user', JSON.stringify(updated));
+      } else Alert.alert('Error', res.message || 'Could not update photo');
+    } catch (e) { Alert.alert('Error', 'Could not update photo'); }
+    finally { setPhotoBusy(false); }
+  };
 
   const submitChangeReq = async () => {
     if (!changeMsg.trim()) { Alert.alert('Required', 'Describe the change you want'); return; }
@@ -225,11 +248,16 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
         {/* Profile — gradient hero */}
         <LinearGradient colors={COLORS.gradient1} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.profile}>
-          {user?.avatar && String(user.avatar).startsWith('data:') ? (
-            <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
-          ) : (
-            <View style={styles.avatar}><Ionicons name="person" size={36} color={COLORS.onAccent} /></View>
-          )}
+          <TouchableOpacity onPress={pickAndUploadPhoto} activeOpacity={0.8} disabled={photoBusy}>
+            {user?.avatar && String(user.avatar).startsWith('data:') ? (
+              <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
+            ) : (
+              <View style={styles.avatar}><Ionicons name="person" size={36} color={COLORS.onAccent} /></View>
+            )}
+            <View style={styles.camBadge}>
+              {photoBusy ? <ActivityIndicator size="small" color={COLORS.primary} /> : <Ionicons name="camera" size={15} color={COLORS.primary} />}
+            </View>
+          </TouchableOpacity>
           <Text style={styles.name}>{user?.name || user?.phone || 'Gym Owner'}</Text>
           <Text style={styles.accountType}>{isStaff ? 'Gym Staff Account' : 'Gym Owner Account'}</Text>
         </LinearGradient>
@@ -411,6 +439,7 @@ const styles = StyleSheet.create({
   profile: { alignItems: 'center', marginHorizontal: 16, marginTop: 4, marginBottom: 16, paddingVertical: 24, borderRadius: SIZES.radiusXl, ...SHADOWS.medium },
   avatar: { width: 84, height: 84, borderRadius: 42, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)' },
   avatarImg: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)' },
+  camBadge: { position: 'absolute', bottom: -2, right: -2, width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.onAccent },
   name: { fontSize: SIZES.fontXl, color: COLORS.onAccent, ...FONTS.bold, marginTop: 12 },
   accountType: { fontSize: SIZES.fontSm, color: 'rgba(255,255,255,0.85)', ...FONTS.medium, marginTop: 2 },
 
