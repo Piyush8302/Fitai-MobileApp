@@ -28,6 +28,7 @@ import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 import OTPLoginScreen from '../screens/OTPLoginScreen';
 import GymOwnerRegisterScreen from '../screens/GymOwnerRegisterScreen';
+import EmailLoginScreen from '../screens/EmailLoginScreen';
 import ProfileSetupScreen from '../screens/ProfileSetupScreen';
 import HomeScreen from '../screens/HomeScreen';
 import BMIScreen from '../screens/BMIScreen';
@@ -177,6 +178,7 @@ const AppNavigator = () => (
       <Stack.Screen name="Signup" component={SignupScreen} />
       <Stack.Screen name="OTPLogin" component={OTPLoginScreen} />
       <Stack.Screen name="GymOwnerRegister" component={GymOwnerRegisterScreen} />
+      <Stack.Screen name="EmailLogin" component={EmailLoginScreen} />
       <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
       <Stack.Screen name="Main" component={MainTabs} />
       <Stack.Screen name="BMI" component={BMIScreen} />

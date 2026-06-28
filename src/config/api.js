@@ -7,6 +7,7 @@ export const ENDPOINTS = {
   REGISTER: '/api/auth/register',
   REGISTER_OWNER: '/api/auth/register-owner',
   OWNER_STATUS: '/api/auth/owner-status',
+  PHONE_EXISTS: '/api/auth/phone-exists',
   LOGIN: '/api/auth/login',
   SEND_OTP: '/api/auth/send-otp',
   VERIFY_OTP: '/api/auth/verify-otp',

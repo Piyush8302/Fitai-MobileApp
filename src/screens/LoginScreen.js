@@ -14,10 +14,7 @@ import { savePushTokenAfterLogin } from '../utils/notifications';
 WebBrowser.maybeCompleteAuthSession();
 
 const LoginScreen = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
-  const [showEmailLogin, setShowEmailLogin] = useState(false); // email/password is now optional
   const [loading, setLoading] = useState(false);
   const [loginMode, setLoginMode] = useState('user'); // 'user' | 'admin'
   // Ref mirrors loginMode so the Google deep-link handler (set up once) always
@@ -143,36 +140,22 @@ const LoginScreen = ({ navigation }) => {
       } catch (e) { setLoading(false); Alert.alert('Error', 'Network error. Please try again.'); }
       return;
     }
-    navigation.navigate('OTPLogin', { loginRole: 'user', phone: p, autoSend: true });
-  };
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
-      return;
-    }
-
+    // User login is gated too — an unregistered number is sent to sign up / email login
     setLoading(true);
     try {
-      const res = await api.post(ENDPOINTS.LOGIN, { email: email.trim().toLowerCase(), password });
-
-      if (res.success) {
-        // Save token & user data
-        await AsyncStorage.setItem('token', res.token);
-        await AsyncStorage.setItem('user', JSON.stringify(res.user));
-        api.setToken(res.token);
-        savePushTokenAfterLogin();
-
-        routeAfterLogin(res.user);
-      } else {
-        Alert.alert('Login Failed', res.message || 'Invalid credentials');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Network error. Please check your connection.');
-      console.log('Login error:', error);
-    } finally {
+      const res = await api.post(ENDPOINTS.PHONE_EXISTS, { phone: p });
       setLoading(false);
-    }
+      if (res.success && res.exists) {
+        navigation.navigate('OTPLogin', { loginRole: 'user', phone: p, autoSend: true });
+      } else {
+        Alert.alert('User not registered', 'This number is not registered. Sign up, or log in with email & password.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Email login', onPress: () => navigation.navigate('EmailLogin') },
+          { text: 'Sign Up', onPress: () => navigation.navigate('Signup', { mode: 'user' }) },
+        ]);
+      }
+    } catch (e) { setLoading(false); Alert.alert('Error', 'Network error. Please try again.'); }
   };
 
   return (
@@ -243,42 +226,11 @@ const LoginScreen = ({ navigation }) => {
                 <Text style={styles.socialText}>Continue with Google</Text>
               </TouchableOpacity>
 
-              {/* OPTIONAL — email & password */}
-              <TouchableOpacity style={[styles.socialBtn, { marginTop: 12 }]} onPress={() => setShowEmailLogin(v => !v)}>
+              {/* Email & password — opens on its own screen (keeps this screen clean) */}
+              <TouchableOpacity style={[styles.socialBtn, { marginTop: 12 }]} onPress={() => navigation.navigate('EmailLogin')}>
                 <Ionicons name="mail-outline" size={22} color={COLORS.accent} />
-                <Text style={styles.socialText}>{showEmailLogin ? 'Hide email login' : 'Login with email & password'}</Text>
+                <Text style={styles.socialText}>Login with email & password</Text>
               </TouchableOpacity>
-
-              {showEmailLogin && (
-                <View style={{ marginTop: 16 }}>
-                  <InputField
-                    label="Email"
-                    icon="mail-outline"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                  <InputField
-                    label="Password"
-                    icon="lock-closed-outline"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry
-                  />
-                  <TouchableOpacity style={styles.forgotBtn} onPress={() => navigation.navigate('ForgotPassword')}>
-                    <Text style={styles.forgotText}>Forgot Password?</Text>
-                  </TouchableOpacity>
-                  <GradientButton
-                    title={loading ? 'Logging in…' : 'Login'}
-                    onPress={handleLogin}
-                    disabled={loading}
-                    style={styles.loginBtn}
-                  />
-                </View>
-              )}
             </>
           )}
 
