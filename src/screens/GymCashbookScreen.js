@@ -157,11 +157,15 @@ const GymCashbookScreen = ({ navigation }) => {
           <TouchableOpacity style={[styles.chip, activeGym?._id === 'ALL' && styles.chipActive]} onPress={() => selectGym({ _id: 'ALL', name: '🏢 All Gyms' })}>
             <Text style={[styles.chipText, activeGym?._id === 'ALL' && { color: COLORS.onAccent }]}>🏢 All Gyms</Text>
           </TouchableOpacity>
-          {gyms.map((g) => (
-            <TouchableOpacity key={g._id} style={[styles.chip, activeGym?._id === g._id && styles.chipActive]} onPress={() => selectGym(g)}>
-              <Text style={[styles.chipText, activeGym?._id === g._id && { color: COLORS.onAccent }]}>{g.name}</Text>
-            </TouchableOpacity>
-          ))}
+          {gyms.map((g) => {
+            const active = activeGym?._id === g._id;
+            return (
+              <TouchableOpacity key={g._id} style={[styles.chip, active && styles.chipActive]} onPress={() => selectGym(g)}>
+                <Ionicons name="business" size={13} color={active ? COLORS.onAccent : COLORS.textMuted} />
+                <Text style={[styles.chipText, active && { color: COLORS.onAccent }]} numberOfLines={1}>{g.name}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       )}
 
@@ -263,9 +267,9 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12 },
   headerTitle: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold },
 
-  chip: { height: 38, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 19, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, maxWidth: 180, paddingHorizontal: 14, borderRadius: 19, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },
   chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary, ...SHADOWS.glow(COLORS.primary) },
-  chipText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold },
+  chipText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, flexShrink: 1 },
 
   sectionLabel: { fontSize: SIZES.fontMd, color: COLORS.primary, ...FONTS.bold, marginHorizontal: 16, marginTop: 8, marginBottom: 10 },
   overview: { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },

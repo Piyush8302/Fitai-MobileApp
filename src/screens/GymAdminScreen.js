@@ -448,11 +448,15 @@ const GymAdminScreen = ({ navigation }) => {
             <Text style={[styles.switchText, isAll && { color: COLORS.onAccent }]}>🏢 All Gyms</Text>
           </TouchableOpacity>
         )}
-        {gyms.map((g) => (
-          <TouchableOpacity key={g._id} style={[styles.switchChip, activeGym?._id === g._id && styles.switchChipActive]} onPress={() => selectGym(g)}>
-            <Text style={[styles.switchText, activeGym?._id === g._id && { color: COLORS.onAccent }]}>{g.name}</Text>
-          </TouchableOpacity>
-        ))}
+        {gyms.map((g) => {
+          const active = activeGym?._id === g._id;
+          return (
+            <TouchableOpacity key={g._id} style={[styles.switchChip, active && styles.switchChipActive]} onPress={() => selectGym(g)}>
+              <Ionicons name="business" size={13} color={active ? COLORS.onAccent : COLORS.textMuted} />
+              <Text style={[styles.switchText, active && { color: COLORS.onAccent }]} numberOfLines={1}>{g.name}</Text>
+            </TouchableOpacity>
+          );
+        })}
         {!isStaff && (
           <TouchableOpacity style={styles.switchAdd} onPress={() => setShowCreate(true)}>
             <Ionicons name="add" size={16} color={COLORS.primary} />
@@ -941,9 +945,9 @@ const styles = StyleSheet.create({
   kioskBtnText: { color: COLORS.onAccent, fontSize: SIZES.fontMd, ...FONTS.bold },
 
   switcher: { maxHeight: 50, marginBottom: 8 },
-  switchChip: { height: 38, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 19, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },
+  switchChip: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, maxWidth: 180, paddingHorizontal: 14, borderRadius: 19, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },
   switchChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary, ...SHADOWS.glow(COLORS.primary) },
-  switchText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold },
+  switchText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, flexShrink: 1 },
   switchAdd: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 38, paddingHorizontal: 14, borderRadius: 19, backgroundColor: COLORS.primary + '15', borderWidth: 1, borderColor: COLORS.primary + '40' },
   switchAddText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.bold },
 
