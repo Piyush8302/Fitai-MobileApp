@@ -77,7 +77,7 @@ const NotificationsScreen = ({ navigation, route }) => {
         style={styles.notifGradient}
       >
         <View style={styles.notifRow}>
-          {item.data?.avatar && String(item.data.avatar).startsWith('data:') ? (
+          {item.data?.avatar && /^(data:|http)/.test(String(item.data.avatar)) ? (
             <Image source={{ uri: item.data.avatar }} style={styles.notifAvatar} />
           ) : (item.data?.kind === 'new_member' || item.data?.kind === 'payment') ? (
             <View style={styles.notifInitial}>

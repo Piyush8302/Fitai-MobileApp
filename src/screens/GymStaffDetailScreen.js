@@ -98,7 +98,7 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
         {/* Profile */}
         <View style={styles.profile}>
-          {s.avatar && String(s.avatar).startsWith('data:') ? (
+          {s.avatar && /^(data:|http)/.test(String(s.avatar)) ? (
             <Image source={{ uri: s.avatar }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, { backgroundColor: COLORS.accent }]}><Text style={styles.avatarText}>{(s.name || 'S')[0].toUpperCase()}</Text></View>

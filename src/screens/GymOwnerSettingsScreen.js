@@ -249,7 +249,7 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
         {/* Profile — gradient hero */}
         <LinearGradient colors={COLORS.gradient1} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.profile}>
           <TouchableOpacity onPress={pickAndUploadPhoto} activeOpacity={0.8} disabled={photoBusy}>
-            {user?.avatar && String(user.avatar).startsWith('data:') ? (
+            {user?.avatar && /^(data:|http)/.test(String(user.avatar)) ? (
               <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
             ) : (
               <View style={styles.avatar}><Ionicons name="person" size={36} color={COLORS.onAccent} /></View>

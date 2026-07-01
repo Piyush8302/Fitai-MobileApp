@@ -549,7 +549,7 @@ const GymAdminScreen = ({ navigation }) => {
             ) : filtered.map((m) => (
             <View key={m._id} style={styles.memberCard}>
               <TouchableOpacity style={styles.memberLeft} onPress={() => navigation.navigate('GymMemberDetail', { membershipId: m._id, gymId: m.gym?._id || activeGym._id })} activeOpacity={0.7}>
-                {m.user?.avatar && m.user.avatar.startsWith('data:') ? (
+                {m.user?.avatar && /^(data:|http)/.test(m.user.avatar) ? (
                   <Image source={{ uri: m.user.avatar }} style={styles.memberAvatar} />
                 ) : (
                   <View style={styles.memberAvatar}><Text style={styles.memberInitial}>{(m.user?.name || 'M')[0].toUpperCase()}</Text></View>
@@ -612,7 +612,7 @@ const GymAdminScreen = ({ navigation }) => {
             ) : staff.map((s) => (
               <View key={s._id} style={styles.memberCard}>
                 <TouchableOpacity style={styles.memberLeft} onPress={() => navigation.navigate('GymStaffDetail', { staff: s, gymId: activeGym._id })} activeOpacity={0.7}>
-                  {s.avatar && s.avatar.startsWith('data:') ? (
+                  {s.avatar && /^(data:|http)/.test(s.avatar) ? (
                     <Image source={{ uri: s.avatar }} style={styles.memberAvatar} />
                   ) : (
                     <View style={[styles.memberAvatar, { backgroundColor: COLORS.accent }]}><Text style={styles.memberInitial}>{(s.name || 'S')[0].toUpperCase()}</Text></View>
