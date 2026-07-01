@@ -79,6 +79,8 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  // Reload on focus so a freshly-granted reports permission shows without restart.
+  useEffect(() => { const unsub = navigation.addListener('focus', () => load()); return unsub; }, [navigation, load]);
   useEffect(() => { AsyncStorage.getItem('themeMode').then(m => setDarkMode(m === 'dark')).catch(() => {}); }, []);
 
   const toggleDark = async (v) => {

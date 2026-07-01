@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, AppState } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -138,7 +138,26 @@ const AdminTabs = () => {
   const [isStaff, setIsStaff] = React.useState(false);
   // Cashbook tab: owner always; a staff only if the owner granted access.
   const [showCashbook, setShowCashbook] = React.useState(false);
+
+  // Re-check the live permission so a freshly-granted cashbook access shows up
+  // WITHOUT the staff having to kill & reopen the app.
+  const refreshPerms = React.useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (token) api.setToken(token);
+      const me = await api.get(ENDPOINTS.GET_ME);
+      const usr = me?.user || me?.data;
+      if (usr) {
+        const staff = usr.role === 'gym_staff';
+        setIsStaff(staff);
+        setShowCashbook(!staff || !!usr.canAccessCashbook);
+        await AsyncStorage.setItem('user', JSON.stringify(usr));
+      }
+    } catch (e) {}
+  }, []);
+
   React.useEffect(() => {
+    // Instant from cache, then live.
     AsyncStorage.getItem('user').then((u) => {
       try {
         const usr = JSON.parse(u);
@@ -147,22 +166,13 @@ const AdminTabs = () => {
         setShowCashbook(!staff || !!usr?.canAccessCashbook);
       } catch (e) {}
     });
-    // Refresh from server so a freshly-granted permission shows without re-login.
-    (async () => {
-      try {
-        const token = await AsyncStorage.getItem('token');
-        if (token) api.setToken(token);
-        const me = await api.get(ENDPOINTS.GET_ME);
-        const usr = me?.user || me?.data;
-        if (usr) {
-          const staff = usr.role === 'gym_staff';
-          setIsStaff(staff);
-          setShowCashbook(!staff || !!usr.canAccessCashbook);
-          await AsyncStorage.setItem('user', JSON.stringify(usr));
-        }
-      } catch (e) {}
-    })();
-  }, []);
+    refreshPerms();
+    // Refresh when the app returns to foreground + a light poll while open, so an
+    // owner's permission change reflects on the staff device within seconds.
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') refreshPerms(); });
+    const id = setInterval(refreshPerms, 20000);
+    return () => { try { sub.remove(); } catch (e) {} clearInterval(id); };
+  }, [refreshPerms]);
   return (
     <Tab.Navigator
       screenOptions={{
