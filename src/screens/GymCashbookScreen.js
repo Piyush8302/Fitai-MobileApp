@@ -16,6 +16,7 @@ const GymCashbookScreen = ({ navigation }) => {
   const [activeGym, setActiveGym] = useState(null);
   const [monthDate, setMonthDate] = useState(new Date());
   const [data, setData] = useState({ entries: [], income: 0, expense: 0, balance: 0 });
+  const [view, setView] = useState('month'); // 'month' | 'today'
   const [loading, setLoading] = useState(true);
 
   const [showAdd, setShowAdd] = useState(false);
@@ -148,6 +149,16 @@ const GymCashbookScreen = ({ navigation }) => {
     );
   }
 
+  // Today / month view derived data
+  const isTodayDate = (d) => { const x = new Date(d), n = new Date(); return x.getDate() === n.getDate() && x.getMonth() === n.getMonth() && x.getFullYear() === n.getFullYear(); };
+  const todayEntries = data.entries.filter((e) => isTodayDate(e.date));
+  const todayIncome = todayEntries.filter((e) => e.type === 'income').reduce((s, e) => s + e.amount, 0);
+  const todayExpense = todayEntries.filter((e) => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
+  const shownEntries = view === 'today' ? todayEntries : data.entries;
+  const ov = view === 'today'
+    ? { income: todayIncome, expense: todayExpense, balance: todayIncome - todayExpense }
+    : { income: data.income, expense: data.expense, balance: data.balance };
+
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container} {...pan.panHandlers}>
       <View style={styles.header}><Text style={styles.headerTitle}>Cashbook</Text></View>
@@ -171,13 +182,23 @@ const GymCashbookScreen = ({ navigation }) => {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 200 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
+        {/* Today / This Month toggle */}
+        <View style={styles.viewTabs}>
+          {[['month', 'This Month'], ['today', "Today's Collection"]].map(([k, label]) => (
+            <TouchableOpacity key={k} style={[styles.viewTab, view === k && styles.viewTabActive]}
+              onPress={() => { setView(k); if (k === 'today') setMonthDate(new Date()); }}>
+              <Text style={[styles.viewTabText, view === k && { color: COLORS.onAccent }]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Overview */}
-        <Text style={styles.sectionLabel}>Monthly Overview</Text>
+        <Text style={styles.sectionLabel}>{view === 'today' ? "Today's Collection" : 'Monthly Overview'}</Text>
         <View style={styles.overview}>
           {[
-            { icon: 'trending-up', value: data.income, label: 'Income', grad: ['#22C55E', '#16A34A'] },
-            { icon: 'trending-down', value: data.expense, label: 'Expense', grad: ['#FF6B6B', '#FF8E53'] },
-            { icon: 'wallet', value: data.balance, label: 'Balance', grad: ['#6C63FF', '#8B85FF'] },
+            { icon: 'trending-up', value: ov.income, label: 'Income', grad: ['#22C55E', '#16A34A'] },
+            { icon: 'trending-down', value: ov.expense, label: 'Expense', grad: ['#FF6B6B', '#FF8E53'] },
+            { icon: 'wallet', value: ov.balance, label: 'Balance', grad: ['#6C63FF', '#8B85FF'] },
           ].map((o, i) => (
             <LinearGradient key={i} colors={o.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ovCard}>
               <View style={styles.ovIconChip}><Ionicons name={o.icon} size={16} color="#FFF" /></View>
@@ -187,12 +208,14 @@ const GymCashbookScreen = ({ navigation }) => {
           ))}
         </View>
 
-        {/* Month nav */}
-        <View style={styles.monthNav}>
-          <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.monthArrow}><Ionicons name="chevron-back" size={20} color={COLORS.primary} /></TouchableOpacity>
-          <Text style={styles.monthText}>{monthDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</Text>
-          <TouchableOpacity onPress={() => changeMonth(1)} style={styles.monthArrow}><Ionicons name="chevron-forward" size={20} color={COLORS.primary} /></TouchableOpacity>
-        </View>
+        {/* Month nav — only in month view (Today is always the current day) */}
+        {view === 'month' && (
+          <View style={styles.monthNav}>
+            <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.monthArrow}><Ionicons name="chevron-back" size={20} color={COLORS.primary} /></TouchableOpacity>
+            <Text style={styles.monthText}>{monthDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</Text>
+            <TouchableOpacity onPress={() => changeMonth(1)} style={styles.monthArrow}><Ionicons name="chevron-forward" size={20} color={COLORS.primary} /></TouchableOpacity>
+          </View>
+        )}
 
         {/* Entries */}
         <View style={styles.tableHead}>
@@ -200,9 +223,9 @@ const GymCashbookScreen = ({ navigation }) => {
           <Text style={[styles.thText, { flex: 2 }]}>Description</Text>
           <Text style={[styles.thText, { textAlign: 'right' }]}>Amount</Text>
         </View>
-        {data.entries.length === 0 ? (
-          <Text style={styles.emptyText}>No entries this month. Tap + Income or − Expense.</Text>
-        ) : data.entries.map((e) => (
+        {shownEntries.length === 0 ? (
+          <Text style={styles.emptyText}>{view === 'today' ? 'No entries today yet.' : 'No entries this month. Tap + Income or − Expense.'}</Text>
+        ) : shownEntries.map((e) => (
           <TouchableOpacity key={e._id} style={styles.entryRow} onLongPress={() => delEntry(e._id)}>
             <View style={{ flex: 1 }}>
               <Text style={styles.entryDate}>{new Date(e.date).getDate()}</Text>
@@ -270,6 +293,11 @@ const styles = StyleSheet.create({
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, maxWidth: 180, paddingHorizontal: 14, borderRadius: 19, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },
   chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary, ...SHADOWS.glow(COLORS.primary) },
   chipText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, flexShrink: 1 },
+
+  viewTabs: { flexDirection: 'row', marginHorizontal: 16, marginTop: 8, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radiusFull, padding: 4, borderWidth: 1, borderColor: COLORS.darkBorder },
+  viewTab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: SIZES.radiusFull },
+  viewTabActive: { backgroundColor: COLORS.primary },
+  viewTabText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.bold },
 
   sectionLabel: { fontSize: SIZES.fontMd, color: COLORS.primary, ...FONTS.bold, marginHorizontal: 16, marginTop: 8, marginBottom: 10 },
   overview: { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },

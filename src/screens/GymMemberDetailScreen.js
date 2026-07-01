@@ -72,6 +72,22 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
     finally { setBusy(false); }
   };
 
+  const changeStatus = (status, label, confirm) => {
+    const doIt = async () => {
+      try {
+        const res = await api.put(`/api/gym/member/${membershipId}/status`, { status });
+        if (res.success) load();
+        else Alert.alert('Error', res.message || 'Failed');
+      } catch (e) { Alert.alert('Error', 'Failed to update'); }
+    };
+    if (confirm) {
+      Alert.alert(`Mark ${label}?`, `${data?.membership?.user?.name || 'This member'} will be marked ${label.toLowerCase()}${status !== 'active' ? " and won't be able to check in" : ''}.`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Confirm', style: status === 'blocked' ? 'destructive' : 'default', onPress: doIt },
+      ]);
+    } else doIt();
+  };
+
   const confirmDeleteMember = () => {
     Alert.alert('Remove member?', `${data?.membership?.user?.name || 'This member'} will be removed from the gym. This cannot be undone.`, [
       { text: 'Cancel', style: 'cancel' },
@@ -254,6 +270,49 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
           </>
         )}
 
+        {/* Membership status — owner only */}
+        {!isStaff && (() => {
+          const st = data?.membership?.status || 'active';
+          const STY = {
+            active: { c: COLORS.success, t: 'Active' }, inactive: { c: COLORS.warning, t: 'Deactivated' },
+            blocked: { c: COLORS.error, t: 'Blocked' }, left: { c: COLORS.textMuted, t: 'Left' },
+            expired: { c: COLORS.warning, t: 'Expired' }, frozen: { c: COLORS.accent, t: 'Frozen' },
+          }[st] || { c: COLORS.textMuted, t: st };
+          return (
+            <View style={styles.statusBox}>
+              <View style={styles.statusHead}>
+                <Text style={styles.statusLabel}>Membership status</Text>
+                <View style={[styles.statusPill, { backgroundColor: STY.c + '20', borderColor: STY.c + '55' }]}>
+                  <Text style={[styles.statusPillText, { color: STY.c }]}>{STY.t}</Text>
+                </View>
+              </View>
+              <View style={styles.statusBtnRow}>
+                {st !== 'active' ? (
+                  <TouchableOpacity style={[styles.statusBtn, { borderColor: COLORS.success + '55' }]} onPress={() => changeStatus('active', 'Active', false)}>
+                    <Ionicons name="checkmark-circle-outline" size={16} color={COLORS.success} />
+                    <Text style={[styles.statusBtnText, { color: COLORS.success }]}>Reactivate</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <>
+                    <TouchableOpacity style={[styles.statusBtn, { borderColor: COLORS.warning + '55' }]} onPress={() => changeStatus('inactive', 'Deactivated', true)}>
+                      <Ionicons name="pause-circle-outline" size={16} color={COLORS.warning} />
+                      <Text style={[styles.statusBtnText, { color: COLORS.warning }]}>Deactivate</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.statusBtn, { borderColor: COLORS.textMuted + '55' }]} onPress={() => changeStatus('left', 'Left', true)}>
+                      <Ionicons name="exit-outline" size={16} color={COLORS.textMuted} />
+                      <Text style={[styles.statusBtnText, { color: COLORS.textSecondary }]}>Left</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.statusBtn, { borderColor: COLORS.error + '55' }]} onPress={() => changeStatus('blocked', 'Blocked', true)}>
+                      <Ionicons name="ban-outline" size={16} color={COLORS.error} />
+                      <Text style={[styles.statusBtnText, { color: COLORS.error }]}>Block</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </View>
+          );
+        })()}
+
         {/* Remove member — owner only (staff blocked) */}
         {!isStaff && (
           <TouchableOpacity style={styles.deleteBtn} onPress={confirmDeleteMember}>
@@ -369,7 +428,15 @@ const styles = StyleSheet.create({
   payAmount: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
   payPlan: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium },
   payDate: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: 1 },
-  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 26, paddingVertical: 14, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.error + '40', backgroundColor: COLORS.error + '10' },
+  statusBox: { marginHorizontal: 16, marginTop: 24, padding: 14, borderRadius: SIZES.radius, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },
+  statusHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  statusLabel: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
+  statusPill: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 4 },
+  statusPillText: { fontSize: SIZES.fontXs, ...FONTS.bold },
+  statusBtnRow: { flexDirection: 'row', gap: 8 },
+  statusBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 10, borderRadius: SIZES.radius, borderWidth: 1, backgroundColor: COLORS.darkSurface },
+  statusBtnText: { fontSize: SIZES.fontSm, ...FONTS.bold },
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 14, paddingVertical: 14, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.error + '40', backgroundColor: COLORS.error + '10' },
   deleteText: { color: COLORS.error, fontSize: SIZES.fontMd, ...FONTS.bold },
 
   modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.85)' },

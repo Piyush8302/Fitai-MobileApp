@@ -28,6 +28,10 @@ const GymAdminScreen = ({ navigation }) => {
   const [activeGym, setActiveGym] = useState(null); // gym object
   const [stats, setStats] = useState(null);
   const [members, setMembers] = useState([]);
+  const [memPage, setMemPage] = useState(1);
+  const [memHasMore, setMemHasMore] = useState(false);
+  const [memTotal, setMemTotal] = useState(0);
+  const [memLoadingMore, setMemLoadingMore] = useState(false);
   const [tab, setTab] = useState('members'); // members | attendance
   const [memberSearch, setMemberSearch] = useState('');
   const ALL_GYM = { _id: 'ALL', name: '🏢 All Gyms' };
@@ -237,18 +241,36 @@ const GymAdminScreen = ({ navigation }) => {
     return unsub;
   }, [navigation, gyms, activeGym]);
 
+  // Paginated members loader — page 1 replaces, later pages append (infinite scroll)
+  const loadMembers = useCallback(async (gymId, page = 1, append = false) => {
+    if (!gymId) return;
+    if (gymId === 'ALL') {
+      const m = await api.get('/api/gym/all/members').catch(() => ({}));
+      if (m.success) { setMembers(m.data); setMemHasMore(false); setMemTotal(m.data.length); setMemPage(1); }
+      return;
+    }
+    try {
+      if (append) setMemLoadingMore(true);
+      const m = await api.get(`/api/gym/${gymId}/members?page=${page}&limit=20`);
+      if (m.success) {
+        setMembers(prev => append ? [...prev, ...m.data] : m.data);
+        setMemHasMore(!!m.hasMore);
+        setMemTotal(m.total ?? m.data.length);
+        setMemPage(page);
+      }
+    } catch (e) { console.log('members', e); }
+    finally { setMemLoadingMore(false); }
+  }, []);
+
   const loadGymData = useCallback(async (gymId) => {
     if (!gymId) return;
     const isAll = gymId === 'ALL';
     try {
-      const [s, m] = await Promise.all([
-        api.get(isAll ? '/api/gym/all/dashboard' : `/api/gym/${gymId}/dashboard`),
-        api.get(isAll ? '/api/gym/all/members' : `/api/gym/${gymId}/members`),
-      ]);
+      const s = await api.get(isAll ? '/api/gym/all/dashboard' : `/api/gym/${gymId}/dashboard`);
       if (s.success) setStats(s.data);
-      if (m.success) setMembers(m.data);
+      await loadMembers(gymId, 1, false);
     } catch (e) { console.log('gymdata', e); }
-  }, []);
+  }, [loadMembers]);
 
   useEffect(() => { if (activeGym?._id) loadGymData(activeGym._id); }, [activeGym, loadGymData]);
   // Reload staff when the selected gym changes while the Staff tab is open
@@ -519,6 +541,14 @@ const GymAdminScreen = ({ navigation }) => {
       </ScrollView>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}
+        scrollEventThrottle={200}
+        onScroll={(e) => {
+          if (tab !== 'members' || isAll || !memHasMore || memLoadingMore) return;
+          const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 500) {
+            loadMembers(activeGym._id, memPage + 1, true);
+          }
+        }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
         {/* Stats — vibrant gradient tiles */}
         <View style={styles.statsGrid}>
@@ -584,7 +614,7 @@ const GymAdminScreen = ({ navigation }) => {
               )}
             </View>
             <Text style={styles.countLabel}>
-              {q ? `${filtered.length} of ${members.length} members` : `Total ${members.length} member${members.length !== 1 ? 's' : ''}`}
+              {q ? `${filtered.length} found (in ${members.length} loaded)` : `Total ${memTotal} member${memTotal !== 1 ? 's' : ''}${members.length < memTotal ? ` · ${members.length} loaded` : ''}`}
             </Text>
             {filtered.length === 0 ? (
               <Text style={styles.emptyText}>{q ? 'No member matched.' : 'No members yet. Tap "Add Member".'}</Text>
@@ -597,7 +627,16 @@ const GymAdminScreen = ({ navigation }) => {
                   <View style={styles.memberAvatar}><Text style={styles.memberInitial}>{(m.user?.name || 'M')[0].toUpperCase()}</Text></View>
                 )}
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.memberName}>{m.user?.name || 'Member'}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <Text style={styles.memberName}>{m.user?.name || 'Member'}</Text>
+                    {m.status && m.status !== 'active' && m.status !== 'expired' && (
+                      <View style={[styles.statusTag, { backgroundColor: (m.status === 'blocked' ? COLORS.error : m.status === 'inactive' ? COLORS.warning : COLORS.textMuted) + '22' }]}>
+                        <Text style={[styles.statusTagText, { color: m.status === 'blocked' ? COLORS.error : m.status === 'inactive' ? COLORS.warning : COLORS.textMuted }]}>
+                          {m.status === 'blocked' ? 'BLOCKED' : m.status === 'inactive' ? 'INACTIVE' : m.status === 'left' ? 'LEFT' : m.status.toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.memberMeta}>{m.user?.phone} • {m.plan}</Text>
                   {isAll && m.gym?.name && (
                     <View style={styles.gymTag}><Text style={styles.gymTagText}>🏋️ {m.gym.name}</Text></View>
@@ -620,6 +659,13 @@ const GymAdminScreen = ({ navigation }) => {
               </View>
             </View>
             ))}
+            {/* Infinite-scroll footer */}
+            {!q && memLoadingMore && (
+              <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 14 }} />
+            )}
+            {!q && !memHasMore && memTotal > 20 && filtered.length > 0 && (
+              <Text style={styles.countLabel}>— end of list —</Text>
+            )}
           </>
           );
         })()}
@@ -1108,6 +1154,8 @@ const styles = StyleSheet.create({
   memberAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
   memberInitial: { color: COLORS.onAccent, fontSize: SIZES.fontLg, ...FONTS.bold },
   memberName: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
+  statusTag: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
+  statusTagText: { fontSize: 8, ...FONTS.bold, letterSpacing: 0.5 },
   memberMeta: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: 1, textTransform: 'capitalize' },
   memberDue: { fontSize: SIZES.fontXs, ...FONTS.medium, marginTop: 2 },
   miniBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: COLORS.darkSurface, borderWidth: 1, borderColor: COLORS.darkBorder },
