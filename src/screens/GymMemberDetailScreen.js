@@ -324,7 +324,7 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
 
       {/* Payment modal */}
       <Modal visible={showPay} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowPay(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
+        <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={Platform.OS === 'android' ? 20 : 0} style={styles.modalWrap}>
           <View style={styles.modalCard}>
             <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>💵 Mark Payment</Text>
