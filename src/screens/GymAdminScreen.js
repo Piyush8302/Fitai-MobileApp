@@ -53,6 +53,41 @@ const GymAdminScreen = ({ navigation }) => {
   const addSlot = () => setGSlots(prev => prev.length >= 4 ? prev : [...prev, { open: '', close: '' }]);
   const removeSlot = (i) => setGSlots(prev => prev.filter((_, idx) => idx !== i));
 
+  // ── Edit Gym (owner) ──
+  const [showEditGym, setShowEditGym] = useState(false);
+  const [egName, setEgName] = useState('');
+  const [egLoc, setEgLoc] = useState('');
+  const [egSlots, setEgSlots] = useState([]);
+  const [egPrices, setEgPrices] = useState({ monthly: '', quarterly: '', half_yearly: '', yearly: '' });
+  const setEgSlot = (i, key, val) => setEgSlots(prev => prev.map((s, idx) => idx === i ? { ...s, [key]: val } : s));
+  const addEgSlot = () => setEgSlots(prev => prev.length >= 4 ? prev : [...prev, { open: '', close: '' }]);
+  const removeEgSlot = (i) => setEgSlots(prev => prev.filter((_, idx) => idx !== i));
+  const openEditGym = () => {
+    if (!activeGym?._id || activeGym._id === 'ALL') return;
+    setEgName(activeGym.name || '');
+    setEgLoc(activeGym.location || '');
+    setEgSlots((activeGym.slots || []).map(s => ({ open: s.open || '', close: s.close || '' })));
+    const pp = activeGym.planPrices || {};
+    setEgPrices({ monthly: pp.monthly ? String(pp.monthly) : '', quarterly: pp.quarterly ? String(pp.quarterly) : '', half_yearly: pp.half_yearly ? String(pp.half_yearly) : '', yearly: pp.yearly ? String(pp.yearly) : '' });
+    setShowEditGym(true);
+  };
+  const saveEditGym = async () => {
+    if (!egName.trim()) { Alert.alert('Required', 'Enter gym name'); return; }
+    const timeOk = (t) => /^([01]?\d|2[0-3]):[0-5]\d$/.test((t || '').trim());
+    const cleanSlots = egSlots.filter(s => (s.open || '').trim() || (s.close || '').trim());
+    for (const s of cleanSlots) { if (!timeOk(s.open) || !timeOk(s.close)) { Alert.alert('Invalid time', 'Use 24-hour HH:MM (e.g. 06:00). Remove empty slots for 24×7.'); return; } }
+    setBusy(true);
+    try {
+      const res = await api.put(`/api/gym/${activeGym._id}`, { name: egName.trim(), location: egLoc.trim(), slots: cleanSlots, planPrices: egPrices });
+      if (res.success) {
+        setShowEditGym(false);
+        await loadGyms();
+        selectGym(res.data);
+      } else Alert.alert('Error', res.message || 'Failed to update');
+    } catch (e) { Alert.alert('Error', 'Failed to update gym'); }
+    setBusy(false);
+  };
+
   // Add member
   const [showAdd, setShowAdd] = useState(false);
   const [mName, setMName] = useState('');
@@ -449,7 +484,14 @@ const GymAdminScreen = ({ navigation }) => {
           </View>
         </View>
         {/* Gym name on its own full-width line below */}
-        <Text style={styles.headerTitle} numberOfLines={1}>{activeGym?.name || 'My Gym'}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={[styles.headerTitle, { flexShrink: 1 }]} numberOfLines={1}>{activeGym?.name || 'My Gym'}</Text>
+          {!isAll && !isStaff && (
+            <TouchableOpacity onPress={openEditGym} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="create-outline" size={20} color={COLORS.primary} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Gym switcher (multi-branch) — always shown so "+ Add branch" is available */}
@@ -496,7 +538,7 @@ const GymAdminScreen = ({ navigation }) => {
 
         {/* Add member button — disabled in All-Gyms view (which gym to add to?) */}
         {!isAll && (
-          <TouchableOpacity style={styles.addMemberBtn} onPress={() => setShowAdd(true)}>
+          <TouchableOpacity style={styles.addMemberBtn} onPress={() => { setMPlan('monthly'); setMFee(activeGym?.planPrices?.monthly ? String(activeGym.planPrices.monthly) : ''); setShowAdd(true); }}>
             <Ionicons name="person-add" size={18} color={COLORS.onAccent} />
             <Text style={styles.addMemberText}>Add Member</Text>
           </TouchableOpacity>
@@ -694,6 +736,56 @@ const GymAdminScreen = ({ navigation }) => {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* ===== EDIT GYM MODAL ===== */}
+      <Modal visible={showEditGym} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowEditGym(false)}>
+        <KeyboardAvoidingView behavior="padding" style={styles.modalWrap}>
+          <View style={[styles.modalCard, { maxHeight: '88%' }]}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Edit Gym</Text>
+              <TouchableOpacity onPress={() => setShowEditGym(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <TextInput style={styles.input} placeholder="Gym name" placeholderTextColor={COLORS.textMuted} value={egName} onChangeText={setEgName} />
+              <TextInput style={styles.input} placeholder="Location / area (optional)" placeholderTextColor={COLORS.textMuted} value={egLoc} onChangeText={setEgLoc} />
+
+              <Text style={styles.timeLabel}>🕒 Gym timings (attendance only in these slots)</Text>
+              {egSlots.map((s, i) => (
+                <View key={i} style={styles.slotRow}>
+                  <TextInput style={[styles.input, styles.slotInput]} placeholder="06:00" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" maxLength={5} value={s.open} onChangeText={(t) => setEgSlot(i, 'open', t)} />
+                  <Text style={styles.slotDash}>–</Text>
+                  <TextInput style={[styles.input, styles.slotInput]} placeholder="10:00" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" maxLength={5} value={s.close} onChangeText={(t) => setEgSlot(i, 'close', t)} />
+                  <TouchableOpacity onPress={() => removeEgSlot(i)} style={styles.slotDel} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="close-circle" size={22} color={COLORS.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {egSlots.length < 4 && (
+                <TouchableOpacity onPress={addEgSlot} style={styles.addSlotBtn}>
+                  <Ionicons name="add" size={16} color={COLORS.primary} />
+                  <Text style={styles.addSlotText}>Add slot (morning + evening)</Text>
+                </TouchableOpacity>
+              )}
+
+              <Text style={[styles.timeLabel, { marginTop: 12 }]}>💳 Fee plans (₹) — shown when adding a member</Text>
+              {[['monthly', 'Monthly'], ['quarterly', '3 Months'], ['half_yearly', '6 Months'], ['yearly', 'Yearly']].map(([key, label]) => (
+                <View key={key} style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>{label}</Text>
+                  <TextInput style={[styles.input, styles.priceInput]} placeholder="₹0" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={egPrices[key]} onChangeText={(t) => setEgPrices(prev => ({ ...prev, [key]: t.replace(/\D/g, '') }))} />
+                </View>
+              ))}
+              <Text style={styles.timeHint}>Leave a plan blank to keep it custom. You can edit anytime.</Text>
+
+              <TouchableOpacity style={[styles.primaryBtn, { marginTop: 6 }]} onPress={saveEditGym} disabled={busy}>
+                {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.primaryBtnText}>Save Changes</Text>}
+              </TouchableOpacity>
+              <View style={{ height: 8 }} />
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* ===== ADD MEMBER MODAL ===== */}
       <Modal visible={showAdd} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowAdd(false)}>
         <KeyboardAvoidingView behavior="padding" style={styles.modalWrap}>
@@ -709,14 +801,20 @@ const GymAdminScreen = ({ navigation }) => {
               <Text style={styles.photoText}>{mPhoto ? 'Change photo' : 'Add photo (optional)'}</Text>
             </TouchableOpacity>
             <TextInput style={styles.input} placeholder="Name" placeholderTextColor={COLORS.textMuted} value={mName} onChangeText={setMName} />
-            <TextInput style={styles.input} placeholder="Mobile number" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" value={mPhone} onChangeText={setMPhone} />
+            <TextInput style={styles.input} placeholder="Mobile number (10 digits)" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" maxLength={10} value={mPhone} onChangeText={(t) => setMPhone(t.replace(/\D/g, '').slice(0, 10))} />
             <Text style={styles.inputLabel}>Plan</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-              {PLANS.map((p) => (
-                <TouchableOpacity key={p.key} style={[styles.planChip, mPlan === p.key && styles.planChipActive]} onPress={() => setMPlan(p.key)}>
-                  <Text style={[styles.planChipText, mPlan === p.key && { color: COLORS.onAccent }]}>{p.label}</Text>
-                </TouchableOpacity>
-              ))}
+              {PLANS.map((p) => {
+                const price = activeGym?.planPrices?.[p.key];
+                return (
+                  <TouchableOpacity key={p.key} style={[styles.planChip, mPlan === p.key && styles.planChipActive]}
+                    onPress={() => { setMPlan(p.key); setMFee(price ? String(price) : ''); }}>
+                    <Text style={[styles.planChipText, mPlan === p.key && { color: COLORS.onAccent }]}>
+                      {p.label}{price ? ` · ₹${price}` : ''}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
             <TextInput style={styles.input} placeholder="Fee amount (₹)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={mFee} onChangeText={setMFee} />
             <TouchableOpacity style={styles.primaryBtn} onPress={addMember} disabled={busy}>
@@ -843,8 +941,9 @@ const GymAdminScreen = ({ navigation }) => {
             <Text style={styles.inputLabel}>Plan</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
               {PLANS.filter(p => p.months > 0).map((p) => (
-                <TouchableOpacity key={p.key} style={[styles.planChip, payPlan === p.key && styles.planChipActive]} onPress={() => setPayPlan(p.key)}>
-                  <Text style={[styles.planChipText, payPlan === p.key && { color: COLORS.onAccent }]}>{p.label}</Text>
+                <TouchableOpacity key={p.key} style={[styles.planChip, payPlan === p.key && styles.planChipActive]}
+                  onPress={() => { setPayPlan(p.key); const pr = activeGym?.planPrices?.[p.key]; if (pr) setPayAmount(String(pr)); }}>
+                  <Text style={[styles.planChipText, payPlan === p.key && { color: COLORS.onAccent }]}>{p.label}{activeGym?.planPrices?.[p.key] ? ` · ₹${activeGym.planPrices[p.key]}` : ''}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -1063,6 +1162,9 @@ const styles = StyleSheet.create({
   addSlotBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginBottom: 4, borderRadius: SIZES.radius, backgroundColor: COLORS.primary + '12', borderWidth: 1, borderColor: COLORS.primary + '35', borderStyle: 'dashed' },
   addSlotText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.semiBold },
   timeHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 6, marginBottom: 4 },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
+  priceLabel: { flex: 1, fontSize: SIZES.fontMd, color: COLORS.textSecondary, ...FONTS.semiBold },
+  priceInput: { width: 130, marginBottom: 0, textAlign: 'right' },
   inputLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, marginBottom: 8 },
   planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, backgroundColor: COLORS.darkSurface, borderWidth: 1, borderColor: COLORS.darkBorder, marginRight: 8 },
   planChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
