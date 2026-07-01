@@ -46,6 +46,8 @@ const GymAdminScreen = ({ navigation }) => {
   const [gName, setGName] = useState('');
   const [gLoc, setGLoc] = useState('');
   const [gOwnerPhone, setGOwnerPhone] = useState(''); // required when creating the FIRST gym
+  const [gOpen, setGOpen] = useState('06:00');   // gym opening time (IST, HH:MM)
+  const [gClose, setGClose] = useState('22:00'); // gym closing time
 
   // Add member
   const [showAdd, setShowAdd] = useState(false);
@@ -254,11 +256,13 @@ const GymAdminScreen = ({ navigation }) => {
       Alert.alert('Mobile number required', 'Enter your 10-digit mobile number to create your gym.');
       return;
     }
+    const timeOk = (t) => !t.trim() || /^([01]?\d|2[0-3]):[0-5]\d$/.test(t.trim());
+    if (!timeOk(gOpen) || !timeOk(gClose)) { Alert.alert('Invalid time', 'Use 24-hour HH:MM, e.g. 06:00 and 22:00. Leave blank for 24×7.'); return; }
     setBusy(true);
     try {
-      const res = await api.post(ENDPOINTS.GYM_CREATE, { name: gName.trim(), location: gLoc.trim(), ownerPhone: gOwnerPhone.trim() });
+      const res = await api.post(ENDPOINTS.GYM_CREATE, { name: gName.trim(), location: gLoc.trim(), ownerPhone: gOwnerPhone.trim(), openTime: gOpen.trim(), closeTime: gClose.trim() });
       if (res.success) {
-        setShowCreate(false); setGName(''); setGLoc(''); setGOwnerPhone('');
+        setShowCreate(false); setGName(''); setGLoc(''); setGOwnerPhone(''); setGOpen('06:00'); setGClose('22:00');
         await loadGyms();
         selectGym(res.data);
       } else Alert.alert('Error', res.message || 'Failed');
@@ -649,6 +653,18 @@ const GymAdminScreen = ({ navigation }) => {
             {gyms.length === 0 && (
               <TextInput style={styles.input} placeholder="Your mobile number (required)" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" maxLength={10} value={gOwnerPhone} onChangeText={setGOwnerPhone} />
             )}
+            <Text style={styles.timeLabel}>🕒 Gym hours (attendance only in this window)</Text>
+            <View style={styles.timeRow}>
+              <View style={styles.timeCol}>
+                <Text style={styles.timeCap}>Open</Text>
+                <TextInput style={[styles.input, styles.timeInput]} placeholder="06:00" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" maxLength={5} value={gOpen} onChangeText={setGOpen} />
+              </View>
+              <View style={styles.timeCol}>
+                <Text style={styles.timeCap}>Close</Text>
+                <TextInput style={[styles.input, styles.timeInput]} placeholder="22:00" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" maxLength={5} value={gClose} onChangeText={setGClose} />
+              </View>
+            </View>
+            <Text style={styles.timeHint}>24-hour format (HH:MM). Leave both blank for 24×7. Registration always works.</Text>
             <TouchableOpacity style={styles.primaryBtn} onPress={createGym} disabled={busy}>
               {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.primaryBtnText}>Create Gym</Text>}
             </TouchableOpacity>
@@ -1026,6 +1042,12 @@ const styles = StyleSheet.create({
   histTime: { fontSize: SIZES.fontXs, color: COLORS.textMuted },
   modalSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginBottom: 16 },
   input: { backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder, paddingHorizontal: 14, paddingVertical: 12, fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.medium, marginBottom: 10 },
+  timeLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, marginTop: 2, marginBottom: 6 },
+  timeRow: { flexDirection: 'row', gap: 10 },
+  timeCol: { flex: 1 },
+  timeCap: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginBottom: 4 },
+  timeInput: { textAlign: 'center', letterSpacing: 1 },
+  timeHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2, marginBottom: 4 },
   inputLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, marginBottom: 8 },
   planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, backgroundColor: COLORS.darkSurface, borderWidth: 1, borderColor: COLORS.darkBorder, marginRight: 8 },
   planChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
