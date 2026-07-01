@@ -12,7 +12,7 @@ const SECTIONS = [
   { title: 'Data Sharing', content: 'We do not sell, trade, or share your personal information with third parties for marketing purposes. We may share anonymized, aggregated data for research or analytics purposes.' },
   { title: 'Your Rights', content: 'You have the right to: access your personal data, correct inaccurate data, delete your account and all associated data, export your data, and opt out of notifications at any time.' },
   { title: 'Data Retention', content: 'We retain your data as long as your account is active. If you delete your account, your personal data will be removed within 30 days. Some anonymized data may be retained for analytics.' },
-  { title: 'Contact Us', content: 'For privacy-related questions or concerns, contact us at privacy@fitai.com. We will respond within 48 hours.' },
+  { title: 'Contact Us', content: 'For privacy-related questions or concerns, contact us at yadavpiyush8302@gmail.com. We will respond within 48 hours.' },
 ];
 
 const PrivacyPolicyScreen = ({ navigation }) => (

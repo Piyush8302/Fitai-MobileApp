@@ -273,7 +273,7 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
           <Text style={styles.reqText}>Request email / phone change</Text>
         </TouchableOpacity>
 
-        {/* Subscription & Reports — owner only (hidden for staff) */}
+        {/* Subscription — owner only */}
         {!isStaff && (
           <>
             <Text style={styles.sectionLabel}>Subscription</Text>
@@ -288,7 +288,12 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
                 </View>
               </LinearGradient>
             </TouchableOpacity>
+          </>
+        )}
 
+        {/* Reports — owner, or a staff the owner granted reports access */}
+        {(!isStaff || user?.canAccessReports) && (
+          <>
             <Text style={styles.sectionLabel}>Reports</Text>
             <TouchableOpacity style={styles.row} onPress={() => pickGymForReport(1)} disabled={genBusy}>
               <View style={[styles.rowIcon, { backgroundColor: COLORS.success + '15' }]}>

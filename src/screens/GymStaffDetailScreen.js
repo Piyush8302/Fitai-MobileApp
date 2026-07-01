@@ -27,6 +27,17 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
     } catch (e) { setCanCash(!val); Alert.alert('Error', 'Failed to update'); }
   };
 
+  // Reports permission (owner grants/revokes)
+  const [canReports, setCanReports] = useState(!!staff?.canAccessReports);
+  const toggleReports = async (val) => {
+    setCanReports(val); // optimistic
+    try {
+      const res = await api.put(`/api/gym/staff/${s._id}`, { canAccessReports: val });
+      if (res.success) setS((prev) => ({ ...prev, canAccessReports: val }));
+      else { setCanReports(!val); Alert.alert('Error', res.message || 'Failed to update'); }
+    } catch (e) { setCanReports(!val); Alert.alert('Error', 'Failed to update'); }
+  };
+
   // Edit
   const [showEdit, setShowEdit] = useState(false);
   const [eName, setEName] = useState(staff?.name || '');
@@ -119,6 +130,19 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
               onValueChange={toggleCashbook}
               trackColor={{ false: COLORS.darkBorder, true: COLORS.primary + '70' }}
               thumbColor={canCash ? COLORS.primary : '#FFFFFF'}
+            />
+          </View>
+          <View style={[styles.permRow, { borderTopWidth: 1, borderTopColor: COLORS.darkBorder, marginTop: 4, paddingTop: 14 }]}>
+            <View style={styles.permIcon}><Ionicons name="document-text-outline" size={20} color={COLORS.primary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.permTitle}>Reports access</Text>
+              <Text style={styles.permSub}>Let this staff download monthly & 3-month PDF reports</Text>
+            </View>
+            <Switch
+              value={canReports}
+              onValueChange={toggleReports}
+              trackColor={{ false: COLORS.darkBorder, true: COLORS.primary + '70' }}
+              thumbColor={canReports ? COLORS.primary : '#FFFFFF'}
             />
           </View>
         </View>

@@ -82,9 +82,9 @@ const HelpSupportScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.emailRow} onPress={() => Linking.openURL('mailto:support@fitai.com')}>
+        <TouchableOpacity style={styles.emailRow} onPress={() => Linking.openURL('mailto:yadavpiyush8302@gmail.com')}>
           <Ionicons name="mail-outline" size={20} color={COLORS.primary} />
-          <Text style={styles.emailText}>support@fitai.com</Text>
+          <Text style={styles.emailText}>yadavpiyush8302@gmail.com</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />

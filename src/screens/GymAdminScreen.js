@@ -46,8 +46,12 @@ const GymAdminScreen = ({ navigation }) => {
   const [gName, setGName] = useState('');
   const [gLoc, setGLoc] = useState('');
   const [gOwnerPhone, setGOwnerPhone] = useState(''); // required when creating the FIRST gym
-  const [gOpen, setGOpen] = useState('06:00');   // gym opening time (IST, HH:MM)
-  const [gClose, setGClose] = useState('22:00'); // gym closing time
+  // Gym operating slots (IST HH:MM). Gyms usually run morning + evening.
+  const DEFAULT_SLOTS = [{ open: '06:00', close: '10:00' }, { open: '17:00', close: '22:00' }];
+  const [gSlots, setGSlots] = useState(DEFAULT_SLOTS.map(s => ({ ...s })));
+  const setSlot = (i, key, val) => setGSlots(prev => prev.map((s, idx) => idx === i ? { ...s, [key]: val } : s));
+  const addSlot = () => setGSlots(prev => prev.length >= 4 ? prev : [...prev, { open: '', close: '' }]);
+  const removeSlot = (i) => setGSlots(prev => prev.filter((_, idx) => idx !== i));
 
   // Add member
   const [showAdd, setShowAdd] = useState(false);
@@ -256,13 +260,16 @@ const GymAdminScreen = ({ navigation }) => {
       Alert.alert('Mobile number required', 'Enter your 10-digit mobile number to create your gym.');
       return;
     }
-    const timeOk = (t) => !t.trim() || /^([01]?\d|2[0-3]):[0-5]\d$/.test(t.trim());
-    if (!timeOk(gOpen) || !timeOk(gClose)) { Alert.alert('Invalid time', 'Use 24-hour HH:MM, e.g. 06:00 and 22:00. Leave blank for 24×7.'); return; }
+    const timeOk = (t) => /^([01]?\d|2[0-3]):[0-5]\d$/.test((t || '').trim());
+    const cleanSlots = gSlots.filter(s => (s.open || '').trim() || (s.close || '').trim());
+    for (const s of cleanSlots) {
+      if (!timeOk(s.open) || !timeOk(s.close)) { Alert.alert('Invalid time', 'Use 24-hour HH:MM (e.g. 06:00). Remove empty slots for 24×7.'); return; }
+    }
     setBusy(true);
     try {
-      const res = await api.post(ENDPOINTS.GYM_CREATE, { name: gName.trim(), location: gLoc.trim(), ownerPhone: gOwnerPhone.trim(), openTime: gOpen.trim(), closeTime: gClose.trim() });
+      const res = await api.post(ENDPOINTS.GYM_CREATE, { name: gName.trim(), location: gLoc.trim(), ownerPhone: gOwnerPhone.trim(), slots: cleanSlots });
       if (res.success) {
-        setShowCreate(false); setGName(''); setGLoc(''); setGOwnerPhone(''); setGOpen('06:00'); setGClose('22:00');
+        setShowCreate(false); setGName(''); setGLoc(''); setGOwnerPhone(''); setGSlots(DEFAULT_SLOTS.map(s => ({ ...s })));
         await loadGyms();
         selectGym(res.data);
       } else Alert.alert('Error', res.message || 'Failed');
@@ -653,18 +660,24 @@ const GymAdminScreen = ({ navigation }) => {
             {gyms.length === 0 && (
               <TextInput style={styles.input} placeholder="Your mobile number (required)" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" maxLength={10} value={gOwnerPhone} onChangeText={setGOwnerPhone} />
             )}
-            <Text style={styles.timeLabel}>🕒 Gym hours (attendance only in this window)</Text>
-            <View style={styles.timeRow}>
-              <View style={styles.timeCol}>
-                <Text style={styles.timeCap}>Open</Text>
-                <TextInput style={[styles.input, styles.timeInput]} placeholder="06:00" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" maxLength={5} value={gOpen} onChangeText={setGOpen} />
+            <Text style={styles.timeLabel}>🕒 Gym timings (attendance only in these slots)</Text>
+            {gSlots.map((s, i) => (
+              <View key={i} style={styles.slotRow}>
+                <TextInput style={[styles.input, styles.slotInput]} placeholder="06:00" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" maxLength={5} value={s.open} onChangeText={(t) => setSlot(i, 'open', t)} />
+                <Text style={styles.slotDash}>–</Text>
+                <TextInput style={[styles.input, styles.slotInput]} placeholder="10:00" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" maxLength={5} value={s.close} onChangeText={(t) => setSlot(i, 'close', t)} />
+                <TouchableOpacity onPress={() => removeSlot(i)} style={styles.slotDel} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close-circle" size={22} color={COLORS.textMuted} />
+                </TouchableOpacity>
               </View>
-              <View style={styles.timeCol}>
-                <Text style={styles.timeCap}>Close</Text>
-                <TextInput style={[styles.input, styles.timeInput]} placeholder="22:00" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" maxLength={5} value={gClose} onChangeText={setGClose} />
-              </View>
-            </View>
-            <Text style={styles.timeHint}>24-hour format (HH:MM). Leave both blank for 24×7. Registration always works.</Text>
+            ))}
+            {gSlots.length < 4 && (
+              <TouchableOpacity onPress={addSlot} style={styles.addSlotBtn}>
+                <Ionicons name="add" size={16} color={COLORS.primary} />
+                <Text style={styles.addSlotText}>Add slot (e.g. morning + evening)</Text>
+              </TouchableOpacity>
+            )}
+            <Text style={styles.timeHint}>24-hour HH:MM. Remove all slots for 24×7. Registration always works.</Text>
             <TouchableOpacity style={styles.primaryBtn} onPress={createGym} disabled={busy}>
               {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.primaryBtnText}>Create Gym</Text>}
             </TouchableOpacity>
@@ -1042,12 +1055,14 @@ const styles = StyleSheet.create({
   histTime: { fontSize: SIZES.fontXs, color: COLORS.textMuted },
   modalSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginBottom: 16 },
   input: { backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder, paddingHorizontal: 14, paddingVertical: 12, fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.medium, marginBottom: 10 },
-  timeLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, marginTop: 2, marginBottom: 6 },
-  timeRow: { flexDirection: 'row', gap: 10 },
-  timeCol: { flex: 1 },
-  timeCap: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginBottom: 4 },
-  timeInput: { textAlign: 'center', letterSpacing: 1 },
-  timeHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2, marginBottom: 4 },
+  timeLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, marginTop: 2, marginBottom: 8 },
+  slotRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  slotInput: { flex: 1, textAlign: 'center', letterSpacing: 1, marginBottom: 0 },
+  slotDash: { color: COLORS.textMuted, fontSize: SIZES.fontLg, ...FONTS.bold },
+  slotDel: { paddingLeft: 2 },
+  addSlotBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginBottom: 4, borderRadius: SIZES.radius, backgroundColor: COLORS.primary + '12', borderWidth: 1, borderColor: COLORS.primary + '35', borderStyle: 'dashed' },
+  addSlotText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.semiBold },
+  timeHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 6, marginBottom: 4 },
   inputLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, marginBottom: 8 },
   planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, backgroundColor: COLORS.darkSurface, borderWidth: 1, borderColor: COLORS.darkBorder, marginRight: 8 },
   planChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },

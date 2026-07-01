@@ -241,7 +241,7 @@ const GymCashbookScreen = ({ navigation }) => {
 
       {/* Add modal */}
       <Modal visible={showAdd} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowAdd(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalWrap}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20} style={styles.modalWrap}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{addType === 'income' ? '+ Add Income' : '− Add Expense'}</Text>
