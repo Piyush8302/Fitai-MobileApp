@@ -299,22 +299,22 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
             <Text style={styles.sectionLabel}>Reports</Text>
             <TouchableOpacity style={styles.row} onPress={() => pickGymForReport(1)} disabled={genBusy}>
               <View style={[styles.rowIcon, { backgroundColor: COLORS.success + '15' }]}>
-                {genBusy ? <ActivityIndicator size="small" color={COLORS.success} /> : <Ionicons name="document-text" size={20} color={COLORS.success} />}
+                {genBusy && reportMonths === 1 ? <ActivityIndicator size="small" color={COLORS.success} /> : <Ionicons name="document-text" size={20} color={COLORS.success} />}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle}>Monthly Report (PDF)</Text>
-                <Text style={styles.rowSub}>This month's attendance & payments</Text>
+                <Text style={styles.rowSub}>{genBusy && reportMonths === 1 ? 'Preparing your PDF…' : "This month's attendance & payments"}</Text>
               </View>
               <Ionicons name="download-outline" size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.row} onPress={() => pickGymForReport(3)} disabled={genBusy}>
               <View style={[styles.rowIcon, { backgroundColor: COLORS.primary + '15' }]}>
-                {genBusy ? <ActivityIndicator size="small" color={COLORS.primary} /> : <Ionicons name="documents" size={20} color={COLORS.primary} />}
+                {genBusy && reportMonths === 3 ? <ActivityIndicator size="small" color={COLORS.primary} /> : <Ionicons name="documents" size={20} color={COLORS.primary} />}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle}>Last 3 Months (PDF)</Text>
-                <Text style={styles.rowSub}>Quarter attendance & payments</Text>
+                <Text style={styles.rowSub}>{genBusy && reportMonths === 3 ? 'Preparing your PDF…' : 'Quarter attendance & payments'}</Text>
               </View>
               <Ionicons name="download-outline" size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
