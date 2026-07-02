@@ -61,6 +61,22 @@ const GymAdminScreen = ({ navigation }) => {
   const addSlot = () => setGSlots(prev => prev.length >= 4 ? prev : [...prev, { open: '', close: '' }]);
   const removeSlot = (i) => setGSlots(prev => prev.filter((_, idx) => idx !== i));
 
+  // Time picker (clock) — shared by create & edit slot fields. No native dep.
+  const [tp, setTp] = useState(null); // { mode:'create'|'edit', i, field }
+  const [tpH, setTpH] = useState('06');
+  const [tpM, setTpM] = useState('00');
+  const openTP = (mode, i, field, cur) => {
+    const [h, m] = String(cur || '06:00').split(':');
+    setTpH((h || '06').padStart(2, '0')); setTpM((m || '00').padStart(2, '0'));
+    setTp({ mode, i, field });
+  };
+  const applyTP = () => {
+    if (!tp) return;
+    const val = `${tpH}:${tpM}`;
+    if (tp.mode === 'create') setSlot(tp.i, tp.field, val); else setEgSlot(tp.i, tp.field, val);
+    setTp(null);
+  };
+
   // ── Edit Gym (owner) ──
   const [showEditGym, setShowEditGym] = useState(false);
   const [egName, setEgName] = useState('');
@@ -737,6 +753,38 @@ const GymAdminScreen = ({ navigation }) => {
         )}
       </ScrollView>
 
+      {/* ===== TIME PICKER (clock) ===== */}
+      <Modal visible={!!tp} transparent statusBarTranslucent navigationBarTranslucent animationType="fade" onRequestClose={() => setTp(null)}>
+        <TouchableOpacity activeOpacity={1} style={styles.tpBackdrop} onPress={() => setTp(null)}>
+          <TouchableOpacity activeOpacity={1} style={styles.tpCard} onPress={() => {}}>
+            <Text style={styles.tpTitle}>Select {tp?.field === 'close' ? 'closing' : 'opening'} time</Text>
+            <View style={styles.tpCols}>
+              <ScrollView style={styles.tpCol} showsVerticalScrollIndicator={false}>
+                {Array.from({ length: 24 }).map((_, h) => {
+                  const hh = String(h).padStart(2, '0');
+                  return (
+                    <TouchableOpacity key={hh} style={[styles.tpItem, tpH === hh && styles.tpItemActive]} onPress={() => setTpH(hh)}>
+                      <Text style={[styles.tpItemText, tpH === hh && { color: COLORS.onAccent }]}>{hh}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <Text style={styles.tpColon}>:</Text>
+              <ScrollView style={styles.tpCol} showsVerticalScrollIndicator={false}>
+                {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map((mm) => (
+                  <TouchableOpacity key={mm} style={[styles.tpItem, tpM === mm && styles.tpItemActive]} onPress={() => setTpM(mm)}>
+                    <Text style={[styles.tpItemText, tpM === mm && { color: COLORS.onAccent }]}>{mm}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+            <TouchableOpacity style={styles.tpOk} onPress={applyTP}>
+              <Text style={styles.tpOkText}>Set {tpH}:{tpM}</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       {/* ===== CREATE GYM MODAL ===== */}
       <Modal visible={showCreate} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => gyms.length && setShowCreate(false)}>
         <KeyboardAvoidingView behavior="padding" style={styles.modalWrap}>
@@ -759,9 +807,13 @@ const GymAdminScreen = ({ navigation }) => {
             <Text style={styles.timeLabel}>🕒 Gym timings (attendance only in these slots)</Text>
             {gSlots.map((s, i) => (
               <View key={i} style={styles.slotRow}>
-                <TextInput style={[styles.input, styles.slotInput]} placeholder="06:00" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" maxLength={5} value={s.open} onChangeText={(t) => setSlot(i, 'open', t)} />
+                <TouchableOpacity style={[styles.input, styles.slotInput, styles.slotTouch]} onPress={() => openTP('create', i, 'open', s.open)}>
+                  <Text style={[styles.slotTouchText, !s.open && { color: COLORS.textMuted }]}>{s.open || '06:00'}</Text>
+                </TouchableOpacity>
                 <Text style={styles.slotDash}>–</Text>
-                <TextInput style={[styles.input, styles.slotInput]} placeholder="10:00" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" maxLength={5} value={s.close} onChangeText={(t) => setSlot(i, 'close', t)} />
+                <TouchableOpacity style={[styles.input, styles.slotInput, styles.slotTouch]} onPress={() => openTP('create', i, 'close', s.close)}>
+                  <Text style={[styles.slotTouchText, !s.close && { color: COLORS.textMuted }]}>{s.close || '10:00'}</Text>
+                </TouchableOpacity>
                 <TouchableOpacity onPress={() => removeSlot(i)} style={styles.slotDel} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Ionicons name="close-circle" size={22} color={COLORS.textMuted} />
                 </TouchableOpacity>
@@ -807,9 +859,13 @@ const GymAdminScreen = ({ navigation }) => {
               <Text style={styles.timeLabel}>🕒 Gym timings (attendance only in these slots)</Text>
               {egSlots.map((s, i) => (
                 <View key={i} style={styles.slotRow}>
-                  <TextInput style={[styles.input, styles.slotInput]} placeholder="06:00" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" maxLength={5} value={s.open} onChangeText={(t) => setEgSlot(i, 'open', t)} />
+                  <TouchableOpacity style={[styles.input, styles.slotInput, styles.slotTouch]} onPress={() => openTP('edit', i, 'open', s.open)}>
+                    <Text style={[styles.slotTouchText, !s.open && { color: COLORS.textMuted }]}>{s.open || '06:00'}</Text>
+                  </TouchableOpacity>
                   <Text style={styles.slotDash}>–</Text>
-                  <TextInput style={[styles.input, styles.slotInput]} placeholder="10:00" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" maxLength={5} value={s.close} onChangeText={(t) => setEgSlot(i, 'close', t)} />
+                  <TouchableOpacity style={[styles.input, styles.slotInput, styles.slotTouch]} onPress={() => openTP('edit', i, 'close', s.close)}>
+                    <Text style={[styles.slotTouchText, !s.close && { color: COLORS.textMuted }]}>{s.close || '10:00'}</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity onPress={() => removeEgSlot(i)} style={styles.slotDel} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Ionicons name="close-circle" size={22} color={COLORS.textMuted} />
                   </TouchableOpacity>
@@ -1213,6 +1269,19 @@ const styles = StyleSheet.create({
   timeLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, marginTop: 2, marginBottom: 8 },
   slotRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   slotInput: { flex: 1, textAlign: 'center', letterSpacing: 1, marginBottom: 0 },
+  slotTouch: { justifyContent: 'center', alignItems: 'center' },
+  slotTouchText: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.semiBold, letterSpacing: 1 },
+  tpBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  tpCard: { backgroundColor: COLORS.darkCard, borderRadius: SIZES.radiusLg, borderWidth: 1, borderColor: COLORS.darkBorder, padding: 18, width: '86%', maxWidth: 340 },
+  tpTitle: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, textAlign: 'center', marginBottom: 12 },
+  tpCols: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 200 },
+  tpCol: { flex: 1, backgroundColor: COLORS.darkSurface, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
+  tpColon: { fontSize: 26, color: COLORS.white, ...FONTS.bold, marginHorizontal: 10 },
+  tpItem: { paddingVertical: 11, alignItems: 'center' },
+  tpItemActive: { backgroundColor: COLORS.primary },
+  tpItemText: { fontSize: SIZES.fontLg, color: COLORS.textSecondary, ...FONTS.semiBold },
+  tpOk: { marginTop: 14, backgroundColor: COLORS.primary, borderRadius: SIZES.radius, paddingVertical: 14, alignItems: 'center' },
+  tpOkText: { color: COLORS.onAccent, fontSize: SIZES.fontMd, ...FONTS.bold },
   slotDash: { color: COLORS.textMuted, fontSize: SIZES.fontLg, ...FONTS.bold },
   slotDel: { paddingLeft: 2 },
   addSlotBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginBottom: 4, borderRadius: SIZES.radius, backgroundColor: COLORS.primary + '12', borderWidth: 1, borderColor: COLORS.primary + '35', borderStyle: 'dashed' },

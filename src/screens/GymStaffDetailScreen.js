@@ -24,6 +24,23 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
       if (!res.success) { setS((prev) => ({ ...prev, [key]: !val })); Alert.alert('Error', res.message || 'Failed to update'); }
     } catch (e) { setS((prev) => ({ ...prev, [key]: !val })); Alert.alert('Error', 'Failed to update'); }
   };
+  const changeStaffStatus = (status, label, confirm) => {
+    const doIt = async () => {
+      const prev = s.staffStatus || 'active';
+      setS((p) => ({ ...p, staffStatus: status }));
+      try {
+        const res = await api.put(`/api/gym/staff/${s._id}`, { staffStatus: status });
+        if (!res.success) { setS((p) => ({ ...p, staffStatus: prev })); Alert.alert('Error', res.message || 'Failed'); }
+      } catch (e) { setS((p) => ({ ...p, staffStatus: prev })); Alert.alert('Error', 'Failed to update'); }
+    };
+    if (confirm) {
+      Alert.alert(`Mark ${label}?`, `${s.name || 'This staff'} will be marked ${label.toLowerCase()} and won't be able to do anything until reactivated.`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Confirm', style: status === 'blocked' ? 'destructive' : 'default', onPress: doIt },
+      ]);
+    } else doIt();
+  };
+
   const PERMS = [
     { key: 'canMarkPresent', icon: 'checkmark-done-outline', title: 'Mark attendance', sub: 'Scan members & mark them present' },
     { key: 'canAddMember', icon: 'person-add-outline', title: 'Add members', sub: 'Register new members' },
@@ -111,6 +128,51 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
           <Row icon="cash-outline" label="Salary" value={s.staffSalary ? `₹${s.staffSalary}/mo` : '—'} />
           <Row icon="calendar-outline" label="Joined" value={s.staffJoinDate ? new Date(s.staffJoinDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'} last />
         </View>
+
+        {/* Staff status — owner can deactivate / block / mark left */}
+        {(() => {
+          const st = s.staffStatus || 'active';
+          const STY = {
+            active: { c: COLORS.success, t: 'Active' }, inactive: { c: COLORS.warning, t: 'Deactivated' },
+            blocked: { c: COLORS.error, t: 'Blocked' }, left: { c: COLORS.textMuted, t: 'Left' },
+          }[st] || { c: COLORS.textMuted, t: st };
+          return (
+            <>
+              <Text style={styles.sectionLabel}>Staff status</Text>
+              <View style={styles.card}>
+                <View style={styles.statusHead}>
+                  <Text style={styles.permTitle}>Account</Text>
+                  <View style={[styles.statusPill, { backgroundColor: STY.c + '20', borderColor: STY.c + '55' }]}>
+                    <Text style={[styles.statusPillText, { color: STY.c }]}>{STY.t}</Text>
+                  </View>
+                </View>
+                <View style={styles.statusBtnRow}>
+                  {st !== 'active' ? (
+                    <TouchableOpacity style={[styles.statusBtn, { borderColor: COLORS.success + '55' }]} onPress={() => changeStaffStatus('active', 'Active', false)}>
+                      <Ionicons name="checkmark-circle-outline" size={16} color={COLORS.success} />
+                      <Text style={[styles.statusBtnText, { color: COLORS.success }]}>Reactivate</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <>
+                      <TouchableOpacity style={[styles.statusBtn, { borderColor: COLORS.warning + '55' }]} onPress={() => changeStaffStatus('inactive', 'Deactivated', true)}>
+                        <Ionicons name="pause-circle-outline" size={16} color={COLORS.warning} />
+                        <Text style={[styles.statusBtnText, { color: COLORS.warning }]}>Deactivate</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.statusBtn, { borderColor: COLORS.textMuted + '55' }]} onPress={() => changeStaffStatus('left', 'Left', true)}>
+                        <Ionicons name="exit-outline" size={16} color={COLORS.textMuted} />
+                        <Text style={[styles.statusBtnText, { color: COLORS.textSecondary }]}>Left</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.statusBtn, { borderColor: COLORS.error + '55' }]} onPress={() => changeStaffStatus('blocked', 'Blocked', true)}>
+                        <Ionicons name="ban-outline" size={16} color={COLORS.error} />
+                        <Text style={[styles.statusBtnText, { color: COLORS.error }]}>Block</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              </View>
+            </>
+          );
+        })()}
 
         {/* Permissions */}
         <Text style={styles.sectionLabel}>Permissions</Text>
@@ -215,6 +277,12 @@ const styles = StyleSheet.create({
   permTitle: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.semiBold },
   permSub: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 1 },
   permHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginHorizontal: 16, marginTop: -4, marginBottom: 8 },
+  statusHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  statusPill: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 4 },
+  statusPillText: { fontSize: SIZES.fontXs, ...FONTS.bold },
+  statusBtnRow: { flexDirection: 'row', gap: 8 },
+  statusBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 10, borderRadius: SIZES.radius, borderWidth: 1, backgroundColor: COLORS.darkSurface },
+  statusBtnText: { fontSize: SIZES.fontSm, ...FONTS.bold },
 
   statRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16 },
   statBox: { flex: 1, alignItems: 'center', backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder, paddingVertical: 14 },
