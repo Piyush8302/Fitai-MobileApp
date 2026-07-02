@@ -38,12 +38,16 @@ const GymAdminScreen = ({ navigation }) => {
   const isAll = activeGym?._id === 'ALL';
   const [isStaff, setIsStaff] = useState(false); // gym_staff → restricted UI
   const [userName, setUserName] = useState('');
+  const [perms, setPerms] = useState({}); // current user's granted permissions
   const [showDrawer, setShowDrawer] = useState(false);
-  useEffect(() => {
-    AsyncStorage.getItem('user').then(u => {
-      try { const p = JSON.parse(u); setIsStaff(p?.role === 'gym_staff'); setUserName(p?.name || ''); } catch (e) {}
-    });
+  const readUser = useCallback(async () => {
+    try { const p = JSON.parse(await AsyncStorage.getItem('user')); setIsStaff(p?.role === 'gym_staff'); setUserName(p?.name || ''); setPerms(p || {}); } catch (e) {}
   }, []);
+  useEffect(() => { readUser(); }, [readUser]);
+  // Re-read on focus (AdminTabs keeps the stored user fresh) so newly-granted rights apply.
+  useEffect(() => { const un = navigation.addListener('focus', readUser); return un; }, [navigation, readUser]);
+  // Owner/admin can do everything; staff only if the owner granted the right.
+  const can = (flag) => !isStaff || !!perms[flag];
 
   // Create gym
   const [showCreate, setShowCreate] = useState(false);
@@ -508,7 +512,7 @@ const GymAdminScreen = ({ navigation }) => {
         {/* Gym name on its own full-width line below */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={[styles.headerTitle, { flexShrink: 1 }]} numberOfLines={1}>{activeGym?.name || 'My Gym'}</Text>
-          {!isAll && !isStaff && (
+          {!isAll && can('canEditGym') && (
             <TouchableOpacity onPress={openEditGym} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="create-outline" size={20} color={COLORS.primary} />
             </TouchableOpacity>
@@ -566,8 +570,8 @@ const GymAdminScreen = ({ navigation }) => {
           ))}
         </View>
 
-        {/* Add member button — disabled in All-Gyms view (which gym to add to?) */}
-        {!isAll && (
+        {/* Add member button — hidden in All-Gyms view + for staff without the right */}
+        {!isAll && can('canAddMember') && (
           <TouchableOpacity style={styles.addMemberBtn} onPress={() => { setMPlan('monthly'); setMFee(activeGym?.planPrices?.monthly ? String(activeGym.planPrices.monthly) : ''); setShowAdd(true); }}>
             <Ionicons name="person-add" size={18} color={COLORS.onAccent} />
             <Text style={styles.addMemberText}>Add Member</Text>
@@ -648,14 +652,18 @@ const GymAdminScreen = ({ navigation }) => {
                 </View>
               </TouchableOpacity>
               <View style={{ gap: 6 }}>
-                <TouchableOpacity style={styles.miniBtn} onPress={() => markPresent(m)}>
-                  <Ionicons name="checkmark" size={14} color={COLORS.success} />
-                  <Text style={[styles.miniBtnText, { color: COLORS.success }]}>Present</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.miniBtn} onPress={() => { setPayFor(m); setPayAmount(String(m.fee || '')); setPayPlan(m.plan); }}>
-                  <Ionicons name="cash" size={14} color={COLORS.warning} />
-                  <Text style={[styles.miniBtnText, { color: COLORS.warning }]}>Pay</Text>
-                </TouchableOpacity>
+                {can('canMarkPresent') && (
+                  <TouchableOpacity style={styles.miniBtn} onPress={() => markPresent(m)}>
+                    <Ionicons name="checkmark" size={14} color={COLORS.success} />
+                    <Text style={[styles.miniBtnText, { color: COLORS.success }]}>Present</Text>
+                  </TouchableOpacity>
+                )}
+                {can('canMarkPayment') && (
+                  <TouchableOpacity style={styles.miniBtn} onPress={() => { setPayFor(m); setPayAmount(String(m.fee || '')); setPayPlan(m.plan); }}>
+                    <Ionicons name="cash" size={14} color={COLORS.warning} />
+                    <Text style={[styles.miniBtnText, { color: COLORS.warning }]}>Pay</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
             ))}

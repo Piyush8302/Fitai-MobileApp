@@ -16,27 +16,23 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // Cashbook permission (owner grants/revokes)
-  const [canCash, setCanCash] = useState(!!staff?.canAccessCashbook);
-  const toggleCashbook = async (val) => {
-    setCanCash(val); // optimistic
+  // Owner grants/revokes per-staff permissions (optimistic; s is source of truth)
+  const togglePerm = async (key, val) => {
+    setS((prev) => ({ ...prev, [key]: val }));
     try {
-      const res = await api.put(`/api/gym/staff/${s._id}`, { canAccessCashbook: val });
-      if (res.success) setS((prev) => ({ ...prev, canAccessCashbook: val }));
-      else { setCanCash(!val); Alert.alert('Error', res.message || 'Failed to update'); }
-    } catch (e) { setCanCash(!val); Alert.alert('Error', 'Failed to update'); }
+      const res = await api.put(`/api/gym/staff/${s._id}`, { [key]: val });
+      if (!res.success) { setS((prev) => ({ ...prev, [key]: !val })); Alert.alert('Error', res.message || 'Failed to update'); }
+    } catch (e) { setS((prev) => ({ ...prev, [key]: !val })); Alert.alert('Error', 'Failed to update'); }
   };
-
-  // Reports permission (owner grants/revokes)
-  const [canReports, setCanReports] = useState(!!staff?.canAccessReports);
-  const toggleReports = async (val) => {
-    setCanReports(val); // optimistic
-    try {
-      const res = await api.put(`/api/gym/staff/${s._id}`, { canAccessReports: val });
-      if (res.success) setS((prev) => ({ ...prev, canAccessReports: val }));
-      else { setCanReports(!val); Alert.alert('Error', res.message || 'Failed to update'); }
-    } catch (e) { setCanReports(!val); Alert.alert('Error', 'Failed to update'); }
-  };
+  const PERMS = [
+    { key: 'canMarkPresent', icon: 'checkmark-done-outline', title: 'Mark attendance', sub: 'Scan members & mark them present' },
+    { key: 'canAddMember', icon: 'person-add-outline', title: 'Add members', sub: 'Register new members' },
+    { key: 'canMarkPayment', icon: 'cash-outline', title: 'Mark payments', sub: 'Record fee payments' },
+    { key: 'canManageStatus', icon: 'options-outline', title: 'Manage status', sub: 'Deactivate / block / mark left' },
+    { key: 'canAccessCashbook', icon: 'wallet-outline', title: 'Cashbook access', sub: 'View & add income/expense' },
+    { key: 'canAccessReports', icon: 'document-text-outline', title: 'Reports access', sub: 'Download PDF reports' },
+    { key: 'canEditGym', icon: 'create-outline', title: 'Edit gym', sub: 'Edit name, timings & plans' },
+  ];
 
   // Edit
   const [showEdit, setShowEdit] = useState(false);
@@ -118,33 +114,23 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
 
         {/* Permissions */}
         <Text style={styles.sectionLabel}>Permissions</Text>
+        <Text style={styles.permHint}>Turn on only what this staff should be allowed to do. Removing a member stays owner-only.</Text>
         <View style={styles.card}>
-          <View style={styles.permRow}>
-            <View style={styles.permIcon}><Ionicons name="wallet-outline" size={20} color={COLORS.primary} /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.permTitle}>Cashbook access</Text>
-              <Text style={styles.permSub}>Let this staff view & add income/expense entries</Text>
+          {PERMS.map((p, i) => (
+            <View key={p.key} style={[styles.permRow, i > 0 && { borderTopWidth: 1, borderTopColor: COLORS.darkBorder, marginTop: 4, paddingTop: 14 }]}>
+              <View style={styles.permIcon}><Ionicons name={p.icon} size={20} color={COLORS.primary} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.permTitle}>{p.title}</Text>
+                <Text style={styles.permSub}>{p.sub}</Text>
+              </View>
+              <Switch
+                value={!!s[p.key]}
+                onValueChange={(v) => togglePerm(p.key, v)}
+                trackColor={{ false: COLORS.darkBorder, true: COLORS.primary + '70' }}
+                thumbColor={s[p.key] ? COLORS.primary : '#FFFFFF'}
+              />
             </View>
-            <Switch
-              value={canCash}
-              onValueChange={toggleCashbook}
-              trackColor={{ false: COLORS.darkBorder, true: COLORS.primary + '70' }}
-              thumbColor={canCash ? COLORS.primary : '#FFFFFF'}
-            />
-          </View>
-          <View style={[styles.permRow, { borderTopWidth: 1, borderTopColor: COLORS.darkBorder, marginTop: 4, paddingTop: 14 }]}>
-            <View style={styles.permIcon}><Ionicons name="document-text-outline" size={20} color={COLORS.primary} /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.permTitle}>Reports access</Text>
-              <Text style={styles.permSub}>Let this staff download monthly & 3-month PDF reports</Text>
-            </View>
-            <Switch
-              value={canReports}
-              onValueChange={toggleReports}
-              trackColor={{ false: COLORS.darkBorder, true: COLORS.primary + '70' }}
-              thumbColor={canReports ? COLORS.primary : '#FFFFFF'}
-            />
-          </View>
+          ))}
         </View>
 
         {/* Attendance */}
@@ -228,6 +214,7 @@ const styles = StyleSheet.create({
   permIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.primary + '15', alignItems: 'center', justifyContent: 'center' },
   permTitle: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.semiBold },
   permSub: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 1 },
+  permHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginHorizontal: 16, marginTop: -4, marginBottom: 8 },
 
   statRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16 },
   statBox: { flex: 1, alignItems: 'center', backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder, paddingVertical: 14 },

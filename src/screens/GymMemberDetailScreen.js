@@ -32,9 +32,11 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   const [calMonth, setCalMonth] = useState(new Date()); // month shown in calendar
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = async () => { setRefreshing(true); try { await load(); } catch (e) {} setRefreshing(false); };
-  // Staff can't remove members — hide the button for them (backend also blocks it)
+  // Staff can't remove members (owner only); other actions depend on granted rights.
   const [isStaff, setIsStaff] = useState(false);
-  useEffect(() => { AsyncStorage.getItem('user').then((u) => { try { setIsStaff(JSON.parse(u)?.role === 'gym_staff'); } catch (e) {} }); }, []);
+  const [perms, setPerms] = useState({});
+  useEffect(() => { AsyncStorage.getItem('user').then((u) => { try { const p = JSON.parse(u); setIsStaff(p?.role === 'gym_staff'); setPerms(p || {}); } catch (e) {} }); }, []);
+  const can = (flag) => !isStaff || !!perms[flag];
 
   const load = useCallback(async () => {
     try {
@@ -221,17 +223,23 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
           />
         </View>
 
-        {/* Actions */}
-        <View style={styles.actions}>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.success + '15', borderColor: COLORS.success + '40' }]} onPress={markPresent}>
-            <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
-            <Text style={[styles.actionText, { color: COLORS.success }]}>Mark Present</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.primary }]} onPress={() => { setPayDueDate(dueForPlan(payPlan)); setShowPay(true); }}>
-            <Ionicons name="cash" size={20} color={COLORS.onAccent} />
-            <Text style={[styles.actionText, { color: COLORS.onAccent }]}>Mark Payment</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Actions — shown per granted rights */}
+        {(can('canMarkPresent') || can('canMarkPayment')) && (
+          <View style={styles.actions}>
+            {can('canMarkPresent') && (
+              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.success + '15', borderColor: COLORS.success + '40' }]} onPress={markPresent}>
+                <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+                <Text style={[styles.actionText, { color: COLORS.success }]}>Mark Present</Text>
+              </TouchableOpacity>
+            )}
+            {can('canMarkPayment') && (
+              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.primary }]} onPress={() => { setPayDueDate(dueForPlan(payPlan)); setShowPay(true); }}>
+                <Ionicons name="cash" size={20} color={COLORS.onAccent} />
+                <Text style={[styles.actionText, { color: COLORS.onAccent }]}>Mark Payment</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Attendance summary */}
         <Text style={styles.sectionLabel}>Attendance</Text>
@@ -270,8 +278,8 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
           </>
         )}
 
-        {/* Membership status — owner only */}
-        {!isStaff && (() => {
+        {/* Membership status — owner, or staff granted status rights */}
+        {can('canManageStatus') && (() => {
           const st = data?.membership?.status || 'active';
           const STY = {
             active: { c: COLORS.success, t: 'Active' }, inactive: { c: COLORS.warning, t: 'Deactivated' },
