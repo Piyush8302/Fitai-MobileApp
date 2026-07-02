@@ -55,8 +55,12 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   const markPresent = async () => {
     try {
       const res = await api.post(ENDPOINTS.GYM_ATTENDANCE, { gymId, userId: data.membership.user._id });
-      Alert.alert(res.data?.duplicate ? 'Already checked in today' : '✅ Marked present', data.membership.user.name);
-      load();
+      if (res.success) {
+        Alert.alert(res.data?.duplicate ? 'Already checked in today' : '✅ Marked present', data.membership.user.name);
+        load();
+      } else {
+        Alert.alert('Attendance not marked', res.message || 'Could not mark present.');
+      }
     } catch (e) { Alert.alert('Error', 'Failed'); }
   };
 
@@ -69,6 +73,8 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
         Alert.alert('✅ Payment marked', `${PLAN_LABEL[payPlan]} • ₹${payAmount}\nNext due: ${new Date(res.data.membership.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`);
         setShowPay(false);
         load();
+      } else {
+        Alert.alert('Payment not marked', res.message || 'Could not mark payment.');
       }
     } catch (e) { Alert.alert('Error', 'Failed'); }
     finally { setBusy(false); }

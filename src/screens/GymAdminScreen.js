@@ -483,6 +483,9 @@ const GymAdminScreen = ({ navigation }) => {
       if (res.success) {
         Alert.alert(res.data?.duplicate ? 'Already checked in' : 'Marked present ✅', member.user?.name || '');
         loadGymData(activeGym._id);
+      } else {
+        // e.g. outside gym hours, blocked member, or no permission
+        Alert.alert('Attendance not marked', res.message || 'Could not mark present.');
       }
     } catch (e) { Alert.alert('Error', 'Failed'); }
   };
