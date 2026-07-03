@@ -729,7 +729,7 @@ const GymAdminScreen = ({ navigation }) => {
                 <Text style={styles.attTime}>{new Date(a.checkInAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
                 <Text style={styles.attDate}>{new Date(a.checkInAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text>
               </View>
-              <Text style={styles.attMethod}>{a.method === 'self_scan' ? '📱' : '🧑‍💼'}</Text>
+              <Text style={styles.attMethod}>{a.method === 'auto_geo' ? '⚡' : a.method === 'self_scan' ? '📱' : '🧑‍💼'}</Text>
             </View>
           ))
         )}
@@ -1126,7 +1126,7 @@ const GymAdminScreen = ({ navigation }) => {
                       {new Date(a.checkInAt).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                     </Text>
                     <Text style={styles.histTime}>{new Date(a.checkInAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
-                    <Text>{a.method === 'self_scan' ? '📱' : '🧑‍💼'}</Text>
+                    <Text>{a.method === 'auto_geo' ? '⚡' : a.method === 'self_scan' ? '📱' : '🧑‍💼'}</Text>
                   </View>
                 ))}
               </ScrollView>

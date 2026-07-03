@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Switch } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
@@ -7,6 +7,7 @@ import Barcode from 'react-native-barcode-svg';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { enableAutoCheckin, disableAutoCheckin, isAutoCheckinEnabled } from '../utils/autoCheckin';
 
 const MyGymCardScreen = ({ navigation }) => {
   const [card, setCard] = useState(null);
@@ -29,6 +30,41 @@ const MyGymCardScreen = ({ navigation }) => {
     const unsub = navigation.addListener('focus', load);
     return unsub;
   }, [navigation, load]);
+
+  // ── Auto check-in (geofence) toggle ──
+  const [autoOn, setAutoOn] = useState(false);
+  const [autoBusy, setAutoBusy] = useState(false);
+  useEffect(() => { isAutoCheckinEnabled().then(setAutoOn).catch(() => {}); }, []);
+
+  const toggleAuto = async (val) => {
+    if (autoBusy) return;
+    setAutoBusy(true);
+    try {
+      if (!val) {
+        await disableAutoCheckin();
+        setAutoOn(false);
+        return;
+      }
+      const gyms = (card?.gyms || []).map((g) => g.gym).filter((g) => g && g.lat != null && g.lng != null);
+      if (!gyms.length) {
+        Alert.alert('Gym location not set', "Your gym hasn't set its location yet. Ask the gym owner to set it (Settings → Set gym location), then try again.");
+        return;
+      }
+      const r = await enableAutoCheckin(gyms);
+      if (r.ok) {
+        setAutoOn(true);
+        Alert.alert('⚡ Auto check-in ON', `Attendance will be marked automatically when you arrive at your gym (within 100m) — no need to open the app.\n\nActive for ${r.count} gym${r.count > 1 ? 's' : ''}.`);
+      } else if (r.reason === 'background') {
+        Alert.alert('Allow "All the time"', 'For auto check-in with the app closed, Android needs location access set to "Allow all the time".\n\nOpen Settings → Apps → FitAI → Permissions → Location → Allow all the time, then turn this on again.');
+      } else if (r.reason === 'foreground') {
+        Alert.alert('Location needed', 'Please allow location access to use auto check-in.');
+      } else {
+        Alert.alert('Gym location not set', 'None of your gyms have a location set. Ask the gym owner to set it first.');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Could not enable auto check-in. Try again.');
+    } finally { setAutoBusy(false); }
+  };
 
   const openHistory = async (gymId) => {
     if (expanded === gymId) { setExpanded(null); return; }
@@ -95,6 +131,25 @@ const MyGymCardScreen = ({ navigation }) => {
           <Text style={styles.checkinText}>Scan Gym QR to Check-in</Text>
         </TouchableOpacity>
 
+        {/* ===== AUTO CHECK-IN (geofence, works with app closed) ===== */}
+        <View style={styles.autoCard}>
+          <View style={styles.autoIcon}><Text style={{ fontSize: 18 }}>⚡</Text></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.autoTitle}>Auto check-in</Text>
+            <Text style={styles.autoSub}>Marks attendance automatically when you arrive at the gym (100m) — even with the app closed.</Text>
+          </View>
+          {autoBusy ? (
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          ) : (
+            <Switch
+              value={autoOn}
+              onValueChange={toggleAuto}
+              trackColor={{ false: COLORS.darkBorder, true: COLORS.primary + '70' }}
+              thumbColor={autoOn ? COLORS.primary : '#FFFFFF'}
+            />
+          )}
+        </View>
+
         {/* ===== MY GYMS ===== */}
         <Text style={styles.sectionTitle}>My Gyms ({card?.gyms?.length || 0})</Text>
         {(!card?.gyms || card.gyms.length === 0) ? (
@@ -141,7 +196,7 @@ const MyGymCardScreen = ({ navigation }) => {
                         <Text style={styles.historyTime}>
                           {new Date(a.checkInAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                         </Text>
-                        <Text style={styles.historyMethod}>{a.method === 'self_scan' ? '📱' : '🧑‍💼'}</Text>
+                        <Text style={styles.historyMethod}>{a.method === 'auto_geo' ? '⚡' : a.method === 'self_scan' ? '📱' : '🧑‍💼'}</Text>
                       </View>
                     ))}
                   </>
@@ -176,6 +231,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary, borderRadius: SIZES.radius, paddingVertical: 14, marginTop: 16,
   },
   checkinText: { color: COLORS.onAccent, fontSize: SIZES.fontMd, ...FONTS.bold },
+  autoCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12, padding: 14,
+    backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  autoIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: COLORS.primary + '18', alignItems: 'center', justifyContent: 'center' },
+  autoTitle: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
+  autoSub: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2, lineHeight: 16 },
 
   sectionTitle: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, marginTop: 24, marginBottom: 12 },
   empty: { alignItems: 'center', paddingVertical: 30 },

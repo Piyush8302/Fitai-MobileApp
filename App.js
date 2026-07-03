@@ -6,6 +6,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, applyTheme } from './src/constants/theme';
 import * as Notifications from 'expo-notifications';
 import { registerForPushNotifications, addNotificationListeners } from './src/utils/notifications';
+// Defines the gym geofence background task — must load at app entry so Android
+// can run it headlessly (auto check-in with the app closed).
+import './src/utils/autoCheckin';
 import { routeFromNotificationData, navigationRef } from './src/navigation/navigationRef';
 
 class ErrorBoundary extends React.Component {

@@ -42,6 +42,15 @@
       "expo-font",
       "expo-web-browser",
       [
+        "expo-location",
+        {
+          "isAndroidBackgroundLocationEnabled": true,
+          "locationAlwaysAndWhenInUsePermission": "Allow FitAI to use your location so your gym attendance is marked automatically when you arrive (within 100m).",
+          "locationAlwaysPermission": "Allow FitAI to use your location in the background for automatic gym check-in.",
+          "locationWhenInUsePermission": "Allow FitAI to use your location for gym check-in."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
