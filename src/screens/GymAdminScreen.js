@@ -175,18 +175,28 @@ const GymAdminScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  // Owner sets the gym's GPS location once (opens a web page that captures it at the gym).
-  // Members can then check in only when they're physically at the gym.
+  // Set the gym's GPS location directly from THIS phone (no web link — the old
+  // public setloc page let anyone with the link set it). Owner, or staff the
+  // owner granted canSetLocation. Stand inside the gym while doing it.
   const setGymLocation = async () => {
     if (!activeGym?._id || activeGym._id === 'ALL') return;
     try {
-      const res = await api.get(`/api/gym/${activeGym._id}/setloc-link`);
-      if (res.success && res.data?.url) {
-        Alert.alert('Set gym location', 'Open this while standing INSIDE your gym and allow location access. This sets the check-in area.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open', onPress: () => Linking.openURL(res.data.url) },
-        ]);
-      } else Alert.alert('Error', 'Could not start location setup');
+      const Location = require('expo-location');
+      const perm = await Location.requestForegroundPermissionsAsync();
+      if (perm.status !== 'granted') { Alert.alert('Location needed', 'Allow location access to set the gym location.'); return; }
+      Alert.alert('Set gym location', 'Stand INSIDE the gym. Your current spot will become the check-in area (100m).', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Use my location', onPress: async () => {
+          try {
+            const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+            const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+            const res = await api.put(`/api/gym/${activeGym._id}/location`, { lat, lng });
+            if (res.success) {
+              Alert.alert('📍 Location saved', `${lat.toFixed(6)}, ${lng.toFixed(6)} (±${Math.round(accuracy || 0)}m)\n\n${res.message}`);
+            } else Alert.alert('Not saved', res.message || 'Could not save location');
+          } catch (e) { Alert.alert('Error', 'Could not get your location. Move near a window/outdoors and retry.'); }
+        } },
+      ]);
     } catch (e) { Alert.alert('Error', 'Could not start location setup'); }
   };
 
@@ -1159,10 +1169,12 @@ const GymAdminScreen = ({ navigation }) => {
               </Text>
             </View>
 
-            <TouchableOpacity style={styles.kioskBtn} onPress={setGymLocation}>
-              <Ionicons name="location-outline" size={18} color={COLORS.onAccent} />
-              <Text style={styles.kioskBtnText}>Set gym location</Text>
-            </TouchableOpacity>
+            {can('canSetLocation') && (
+              <TouchableOpacity style={styles.kioskBtn} onPress={setGymLocation}>
+                <Ionicons name="location-outline" size={18} color={COLORS.onAccent} />
+                <Text style={styles.kioskBtnText}>Set gym location</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Modal>

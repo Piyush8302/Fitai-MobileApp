@@ -49,6 +49,7 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
     { key: 'canAccessCashbook', icon: 'wallet-outline', title: 'Cashbook access', sub: 'View & add income/expense' },
     { key: 'canAccessReports', icon: 'document-text-outline', title: 'Reports access', sub: 'Download PDF reports' },
     { key: 'canEditGym', icon: 'create-outline', title: 'Edit gym', sub: 'Edit name, timings & plans' },
+    { key: 'canSetLocation', icon: 'location-outline', title: 'Set gym location', sub: 'Set the GPS check-in area (100m)' },
   ];
 
   // Edit
