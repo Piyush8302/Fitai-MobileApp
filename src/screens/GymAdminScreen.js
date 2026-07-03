@@ -1213,9 +1213,11 @@ const styles = StyleSheet.create({
   switchAddText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.bold },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16, marginTop: 8 },
-  statTouch: { width: '47%', flexGrow: 1, borderRadius: 20, overflow: 'hidden', ...SHADOWS.medium },
+  // Shadow must sit on the gradient itself — an elevated transparent wrapper
+  // renders as a black box on Android dark mode.
+  statTouch: { width: '47%', flexGrow: 1 },
   statTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  statCard: { width: '100%', paddingVertical: 16, paddingHorizontal: 16, borderRadius: 20 },
+  statCard: { width: '100%', paddingVertical: 16, paddingHorizontal: 16, borderRadius: 20, ...SHADOWS.medium },
   statIconWrap: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
   statValue: { fontSize: 28, color: '#FFFFFF', ...FONTS.extraBold },
   statLabel: { fontSize: SIZES.fontSm, color: 'rgba(255,255,255,0.92)', ...FONTS.semiBold, marginTop: 2 },

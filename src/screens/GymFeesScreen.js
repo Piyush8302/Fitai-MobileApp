@@ -72,8 +72,8 @@ const GymFeesScreen = ({ navigation, route }) => {
           {cards.map((c) => {
             const active = filter === c.key;
             return (
-              <TouchableOpacity key={c.key} style={[styles.cardWrap, active && styles.cardWrapActive]} activeOpacity={0.85} onPress={() => setFilter(c.key)}>
-                <LinearGradient colors={c.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
+              <TouchableOpacity key={c.key} style={styles.cardWrap} activeOpacity={0.85} onPress={() => setFilter(c.key)}>
+                <LinearGradient colors={c.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.card, active && styles.cardActive]}>
                   <View style={styles.cardTop}>
                     <View style={styles.cardChip}><Ionicons name={c.icon} size={15} color="#FFF" /></View>
                     {active && <Ionicons name="checkmark-circle" size={16} color="#FFF" />}
@@ -137,9 +137,11 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingBottom: 20 },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 6 },
-  cardWrap: { width: '47%', flexGrow: 1, borderRadius: 16, overflow: 'hidden', ...SHADOWS.medium },
-  cardWrapActive: { borderWidth: 2, borderColor: '#FFFFFF' },
-  card: { padding: 14, minHeight: 100, borderRadius: 16 },
+  // Shadow lives ON the gradient (solid bg) — an elevated transparent wrapper
+  // renders as a black box on Android dark mode.
+  cardWrap: { width: '47%', flexGrow: 1 },
+  card: { padding: 14, minHeight: 100, borderRadius: 16, borderWidth: 2, borderColor: 'transparent', ...SHADOWS.medium },
+  cardActive: { borderColor: '#FFFFFF' },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   cardChip: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
   cardValue: { fontSize: 26, color: '#FFFFFF', ...FONTS.extraBold },
@@ -156,7 +158,7 @@ const styles = StyleSheet.create({
   name: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
   meta: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 1, textTransform: 'capitalize' },
   badge: { fontSize: SIZES.fontXs, ...FONTS.semiBold, marginTop: 3 },
-  right: { alignItems: 'flex-end', flexDirection: 'row', gap: 6, alignItems: 'center' },
+  right: { flexDirection: 'row', gap: 6, alignItems: 'center' },
   amount: { fontSize: SIZES.fontMd, color: COLORS.error, ...FONTS.bold },
 
   empty: { alignItems: 'center', paddingVertical: 40 },
