@@ -585,15 +585,28 @@ const GymAdminScreen = ({ navigation }) => {
           {[
             { label: 'Members', value: stats?.totalMembers ?? 0, icon: 'people', grad: ['#6C63FF', '#8B85FF'] },
             { label: 'Today In', value: stats?.todayFootfall ?? 0, icon: 'checkmark-done', grad: ['#22C55E', '#16A34A'] },
-            { label: 'Fee Due', value: stats?.dueMembers ?? 0, icon: 'alert-circle', grad: ['#FF6B6B', '#FF8E53'] },
-            { label: 'Pending ₹', value: stats?.pendingFees ?? 0, icon: 'wallet', grad: ['#FB8C00', '#FFB300'] },
-          ].map((s, i) => (
-            <LinearGradient key={i} colors={s.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.statCard}>
-              <View style={styles.statIconWrap}><Ionicons name={s.icon} size={18} color="#FFF" /></View>
-              <Text style={styles.statValue}>{s.value}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
-            </LinearGradient>
-          ))}
+            { label: 'Fee Due', value: stats?.dueMembers ?? 0, icon: 'alert-circle', grad: ['#FF6B6B', '#FF8E53'], to: 'due' },
+            { label: 'Pending ₹', value: stats?.pendingFees ?? 0, icon: 'wallet', grad: ['#FB8C00', '#FFB300'], to: 'pending' },
+          ].map((s, i) => {
+            const tappable = s.to && !isAll;
+            const inner = (
+              <LinearGradient colors={s.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.statCard}>
+                <View style={styles.statTopRow}>
+                  <View style={styles.statIconWrap}><Ionicons name={s.icon} size={18} color="#FFF" /></View>
+                  {tappable && <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.9)" />}
+                </View>
+                <Text style={styles.statValue}>{s.value}</Text>
+                <Text style={styles.statLabel}>{s.label}</Text>
+              </LinearGradient>
+            );
+            return tappable ? (
+              <TouchableOpacity key={i} style={styles.statTouch} activeOpacity={0.85} onPress={() => navigation.navigate('GymFees', { gymId: activeGym._id, gymName: activeGym.name, filter: s.to })}>
+                {inner}
+              </TouchableOpacity>
+            ) : (
+              <View key={i} style={styles.statTouch}>{inner}</View>
+            );
+          })}
         </View>
 
         {/* Add member button — hidden in All-Gyms view + for staff without the right */}
@@ -1200,8 +1213,10 @@ const styles = StyleSheet.create({
   switchAddText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.bold },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16, marginTop: 8 },
-  statCard: { width: '47%', flexGrow: 1, paddingVertical: 16, paddingHorizontal: 16, borderRadius: 20, ...SHADOWS.medium },
-  statIconWrap: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  statTouch: { width: '47%', flexGrow: 1, borderRadius: 20, overflow: 'hidden', ...SHADOWS.medium },
+  statTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  statCard: { width: '100%', paddingVertical: 16, paddingHorizontal: 16, borderRadius: 20 },
+  statIconWrap: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
   statValue: { fontSize: 28, color: '#FFFFFF', ...FONTS.extraBold },
   statLabel: { fontSize: SIZES.fontSm, color: 'rgba(255,255,255,0.92)', ...FONTS.semiBold, marginTop: 2 },
 
