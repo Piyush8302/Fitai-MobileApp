@@ -74,17 +74,18 @@ const GymFeesScreen = ({ navigation, route }) => {
             return (
               <TouchableOpacity key={c.key} style={styles.cardWrap} activeOpacity={0.85} onPress={() => setFilter(c.key)}>
                 <LinearGradient colors={c.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.card, active && styles.cardActive]}>
+                  {active && <View pointerEvents="none" style={styles.cardShine} />}
                   <View style={styles.cardTop}>
-                    <View style={styles.cardChip}><Ionicons name={c.icon} size={15} color="#FFF" /></View>
+                    <View style={styles.cardChip}><Ionicons name={c.icon} size={14} color="#FFF" /></View>
                     {active && <Ionicons name="checkmark-circle" size={16} color="#FFF" />}
                   </View>
                   <Text style={styles.cardValue} numberOfLines={1} adjustsFontSizeToFit>
                     {c.isAmount ? `₹${c.amount || 0}` : (c.count ?? 0)}
                   </Text>
                   <Text style={styles.cardLabel} numberOfLines={1}>{c.label}</Text>
-                  {!c.isAmount && c.amount != null && (
-                    <Text style={styles.cardSub}>₹{c.amount || 0} pending</Text>
-                  )}
+                  <Text style={styles.cardSub} numberOfLines={1}>
+                    {!c.isAmount && c.amount != null ? `₹${c.amount || 0} pending` : ' '}
+                  </Text>
                 </LinearGradient>
               </TouchableOpacity>
             );
@@ -140,11 +141,14 @@ const styles = StyleSheet.create({
   // Shadow lives ON the gradient (solid bg) — an elevated transparent wrapper
   // renders as a black box on Android dark mode.
   cardWrap: { width: '47%', flexGrow: 1 },
-  card: { padding: 14, minHeight: 100, borderRadius: 16, borderWidth: 2, borderColor: 'transparent', ...SHADOWS.medium },
+  // Every card the SAME fixed size; selection only adds a white border + shine
+  // overlay (no size/layout change).
+  card: { height: 128, padding: 14, borderRadius: 16, borderWidth: 2, borderColor: 'transparent', ...SHADOWS.medium },
   cardActive: { borderColor: '#FFFFFF' },
+  cardShine: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.16)' },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  cardChip: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
-  cardValue: { fontSize: 26, color: '#FFFFFF', ...FONTS.extraBold },
+  cardChip: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  cardValue: { fontSize: 24, color: '#FFFFFF', ...FONTS.extraBold },
   cardLabel: { fontSize: SIZES.fontSm, color: 'rgba(255,255,255,0.95)', ...FONTS.semiBold, marginTop: 2 },
   cardSub: { fontSize: SIZES.fontXs, color: 'rgba(255,255,255,0.85)', ...FONTS.medium, marginTop: 2 },
 
