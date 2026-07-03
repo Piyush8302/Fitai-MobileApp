@@ -56,7 +56,9 @@ const GymScanScreen = ({ navigation, route }) => {
         }
         const res = await api.post(ENDPOINTS.GYM_MY_CHECKIN, payload);
         if (res.success) {
-          Alert.alert('✅ Checked in', res.message, [{ text: 'OK', onPress: () => navigation.goBack() }]);
+          // Closed (outside gym hours) = attendance NOT marked — show a cross, not a tick.
+          const title = res.data?.closed ? '❌ Attendance NOT marked' : '✅ Checked in';
+          Alert.alert(title, res.message, [{ text: 'OK', onPress: () => navigation.goBack() }]);
         } else { Alert.alert('Error', res.message || 'Invalid gym QR', [{ text: 'Retry', onPress: reset }]); }
       }
     } catch (e) {
