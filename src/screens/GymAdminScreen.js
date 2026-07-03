@@ -41,7 +41,14 @@ const GymAdminScreen = ({ navigation }) => {
   const [perms, setPerms] = useState({}); // current user's granted permissions
   const [showDrawer, setShowDrawer] = useState(false);
   const readUser = useCallback(async () => {
+    // 1) instant from cache
     try { const p = JSON.parse(await AsyncStorage.getItem('user')); setIsStaff(p?.role === 'gym_staff'); setUserName(p?.name || ''); setPerms(p || {}); } catch (e) {}
+    // 2) live from server so a freshly-granted permission applies without re-login
+    try {
+      const me = await api.get(ENDPOINTS.GET_ME);
+      const u = me?.user || me?.data;
+      if (u) { setIsStaff(u.role === 'gym_staff'); setUserName(u.name || ''); setPerms(u); await AsyncStorage.setItem('user', JSON.stringify(u)); }
+    } catch (e) {}
   }, []);
   useEffect(() => { readUser(); }, [readUser]);
   // Re-read on focus (AdminTabs keeps the stored user fresh) so newly-granted rights apply.

@@ -35,7 +35,11 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   // Staff can't remove members (owner only); other actions depend on granted rights.
   const [isStaff, setIsStaff] = useState(false);
   const [perms, setPerms] = useState({});
-  useEffect(() => { AsyncStorage.getItem('user').then((u) => { try { const p = JSON.parse(u); setIsStaff(p?.role === 'gym_staff'); setPerms(p || {}); } catch (e) {} }); }, []);
+  useEffect(() => {
+    AsyncStorage.getItem('user').then((u) => { try { const p = JSON.parse(u); setIsStaff(p?.role === 'gym_staff'); setPerms(p || {}); } catch (e) {} });
+    // Live perms so a freshly-granted right applies without re-login
+    api.get(ENDPOINTS.GET_ME).then((me) => { const u = me?.user || me?.data; if (u) { setIsStaff(u.role === 'gym_staff'); setPerms(u); } }).catch(() => {});
+  }, []);
   const can = (flag) => !isStaff || !!perms[flag];
 
   const load = useCallback(async () => {
