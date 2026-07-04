@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePickerModal from '../components/DateTimePickerModal';
 
 const PLANS = [
   { key: 'monthly', label: 'Monthly', months: 1 },
@@ -16,9 +17,15 @@ const PLANS = [
   { key: 'yearly', label: 'Yearly', months: 12 },
 ];
 const PLAN_LABEL = { trial: 'Trial', day_pass: 'Day Pass', monthly: 'Monthly', quarterly: '3 Months', half_yearly: '6 Months', yearly: 'Yearly' };
-const PLAN_MONTHS = { monthly: 1, quarterly: 3, half_yearly: 6, yearly: 12 };
-const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const dueForPlan = (planKey) => { const d = new Date(); d.setMonth(d.getMonth() + (PLAN_MONTHS[planKey] || 1)); return ymd(d); };
+// Day-based cycle to match the backend (monthly = join + 30 days, not a calendar month).
+const PLAN_DAYS = { monthly: 30, quarterly: 90, half_yearly: 180, yearly: 365 };
+const dueForPlan = (planKey) => { const d = new Date(); d.setDate(d.getDate() + (PLAN_DAYS[planKey] || 30)); return d.toISOString(); };
+const fmtDue = (v) => {
+  if (!v) return 'Not set';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return String(v);
+  return `${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}, ${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`;
+};
 
 const GymMemberDetailScreen = ({ navigation, route }) => {
   const { membershipId, gymId } = route.params;
@@ -27,7 +34,8 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   const [showPay, setShowPay] = useState(false);
   const [payPlan, setPayPlan] = useState('monthly');
   const [payAmount, setPayAmount] = useState('');
-  const [payDueDate, setPayDueDate] = useState(''); // editable next-due date (YYYY-MM-DD)
+  const [payDueDate, setPayDueDate] = useState(''); // editable next-due date (ISO)
+  const [picker, setPicker] = useState(null); // null | 'pay' | 'edit' — which flow the date picker serves
   const [busy, setBusy] = useState(false);
   const [calMonth, setCalMonth] = useState(new Date()); // month shown in calendar
   const [refreshing, setRefreshing] = useState(false);
@@ -82,6 +90,16 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
       }
     } catch (e) { Alert.alert('Error', 'Failed'); }
     finally { setBusy(false); }
+  };
+
+  // Change the next due date WITHOUT a payment (owner grants extra time / fixes a date).
+  // Backend notifies the member (app + web) and the owner + staff; reminders follow the new date.
+  const applyEditDue = async (dt) => {
+    try {
+      const res = await api.put(`/api/gym/member/${membershipId}/duedate`, { dueDate: dt.toISOString() });
+      if (res.success) { Alert.alert('📅 Due date updated', res.message || `Next due: ${fmtDue(dt)}`); load(); }
+      else Alert.alert('Not updated', res.message || 'Failed to update due date');
+    } catch (e) { Alert.alert('Error', 'Failed to update due date'); }
   };
 
   const changeStatus = (status, label, confirm) => {
@@ -233,6 +251,15 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
           />
         </View>
 
+        {/* Change due date (no payment) — owner, or staff with mark-payment right */}
+        {can('canMarkPayment') && (
+          <TouchableOpacity style={styles.editDueBtn} onPress={() => setPicker('edit')}>
+            <Ionicons name="calendar" size={16} color={COLORS.primary} />
+            <Text style={styles.editDueText}>Change due date</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        )}
+
         {/* Actions — shown per granted rights */}
         {(can('canMarkPresent') || can('canMarkPayment')) && (
           <View style={styles.actions}>
@@ -268,7 +295,7 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
             <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
             <Text style={styles.histDate}>{new Date(a.checkInAt).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</Text>
             <Text style={styles.histTime}>{new Date(a.checkInAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
-            <Text>{a.method === 'self_scan' ? '📱' : '🧑‍💼'}</Text>
+            <Text>{a.method === 'auto_geo' ? '⚡' : a.method === 'self_scan' ? '📱' : '🧑‍💼'}</Text>
           </View>
         ))}
 
@@ -365,8 +392,13 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
             <TextInput style={styles.input} placeholder="e.g. 1000" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={payAmount} onChangeText={setPayAmount} />
 
             <Text style={styles.inputLabel}>Next due date</Text>
-            <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor={COLORS.textMuted} value={payDueDate} onChangeText={setPayDueDate} autoCapitalize="none" />
-            <Text style={styles.dueHint}>Auto-set from plan — edit to fix a custom due date.</Text>
+            <TouchableOpacity style={[styles.input, styles.dateField]} onPress={() => setPicker('pay')}>
+              <Text style={{ color: payDueDate ? COLORS.white : COLORS.textMuted, fontSize: SIZES.fontMd, ...FONTS.medium }}>
+                {payDueDate ? fmtDue(payDueDate) : 'Tap to pick date & time'}
+              </Text>
+              <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
+            </TouchableOpacity>
+            <Text style={styles.dueHint}>Auto-set from plan — tap to set a custom due date & time.</Text>
 
             <TouchableOpacity style={styles.payBtn} onPress={markPayment} disabled={busy}>
               {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.payBtnText}>Mark as Paid</Text>}
@@ -374,6 +406,20 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Date + time picker — serves both the payment due-date and the standalone edit */}
+      <DateTimePickerModal
+        visible={picker !== null}
+        value={picker === 'edit' ? (m?.dueDate || undefined) : (payDueDate || undefined)}
+        title={picker === 'edit' ? 'Set next due date' : 'Next due date'}
+        onClose={() => setPicker(null)}
+        onConfirm={(dt) => {
+          const flow = picker;
+          setPicker(null);
+          if (flow === 'pay') setPayDueDate(dt.toISOString());
+          else if (flow === 'edit') applyEditDue(dt);
+        }}
+      />
     </LinearGradient>
   );
 };
@@ -464,6 +510,9 @@ const styles = StyleSheet.create({
   modalSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 4, marginBottom: 16 },
   inputLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, marginBottom: 8, marginTop: 8 },
   dueHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 4 },
+  dateField: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  editDueBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginTop: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: SIZES.radius, backgroundColor: COLORS.primary + '12', borderWidth: 1, borderColor: COLORS.primary + '30' },
+  editDueText: { flex: 1, fontSize: SIZES.fontMd, color: COLORS.primary, ...FONTS.bold },
   planGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   planChip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 16, backgroundColor: COLORS.darkSurface, borderWidth: 1, borderColor: COLORS.darkBorder },
   planChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
