@@ -225,6 +225,19 @@ const GymAdminScreen = ({ navigation }) => {
     }
   };
 
+  // Ask the super-admin to reactivate a suspended gym.
+  const [reactBusy, setReactBusy] = useState(false);
+  const requestReactivation = async () => {
+    if (!activeGym?._id || reactBusy) return;
+    setReactBusy(true);
+    try {
+      const res = await api.post(`/api/gym/${activeGym._id}/request-reactivation`, {});
+      Alert.alert(res.success ? 'Request sent' : 'Note', res.message || 'Request sent to admin.');
+      await loadGyms();
+    } catch (e) { Alert.alert('Error', 'Could not send request. Try again.'); }
+    finally { setReactBusy(false); }
+  };
+
   const loadUnread = useCallback(async () => {
     try {
       const res = await api.get(ENDPOINTS.NOTIFICATIONS);
@@ -615,6 +628,33 @@ const GymAdminScreen = ({ navigation }) => {
           }
         }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
+        {/* Gym suspended banner (frozen by admin) */}
+        {!isAll && activeGym?.isActive === false && (
+          <View style={styles.suspendCard}>
+            <View style={styles.suspendRow}>
+              <Ionicons name="lock-closed" size={20} color="#FF6B6B" />
+              <Text style={styles.suspendTitle}>Gym suspended</Text>
+            </View>
+            <Text style={styles.suspendMsg}>
+              Your gym has been suspended by FitAI admin. Check-ins and actions (add member, payment, attendance) are paused. You can still view your data.
+            </Text>
+            {activeGym?.reactivationRequested ? (
+              <View style={styles.suspendPending}>
+                <Ionicons name="time-outline" size={16} color="#FFB020" />
+                <Text style={styles.suspendPendingText}>Reactivation request pending with admin…</Text>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.suspendBtn} onPress={requestReactivation} disabled={reactBusy}>
+                {reactBusy ? <ActivityIndicator color="#FFF" size="small" /> : (
+                  <>
+                    <Ionicons name="refresh" size={16} color="#FFF" />
+                    <Text style={styles.suspendBtnText}>Request reactivation</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
         {/* Stats — vibrant gradient tiles */}
         <View style={styles.statsGrid}>
           {[
@@ -1253,6 +1293,14 @@ const styles = StyleSheet.create({
   switchAdd: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 38, paddingHorizontal: 14, borderRadius: 19, backgroundColor: COLORS.primary + '15', borderWidth: 1, borderColor: COLORS.primary + '40' },
   switchAddText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.bold },
 
+  suspendCard: { marginHorizontal: 16, marginTop: 12, padding: 14, borderRadius: SIZES.radius, backgroundColor: 'rgba(255,107,107,0.10)', borderWidth: 1, borderColor: 'rgba(255,107,107,0.4)' },
+  suspendRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  suspendTitle: { fontSize: SIZES.fontLg, color: '#FF6B6B', ...FONTS.bold },
+  suspendMsg: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium, lineHeight: 19 },
+  suspendBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, paddingVertical: 12, borderRadius: SIZES.radius, backgroundColor: '#FF6B6B' },
+  suspendBtnText: { color: '#FFFFFF', fontSize: SIZES.fontMd, ...FONTS.bold },
+  suspendPending: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, paddingVertical: 10, paddingHorizontal: 12, borderRadius: SIZES.radius, backgroundColor: 'rgba(255,176,32,0.12)' },
+  suspendPendingText: { color: '#FFB020', fontSize: SIZES.fontSm, ...FONTS.semiBold },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16, marginTop: 8 },
   // Shadow must sit on the gradient itself — an elevated transparent wrapper
   // renders as a black box on Android dark mode.
