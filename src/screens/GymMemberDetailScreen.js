@@ -207,7 +207,7 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
 
   const m = data.membership;
   const u = m.user;
-  const realEmail = u.email && !u.email.endsWith('@fitai.local') ? u.email : null;
+  const realEmail = u.email && !/@fitai\.(temp|local)$/.test(u.email) ? u.email : null;
 
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
