@@ -8,8 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
+import { downloadAndSharePdf } from '../utils/pdf';
 import { Image } from 'react-native';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import AdminDrawer from '../components/AdminDrawer';
@@ -298,12 +297,8 @@ const GymAdminScreen = ({ navigation }) => {
           </div>
           <div class="foot">Print this page & place it at the counter. This QR never changes.<br/>Powered by FitAI</div>
         </div></body></html>`;
-      const { uri } = await Print.printToFileAsync({ html });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `${gymName} — Check-in QR`, UTI: 'com.adobe.pdf' });
-      } else {
-        Alert.alert('Saved', 'QR PDF created.');
-      }
+      const { savedTo } = await downloadAndSharePdf(html, `${gymName}-checkin-qr`, `${gymName} — Check-in QR`);
+      if (savedTo) Alert.alert('Downloaded', 'QR PDF saved to your device. You can also share it from the menu.');
     } catch (e) { Alert.alert('Error', 'Could not create the QR PDF. Please try again.'); }
     finally { setQrPdfBusy(false); }
   };

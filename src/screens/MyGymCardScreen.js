@@ -4,8 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import Barcode from 'react-native-barcode-svg';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
+import { downloadAndSharePdf } from '../utils/pdf';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -142,10 +141,8 @@ const MyGymCardScreen = ({ navigation }) => {
             <tr><th>Gym</th><th>Plan</th><th>Status</th></tr>${gymRows}</table></div>` : ''}
           <div class="foot">Powered by FitAI</div>
         </div></body></html>`;
-      const { uri } = await Print.printToFileAsync({ html });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `${name} — Member Card`, UTI: 'com.adobe.pdf' });
-      } else { Alert.alert('Saved', 'Member card PDF created.'); }
+      const { savedTo } = await downloadAndSharePdf(html, `${name}-fitai-card`, `${name} — Member Card`);
+      if (savedTo) Alert.alert('Downloaded', 'Your member card PDF was saved to your device.');
     } catch (e) { Alert.alert('Error', 'Could not create the PDF. Please try again.'); }
     finally { setPdfBusy(false); }
   };
