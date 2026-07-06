@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Switch } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import Barcode from 'react-native-barcode-svg';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,6 +16,8 @@ const MyGymCardScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);       // gymId whose history is open
   const [history, setHistory] = useState({});           // { gymId: [attendance] }
+  const qrRef = useRef(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -88,6 +92,64 @@ const MyGymCardScreen = ({ navigation }) => {
   const qrValue = card?.qrValue || 'FITAI';
   const barcodeValue = (card?.phone || card?.userId || '000000').toString().replace(/\D/g, '').slice(-12) || '000000';
 
+  // Download the membership card as a designed PDF (printable / saveable).
+  const getQrB64 = () => new Promise((resolve) => {
+    try { (qrRef.current && qrRef.current.toDataURL) ? qrRef.current.toDataURL((d) => resolve(d)) : resolve(null); }
+    catch (e) { resolve(null); }
+  });
+  const downloadCardPdf = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const b64 = await getQrB64();
+      const name = card?.name || 'Member';
+      const phone = card?.phone || '';
+      const gyms = card?.gyms || [];
+      const gymRows = gyms.map((g) => `<tr>
+        <td style="padding:8px 10px;font-weight:600;color:#1B1D33;">${g.gym?.name || 'Gym'}</td>
+        <td style="padding:8px 10px;color:#6B6B8D;">${g.plan || '-'}</td>
+        <td style="padding:8px 10px;color:${g.isDue ? '#E5484D' : '#12A150'};font-weight:600;">${g.isDue ? 'Fee due' : 'Active'}</td>
+      </tr>`).join('');
+      const qrImg = b64
+        ? `<img src="data:image/png;base64,${b64}" style="width:200px;height:200px;display:block;" />`
+        : `<div style="width:200px;height:200px;"></div>`;
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+        <style>
+          @page { margin:0; }
+          * { box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+          body { margin:0; font-family:-apple-system,'Helvetica Neue',Arial,sans-serif; }
+          .page { min-height:100vh; padding:48px 40px; background:linear-gradient(160deg,#6C63FF,#4B44C9 55%,#2E2A78); color:#fff; display:flex; flex-direction:column; align-items:center; }
+          .brand { font-size:18px; font-weight:800; letter-spacing:2px; opacity:.9; }
+          .name { font-size:36px; font-weight:800; margin:16px 0 2px; text-align:center; }
+          .phone { font-size:16px; opacity:.85; margin-bottom:26px; }
+          .card { background:#fff; border-radius:26px; padding:28px; text-align:center; box-shadow:0 18px 46px rgba(0,0,0,.25); }
+          .qrwrap { display:inline-block; padding:14px; border:3px solid #EEE; border-radius:16px; }
+          .hint { margin-top:14px; color:#6B6B8D; font-size:14px; font-weight:600; }
+          .gyms { background:rgba(255,255,255,.14); border-radius:16px; margin-top:26px; width:100%; max-width:520px; overflow:hidden; }
+          .gyms table { width:100%; border-collapse:collapse; background:#fff; }
+          .gyms th { text-align:left; font-size:12px; letter-spacing:1px; color:#6B6B8D; padding:10px; background:#F3F3FE; }
+          .foot { margin-top:auto; padding-top:26px; font-size:13px; opacity:.85; }
+        </style></head>
+        <body><div class="page">
+          <div class="brand">FITAI · MEMBER CARD</div>
+          <div class="name">${name}</div>
+          <div class="phone">${phone}</div>
+          <div class="card">
+            <div class="qrwrap">${qrImg}</div>
+            <div class="hint">Show this QR at the gym counter to check in</div>
+          </div>
+          ${gyms.length ? `<div class="gyms"><table>
+            <tr><th>Gym</th><th>Plan</th><th>Status</th></tr>${gymRows}</table></div>` : ''}
+          <div class="foot">Powered by FitAI</div>
+        </div></body></html>`;
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `${name} — Member Card`, UTI: 'com.adobe.pdf' });
+      } else { Alert.alert('Saved', 'Member card PDF created.'); }
+    } catch (e) { Alert.alert('Error', 'Could not create the PDF. Please try again.'); }
+    finally { setPdfBusy(false); }
+  };
+
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
       <View style={styles.header}>
@@ -112,7 +174,7 @@ const MyGymCardScreen = ({ navigation }) => {
 
           {/* QR */}
           <View style={styles.qrWrap}>
-            <QRCode value={qrValue} size={150} backgroundColor="#FFFFFF" color="#000000" />
+            <QRCode value={qrValue} size={150} backgroundColor="#FFFFFF" color="#000000" getRef={(c) => { qrRef.current = c; }} />
           </View>
           <Text style={styles.scanHint}>Show this at the gym counter to check in</Text>
 
@@ -121,6 +183,16 @@ const MyGymCardScreen = ({ navigation }) => {
             <Barcode value={barcodeValue} format="CODE128" height={48} singleBarWidth={1.6} backgroundColor="#FFFFFF" lineColor="#000000" />
           </View>
         </LinearGradient>
+
+        {/* ===== DOWNLOAD PDF ===== */}
+        <TouchableOpacity style={styles.downloadBtn} onPress={downloadCardPdf} disabled={pdfBusy}>
+          {pdfBusy ? <ActivityIndicator color={COLORS.onAccent} size="small" /> : (
+            <>
+              <Ionicons name="download-outline" size={20} color={COLORS.onAccent} />
+              <Text style={styles.checkinText}>Download Card (PDF)</Text>
+            </>
+          )}
+        </TouchableOpacity>
 
         {/* ===== SELF CHECK-IN ===== */}
         <TouchableOpacity
@@ -231,6 +303,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary, borderRadius: SIZES.radius, paddingVertical: 14, marginTop: 16,
   },
   checkinText: { color: COLORS.onAccent, fontSize: SIZES.fontMd, ...FONTS.bold },
+  downloadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.success, borderRadius: SIZES.radius, paddingVertical: 14, marginTop: 16 },
   autoCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12, padding: 14,
     backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder,

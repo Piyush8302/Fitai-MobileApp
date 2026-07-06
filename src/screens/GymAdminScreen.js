@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { Image } from 'react-native';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import AdminDrawer from '../components/AdminDrawer';
@@ -237,6 +239,75 @@ const GymAdminScreen = ({ navigation }) => {
     } catch (e) { Alert.alert('Error', 'Could not send request. Try again.'); }
     finally { setReactBusy(false); }
   };
+  // ── Gym QR → designed PDF poster (for printing at the counter) ──
+  const qrRef = useRef(null);
+  const [qrPdfBusy, setQrPdfBusy] = useState(false);
+  const getQrBase64 = () => new Promise((resolve) => {
+    try {
+      if (qrRef.current && qrRef.current.toDataURL) qrRef.current.toDataURL((d) => resolve(d));
+      else resolve(null);
+    } catch (e) { resolve(null); }
+  });
+  const downloadQrPdf = async () => {
+    if (qrPdfBusy || !activeGym?._id) return;
+    setQrPdfBusy(true);
+    try {
+      const b64 = await getQrBase64();
+      const gymName = activeGym?.name || 'My Gym';
+      const code = activeGym?.gymCode || '';
+      const qrImg = b64
+        ? `<img src="data:image/png;base64,${b64}" style="width:230px;height:230px;display:block;" />`
+        : `<div style="width:230px;height:230px;display:flex;align-items:center;justify-content:center;color:#888;">QR</div>`;
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+        <style>
+          @page { margin: 0; }
+          * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          body { margin:0; font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; }
+          .page { width:100%; min-height:100vh; padding:48px 40px;
+            background: linear-gradient(160deg,#6C63FF 0%,#4B44C9 45%,#2E2A78 100%); color:#fff;
+            display:flex; flex-direction:column; align-items:center; }
+          .brand { font-size:20px; font-weight:800; letter-spacing:2px; opacity:.9; }
+          .gym { font-size:40px; font-weight:800; text-align:center; margin:14px 0 2px; }
+          .city { font-size:16px; opacity:.85; margin-bottom:26px; }
+          .card { background:#fff; border-radius:28px; padding:30px 30px 24px; text-align:center;
+            box-shadow:0 20px 50px rgba(0,0,0,.25); }
+          .scan { color:#2E2A78; font-size:22px; font-weight:800; letter-spacing:1px; margin-bottom:16px; }
+          .qrwrap { display:inline-block; padding:14px; border:3px solid #EEE; border-radius:18px; }
+          .code { margin-top:16px; font-size:15px; color:#6B6B8D; font-weight:700; letter-spacing:1px; }
+          .steps { margin-top:34px; width:100%; max-width:460px; }
+          .step { display:flex; align-items:center; gap:14px; background:rgba(255,255,255,.14);
+            border-radius:16px; padding:14px 18px; margin-bottom:12px; }
+          .num { width:34px; height:34px; border-radius:17px; background:#fff; color:#4B44C9;
+            font-weight:800; display:flex; align-items:center; justify-content:center; flex:0 0 34px; }
+          .stext { font-size:16px; font-weight:600; }
+          .foot { margin-top:auto; padding-top:26px; font-size:13px; opacity:.85; text-align:center; }
+        </style></head>
+        <body><div class="page">
+          <div class="brand">FITAI · GYM CHECK-IN</div>
+          <div class="gym">${gymName}</div>
+          <div class="city">${activeGym?.city || activeGym?.location || ''}</div>
+          <div class="card">
+            <div class="scan">SCAN TO CHECK IN</div>
+            <div class="qrwrap">${qrImg}</div>
+            <div class="code">Gym code: ${code}</div>
+          </div>
+          <div class="steps">
+            <div class="step"><div class="num">1</div><div class="stext">Open your phone camera</div></div>
+            <div class="step"><div class="num">2</div><div class="stext">Point it at this QR code</div></div>
+            <div class="step"><div class="num">3</div><div class="stext">Attendance marks automatically (you must be at the gym)</div></div>
+          </div>
+          <div class="foot">Print this page & place it at the counter. This QR never changes.<br/>Powered by FitAI</div>
+        </div></body></html>`;
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `${gymName} — Check-in QR`, UTI: 'com.adobe.pdf' });
+      } else {
+        Alert.alert('Saved', 'QR PDF created.');
+      }
+    } catch (e) { Alert.alert('Error', 'Could not create the QR PDF. Please try again.'); }
+    finally { setQrPdfBusy(false); }
+  };
+
   // Tap the header "Suspended" tag → send / show reactivation request.
   const onSuspendTagPress = () => {
     if (activeGym?.reactivationRequested) {
@@ -1252,10 +1323,20 @@ const GymAdminScreen = ({ navigation }) => {
             <Text style={styles.modalSub}>Members scan this to mark attendance</Text>
 
             <View style={styles.gymQrBox}>
-              <QRCode value={`${API_BASE_URL}/g/${activeGym?.gymCode || ''}`} size={200} backgroundColor="#FFFFFF" color="#000000" />
+              <QRCode value={`${API_BASE_URL}/g/${activeGym?.gymCode || ''}`} size={200} backgroundColor="#FFFFFF" color="#000000" getRef={(c) => { qrRef.current = c; }} />
               <Text style={styles.gymQrName}>{activeGym?.name}</Text>
               <Text style={styles.gymQrCode}>Scan to check in</Text>
             </View>
+
+            {/* Download the QR as a printable PDF poster */}
+            <TouchableOpacity style={styles.qrDownloadBtn} onPress={downloadQrPdf} disabled={qrPdfBusy}>
+              {qrPdfBusy ? <ActivityIndicator color={COLORS.onAccent} size="small" /> : (
+                <>
+                  <Ionicons name="download-outline" size={18} color={COLORS.onAccent} />
+                  <Text style={styles.qrDownloadText}>Download PDF</Text>
+                </>
+              )}
+            </TouchableOpacity>
 
             <View style={styles.gymQrTip}>
               <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
@@ -1309,6 +1390,8 @@ const styles = StyleSheet.create({
   gymQrBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '15', borderWidth: 1, borderColor: COLORS.primary + '40' },
   notifBadge: { position: 'absolute', top: 7, right: 8, width: 9, height: 9, borderRadius: 5, backgroundColor: COLORS.error, borderWidth: 1.5, borderColor: COLORS.darkCard },
   gymQrBox: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 24, marginVertical: 16 },
+  qrDownloadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: SIZES.radius, backgroundColor: COLORS.primary, marginBottom: 12 },
+  qrDownloadText: { color: COLORS.onAccent, fontSize: SIZES.fontMd, ...FONTS.bold },
   gymQrName: { fontSize: SIZES.fontLg, color: '#1B1D33', ...FONTS.bold, marginTop: 14 },
   gymQrCode: { fontSize: SIZES.fontSm, color: '#6B6B8D', ...FONTS.medium, marginTop: 2 },
   gymQrTip: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: COLORS.primary + '12', borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.primary + '25', padding: 12 },
