@@ -237,6 +237,17 @@ const GymAdminScreen = ({ navigation }) => {
     } catch (e) { Alert.alert('Error', 'Could not send request. Try again.'); }
     finally { setReactBusy(false); }
   };
+  // Tap the header "Suspended" tag → send / show reactivation request.
+  const onSuspendTagPress = () => {
+    if (activeGym?.reactivationRequested) {
+      Alert.alert('Request pending', 'Your reactivation request is already with the admin. You’ll be notified once it’s approved.');
+    } else {
+      Alert.alert('Gym suspended', 'Your gym has been suspended by FitAI admin. Send a request to reactivate it?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Request reactivation', onPress: requestReactivation },
+      ]);
+    }
+  };
 
   const loadUnread = useCallback(async () => {
     try {
@@ -295,7 +306,14 @@ const GymAdminScreen = ({ navigation }) => {
           if (savedId === 'ALL' && res.data.length > 1) { setActiveGym({ _id: 'ALL', name: '🏢 All Gyms' }); }
           else {
             const match = res.data.find(g => g._id === savedId);
-            setActiveGym(prev => (prev && (prev._id === 'ALL' || res.data.find(g => g._id === prev._id))) ? prev : (match || res.data[0]));
+            // Keep the SAME selection but always swap in the FRESH gym object so
+            // fields like isActive / reactivationRequested update (else the banner
+            // never appears after an admin suspends the gym).
+            setActiveGym(prev => {
+              if (prev && prev._id === 'ALL') return prev;
+              const fresh = prev ? res.data.find(g => g._id === prev._id) : null;
+              return fresh || match || res.data[0];
+            });
           }
         }
       }
@@ -307,6 +325,9 @@ const GymAdminScreen = ({ navigation }) => {
   // Re-sync selected gym when this tab regains focus (owner may have switched on another tab)
   useEffect(() => {
     const unsub = navigation.addListener('focus', async () => {
+      // Refetch gyms so isActive / reactivationRequested stay fresh (admin may
+      // have just suspended/reactivated this gym).
+      loadGyms();
       const savedId = await AsyncStorage.getItem('activeGymId');
       if (savedId && gyms.length) {
         const match = gyms.find(g => g._id === savedId);
@@ -314,7 +335,7 @@ const GymAdminScreen = ({ navigation }) => {
       }
     });
     return unsub;
-  }, [navigation, gyms, activeGym]);
+  }, [navigation, gyms, activeGym, loadGyms]);
 
   // Paginated members loader — page 1 replaces, later pages append (infinite scroll)
   const loadMembers = useCallback(async (gymId, page = 1, append = false) => {
@@ -589,6 +610,15 @@ const GymAdminScreen = ({ navigation }) => {
           {!isAll && can('canEditGym') && (
             <TouchableOpacity onPress={openEditGym} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="create-outline" size={20} color={COLORS.primary} />
+            </TouchableOpacity>
+          )}
+          {/* Suspended tag — always visible in the header; tap to request reactivation */}
+          {!isAll && activeGym?.isActive === false && (
+            <TouchableOpacity style={styles.headerSuspendTag} onPress={onSuspendTagPress} disabled={reactBusy}>
+              <Ionicons name="lock-closed" size={12} color="#FFFFFF" />
+              <Text style={styles.headerSuspendText}>
+                {activeGym?.reactivationRequested ? 'Suspended · Requested' : 'Suspended'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1293,6 +1323,8 @@ const styles = StyleSheet.create({
   switchAdd: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 38, paddingHorizontal: 14, borderRadius: 19, backgroundColor: COLORS.primary + '15', borderWidth: 1, borderColor: COLORS.primary + '40' },
   switchAddText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.bold },
 
+  headerSuspendTag: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: '#FF6B6B' },
+  headerSuspendText: { color: '#FFFFFF', fontSize: SIZES.fontXs, ...FONTS.bold },
   suspendCard: { marginHorizontal: 16, marginTop: 12, padding: 14, borderRadius: SIZES.radius, backgroundColor: 'rgba(255,107,107,0.10)', borderWidth: 1, borderColor: 'rgba(255,107,107,0.4)' },
   suspendRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   suspendTitle: { fontSize: SIZES.fontLg, color: '#FF6B6B', ...FONTS.bold },
