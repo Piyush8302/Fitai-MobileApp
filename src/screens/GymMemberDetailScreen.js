@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
-  Alert, Modal, TextInput, Platform, KeyboardAvoidingView, RefreshControl,
+  Alert, Modal, TextInput, Platform, KeyboardAvoidingView, RefreshControl, Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -74,6 +75,32 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
         Alert.alert('Attendance not marked', res.message || 'Could not mark present.');
       }
     } catch (e) { Alert.alert('Error', 'Failed'); }
+  };
+
+  // Owner / staff (with canAddMember) can edit the member's profile photo.
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const editPhoto = () => {
+    const pick = async (source) => {
+      try {
+        const perm = source === 'camera'
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) { Alert.alert('Permission needed', 'Allow access to update the photo.'); return; }
+        const fn = source === 'camera' ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
+        const result = await fn({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.4, base64: true });
+        if (result.canceled || !result.assets?.[0]?.base64) return;
+        setPhotoBusy(true);
+        const b64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        const res = await api.put(`/api/gym/member/${membershipId}/photo`, { avatar: b64 });
+        if (res.success) { await load(); } else Alert.alert('Not updated', res.message || 'Could not update photo');
+      } catch (e) { Alert.alert('Error', 'Could not update photo'); }
+      finally { setPhotoBusy(false); }
+    };
+    Alert.alert('Update member photo', 'Choose a source', [
+      { text: 'Take photo', onPress: () => pick('camera') },
+      { text: 'Choose from gallery', onPress: () => pick('gallery') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const markPayment = async () => {
@@ -208,6 +235,9 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   const m = data.membership;
   const u = m.user;
   const realEmail = u.email && !/@fitai\.(temp|local)$/.test(u.email) ? u.email : null;
+  // Already paid ahead (due date in the future) → block re-marking payment.
+  const paidAhead = m.dueDate && new Date(m.dueDate) > new Date() && m.status === 'active';
+  const paidTill = m.dueDate ? new Date(m.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
@@ -223,7 +253,18 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
         {/* Profile */}
         <View style={styles.profile}>
-          <View style={styles.avatar}><Text style={styles.avatarText}>{(u.name || 'M')[0].toUpperCase()}</Text></View>
+          <TouchableOpacity activeOpacity={can('canAddMember') ? 0.7 : 1} onPress={can('canAddMember') ? editPhoto : undefined} style={styles.avatarWrap}>
+            {u.avatar ? (
+              <Image source={{ uri: u.avatar }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatar}><Text style={styles.avatarText}>{(u.name || 'M')[0].toUpperCase()}</Text></View>
+            )}
+            {can('canAddMember') && (
+              <View style={styles.avatarEdit}>
+                {photoBusy ? <ActivityIndicator size="small" color="#FFF" /> : <Ionicons name="camera" size={15} color="#FFF" />}
+              </View>
+            )}
+          </TouchableOpacity>
           <Text style={styles.name}>{u.name}</Text>
           <View style={[styles.planBadge, m.plan === 'trial' && { backgroundColor: COLORS.warning + '20', borderColor: COLORS.warning + '50' }]}>
             <Text style={[styles.planBadgeText, m.plan === 'trial' && { color: COLORS.warning }]}>{PLAN_LABEL[m.plan] || m.plan}</Text>
@@ -270,10 +311,20 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             )}
             {can('canMarkPayment') && (
-              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.primary }]} onPress={() => { setPayDueDate(dueForPlan(payPlan)); setShowPay(true); }}>
-                <Ionicons name="cash" size={20} color={COLORS.onAccent} />
-                <Text style={[styles.actionText, { color: COLORS.onAccent }]}>Mark Payment</Text>
-              </TouchableOpacity>
+              paidAhead ? (
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: COLORS.success + '15', borderColor: COLORS.success + '40' }]}
+                  onPress={() => Alert.alert('Already paid', `This member is paid till ${paidTill}. You can mark the next payment once it's due. Use "Change due date" if you need to adjust.`)}
+                >
+                  <Ionicons name="checkmark-done-circle" size={20} color={COLORS.success} />
+                  <Text style={[styles.actionText, { color: COLORS.success }]}>Paid till {paidTill}</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.primary }]} onPress={() => { setPayDueDate(dueForPlan(payPlan)); setShowPay(true); }}>
+                  <Ionicons name="cash" size={20} color={COLORS.onAccent} />
+                  <Text style={[styles.actionText, { color: COLORS.onAccent }]}>Mark Payment</Text>
+                </TouchableOpacity>
+              )
             )}
           </View>
         )}
@@ -448,8 +499,10 @@ const styles = StyleSheet.create({
   muted: { fontSize: SIZES.fontMd, color: COLORS.textMuted, textAlign: 'center', marginVertical: 16 },
 
   profile: { alignItems: 'center', marginVertical: 12 },
+  avatarWrap: { width: 80, height: 80 },
   avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 32, color: COLORS.onAccent, ...FONTS.bold },
+  avatarEdit: { position: 'absolute', right: -2, bottom: -2, width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.dark },
   name: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginTop: 12 },
   planBadge: { marginTop: 6, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, backgroundColor: COLORS.primary + '20', borderWidth: 1, borderColor: COLORS.primary + '50' },
   planBadgeText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.bold },
