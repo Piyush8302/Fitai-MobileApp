@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+import { pickSquarePhoto } from '../utils/photo';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -77,22 +77,10 @@ const EditProfileScreen = ({ navigation }) => {
   };
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Camera roll access is needed to pick a photo.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-      base64: true,
-    });
-    if (!result.canceled && result.assets?.[0]) {
-      const base64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      setAvatar(base64);
-    }
+    try {
+      const base64 = await pickSquarePhoto('gallery');
+      if (base64) setAvatar(base64);
+    } catch (e) { Alert.alert('Error', 'Could not get photo'); }
   };
 
   const handleSaveName = async () => {

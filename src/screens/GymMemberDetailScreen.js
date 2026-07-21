@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+import { pickSquarePhoto } from '../utils/photo';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -82,15 +82,9 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   const editPhoto = () => {
     const pick = async (source) => {
       try {
-        const perm = source === 'camera'
-          ? await ImagePicker.requestCameraPermissionsAsync()
-          : await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) { Alert.alert('Permission needed', 'Allow access to update the photo.'); return; }
-        const fn = source === 'camera' ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
-        const result = await fn({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.4, base64: true });
-        if (result.canceled || !result.assets?.[0]?.base64) return;
+        const b64 = await pickSquarePhoto(source);
+        if (!b64) return;
         setPhotoBusy(true);
-        const b64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
         const res = await api.put(`/api/gym/member/${membershipId}/photo`, { avatar: b64 });
         if (res.success) { await load(); } else Alert.alert('Not updated', res.message || 'Could not update photo');
       } catch (e) { Alert.alert('Error', 'Could not update photo'); }
