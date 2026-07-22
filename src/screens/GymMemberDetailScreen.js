@@ -36,6 +36,7 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   const [payPlan, setPayPlan] = useState('monthly');
   const [payAmount, setPayAmount] = useState('');
   const [payDueDate, setPayDueDate] = useState(''); // editable next-due date (ISO)
+  const [payMethod, setPayMethod] = useState('cash'); // 'cash' | 'online'
   const [picker, setPicker] = useState(null); // null | 'pay' | 'edit' — which flow the date picker serves
   const [busy, setBusy] = useState(false);
   const [calMonth, setCalMonth] = useState(new Date()); // month shown in calendar
@@ -101,9 +102,9 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
     if (!payAmount || parseInt(payAmount) <= 0) { Alert.alert('Required', 'Enter amount'); return; }
     setBusy(true);
     try {
-      const res = await api.post(ENDPOINTS.GYM_PAYMENT, { membershipId, amount: parseInt(payAmount), plan: payPlan, dueDate: payDueDate || undefined });
+      const res = await api.post(ENDPOINTS.GYM_PAYMENT, { membershipId, amount: parseInt(payAmount), plan: payPlan, method: payMethod, dueDate: payDueDate || undefined });
       if (res.success) {
-        Alert.alert('✅ Payment marked', `${PLAN_LABEL[payPlan]} • ₹${payAmount}\nNext due: ${new Date(res.data.membership.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`);
+        Alert.alert('✅ Payment marked', `${PLAN_LABEL[payPlan]} • ₹${payAmount} (${payMethod === 'online' ? 'Online' : 'Cash'})\nNext due: ${new Date(res.data.membership.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`);
         setShowPay(false);
         load();
       } else {
@@ -314,7 +315,7 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
                   <Text style={[styles.actionText, { color: COLORS.success }]}>Paid till {paidTill}</Text>
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.primary }]} onPress={() => { setPayDueDate(dueForPlan(payPlan)); setShowPay(true); }}>
+                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.primary }]} onPress={() => { setPayDueDate(dueForPlan(payPlan)); setPayMethod('cash'); setShowPay(true); }}>
                   <Ionicons name="cash" size={20} color={COLORS.onAccent} />
                   <Text style={[styles.actionText, { color: COLORS.onAccent }]}>Mark Payment</Text>
                 </TouchableOpacity>
@@ -352,7 +353,7 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
               <View key={p._id} style={styles.payRow}>
                 <Ionicons name="wallet" size={16} color={COLORS.primary} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.payAmount}>₹{p.amount} <Text style={styles.payPlan}>· {PLAN_LABEL[p.plan] || p.plan}</Text></Text>
+                  <Text style={styles.payAmount}>₹{p.amount} <Text style={styles.payPlan}>· {PLAN_LABEL[p.plan] || p.plan}{p.method ? ` · ${p.method === 'online' ? 'Online' : 'Cash'}` : ''}</Text></Text>
                   <Text style={styles.payDate}>{new Date(p.paidDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
                 </View>
               </View>
@@ -435,6 +436,15 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
 
             <Text style={styles.inputLabel}>Amount received (₹)</Text>
             <TextInput style={styles.input} placeholder="e.g. 1000" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={payAmount} onChangeText={setPayAmount} />
+
+            <Text style={styles.inputLabel}>Paid by</Text>
+            <View style={styles.planGrid}>
+              {[{ key: 'cash', label: '💵 Cash' }, { key: 'online', label: '📲 Online' }].map((mth) => (
+                <TouchableOpacity key={mth.key} style={[styles.planChip, payMethod === mth.key && styles.planChipActive]} onPress={() => setPayMethod(mth.key)}>
+                  <Text style={[styles.planChipText, payMethod === mth.key && { color: COLORS.onAccent }]}>{mth.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <Text style={styles.inputLabel}>Next due date</Text>
             <TouchableOpacity style={[styles.input, styles.dateField]} onPress={() => setPicker('pay')}>
