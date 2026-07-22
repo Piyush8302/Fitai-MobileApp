@@ -6,8 +6,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
-import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { pickSquarePhoto } from '../utils/photo';
 import { downloadAndSharePdf } from '../utils/pdf';
 import { Image } from 'react-native';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
@@ -503,16 +503,8 @@ const GymAdminScreen = ({ navigation }) => {
   const grabPhoto = async (source) => {
     setShowPhotoSheet(false);
     try {
-      const perm = source === 'camera'
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) { Alert.alert('Permission needed', `Allow ${source} access in Settings.`); return; }
-      const fn = source === 'camera' ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
-      const result = await fn({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.4, base64: true });
-      if (!result.canceled && result.assets?.[0]?.base64) {
-        const uri = `data:image/jpeg;base64,${result.assets[0].base64}`;
-        if (photoFor === 'staff') setSPhoto(uri); else setMPhoto(uri);
-      }
+      const uri = await pickSquarePhoto(source);
+      if (uri) { if (photoFor === 'staff') setSPhoto(uri); else setMPhoto(uri); }
     } catch (e) { Alert.alert('Error', 'Could not get photo'); }
   };
 

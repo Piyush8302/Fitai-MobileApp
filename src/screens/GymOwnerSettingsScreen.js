@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { downloadAndSharePdf } from '../utils/pdf';
-import * as ImagePicker from 'expo-image-picker';
+import { pickSquarePhoto } from '../utils/photo';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -55,13 +55,8 @@ const GymOwnerSettingsScreen = ({ navigation }) => {
   const [photoBusy, setPhotoBusy] = useState(false);
   const pickAndUploadPhoto = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') { Alert.alert('Permission needed', 'Allow photo access to set a profile picture.'); return; }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.5, base64: true,
-      });
-      if (result.canceled || !result.assets?.[0]?.base64) return;
-      const avatar = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      const avatar = await pickSquarePhoto('gallery');
+      if (!avatar) return;
       setPhotoBusy(true);
       const res = await api.put(ENDPOINTS.UPLOAD_AVATAR, { avatar });
       if (res.success) {

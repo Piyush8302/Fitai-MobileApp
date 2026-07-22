@@ -21,11 +21,10 @@
         "backgroundColor": "#F4F5FB"
       },
       "edgeToEdgeEnabled": true,
-      "softwareKeyboardLayoutMode": "adjustResize",
+      "softwareKeyboardLayoutMode": "resize",
       "package": "com.piyush.fitai",
       "googleServicesFile": "./google-services.json",
       "backgroundColor": "#F4F5FB",
-      "useNextNotificationsApi": true,
       "intentFilters": [
         {
           "action": "VIEW",
