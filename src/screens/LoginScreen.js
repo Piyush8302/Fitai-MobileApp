@@ -123,13 +123,33 @@ const LoginScreen = ({ navigation }) => {
     // ===== EMAIL path — single field accepts email too =====
     if (isEmail) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) { Alert.alert('Error', 'Enter a valid email address'); return; }
-      // Gym owners/staff are gated by their registered phone number — keep admin on phone.
+      const email = raw.toLowerCase();
+
+      // Owner/staff logging in with the email they registered with — gate by
+      // owner-status (backend accepts email now), same as the phone path below.
       if (loginMode === 'admin') {
-        Alert.alert('Use your phone number', 'Gym owners & staff log in with their registered phone number, not email.');
+        setLoading(true);
+        try {
+          const res = await api.post(ENDPOINTS.OWNER_STATUS, { email });
+          setLoading(false);
+          if (res.success && res.status === 'approved') {
+            navigation.navigate('OTPLogin', { loginRole: 'admin', email, autoSend: true });
+          } else if (res.status === 'pending') {
+            setDialog({ visible: true, icon: 'time-outline', iconColor: COLORS.warning, title: 'Pending approval', message: "Your gym registration is awaiting approval. You'll get an email once approved.", buttons: [{ label: 'OK', variant: 'primary', onPress: closeDialog }] });
+          } else if (res.status === 'rejected') {
+            setDialog({ visible: true, icon: 'close-circle-outline', iconColor: COLORS.error, title: 'Not approved', message: 'Your gym registration was not approved. Please contact support.', buttons: [{ label: 'OK', variant: 'primary', onPress: closeDialog }] });
+          } else {
+            setDialog({ visible: true, icon: 'business-outline', title: 'Not a gym account', message: 'This email is not a registered gym owner. Register your gym, or log in with the phone number you registered with.', buttons: [
+              { label: 'Register Gym', variant: 'primary', onPress: () => { closeDialog(); navigation.navigate('GymOwnerRegister'); } },
+              { label: 'Cancel', variant: 'ghost', onPress: closeDialog },
+            ] });
+          }
+        } catch (e) { setLoading(false); Alert.alert('Error', 'Network error. Please try again.'); }
         return;
       }
+
       // Backend send-otp auto-creates the account if new, so email works for login or first-time.
-      navigation.navigate('OTPLogin', { loginRole: 'user', email: raw.toLowerCase(), autoSend: true });
+      navigation.navigate('OTPLogin', { loginRole: 'user', email, autoSend: true });
       return;
     }
 
@@ -209,16 +229,15 @@ const LoginScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.form}>
-          {/* PRIMARY — mobile number OR email + OTP */}
+          {/* PRIMARY — mobile number OR email + OTP (both owner & user) */}
           <InputField
-            label={loginMode === 'admin' ? 'Mobile Number' : 'Mobile Number or Email'}
+            label="Mobile Number or Email"
             icon="person-outline"
-            placeholder={loginMode === 'admin' ? 'Enter 10-digit number' : 'Phone number or email'}
+            placeholder="Phone number or email"
             value={loginId}
             onChangeText={setLoginId}
-            keyboardType={loginMode === 'admin' ? 'phone-pad' : 'default'}
+            keyboardType="default"
             autoCapitalize="none"
-            maxLength={loginMode === 'admin' ? 10 : undefined}
           />
           <GradientButton
             title="Send OTP"
