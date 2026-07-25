@@ -82,11 +82,16 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
   };
 
   const confirmDelete = () => {
-    Alert.alert('Remove staff?', `${s.name || 'This staff'} will lose gym access. This cannot be undone.`, [
+    const multi = (s.gymCount || 1) > 1;
+    const msg = multi
+      ? `Remove ${s.name || 'this staff'} from THIS gym? They'll stay staff at your other gym(s).`
+      : `${s.name || 'This staff'} will lose gym access. This cannot be undone.`;
+    Alert.alert('Remove staff?', msg, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove', style: 'destructive', onPress: async () => {
         try {
-          const res = await api.delete(`/api/gym/staff/${s._id}`);
+          // Pass the gym so a multi-gym staff is removed from this branch only.
+          const res = await api.delete(`/api/gym/staff/${s._id}?gymId=${gymId}`);
           if (res.success) navigation.goBack();
           else Alert.alert('Error', res.message || 'Failed');
         } catch (e) { Alert.alert('Error', 'Failed to remove'); }
@@ -119,6 +124,12 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
           )}
           <Text style={styles.name}>{s.name || 'Staff'}</Text>
           <View style={styles.roleBadge}><Text style={styles.roleBadgeText}>{s.staffRole || 'Staff'}</Text></View>
+          {(s.gymCount || 1) > 1 && (
+            <View style={styles.multiGymPill}>
+              <Ionicons name="business-outline" size={12} color={COLORS.primary} />
+              <Text style={styles.multiGymText}>Works at {s.gymCount} of your gyms</Text>
+            </View>
+          )}
         </View>
 
         {/* Info */}
@@ -270,6 +281,8 @@ const styles = StyleSheet.create({
   name: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginTop: 12 },
   roleBadge: { marginTop: 6, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, backgroundColor: COLORS.accent + '20', borderWidth: 1, borderColor: COLORS.accent + '50' },
   roleBadgeText: { fontSize: SIZES.fontSm, color: COLORS.accent, ...FONTS.bold },
+  multiGymPill: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: COLORS.primary + '18' },
+  multiGymText: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.semiBold },
 
   sectionLabel: { fontSize: SIZES.fontMd, color: COLORS.primary, ...FONTS.bold, marginHorizontal: 16, marginTop: 18, marginBottom: 8 },
   card: { marginHorizontal: 16, paddingHorizontal: 16, paddingVertical: 4, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },

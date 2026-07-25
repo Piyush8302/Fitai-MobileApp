@@ -549,7 +549,7 @@ const GymAdminScreen = ({ navigation }) => {
     setEName(s.name || '');
     setERole(s.staffRole || '');
     setESalary(s.staffSalary ? String(s.staffSalary) : '');
-    setEGym(activeGym?._id && activeGym._id !== 'ALL' ? activeGym._id : '');
+    setEGym(''); // picking a gym here ADDS the staff to it (multi-gym); blank = no change
   };
 
   const saveStaffEdit = async () => {
@@ -566,11 +566,16 @@ const GymAdminScreen = ({ navigation }) => {
   };
 
   const removeStaff = (s) => {
-    Alert.alert('Remove staff?', `${s.name || 'This staff'} will lose gym access.`, [
+    const multi = (s.gymCount || 1) > 1;
+    const msg = multi
+      ? `Remove ${s.name || 'this staff'} from THIS gym? They'll stay staff at your other gym(s).`
+      : `${s.name || 'This staff'} will lose gym access.`;
+    Alert.alert('Remove staff?', msg, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove', style: 'destructive', onPress: async () => {
         try {
-          const res = await api.delete(`${ENDPOINTS.GYM_STAFF_REMOVE}/${s._id}`);
+          // Pass the gym so a multi-gym staff is removed from this branch only.
+          const res = await api.delete(`${ENDPOINTS.GYM_STAFF_REMOVE}/${s._id}?gymId=${activeGym._id}`);
           if (res.success) loadStaff();
           else Alert.alert('Error', res.message || 'Failed');
         } catch (e) { Alert.alert('Error', 'Failed'); }
@@ -917,7 +922,7 @@ const GymAdminScreen = ({ navigation }) => {
                   )}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.memberName}>{s.name || 'Staff'}</Text>
-                    <Text style={styles.memberMeta}>{s.phone}{s.staffRole ? ` • ${s.staffRole}` : ''}</Text>
+                    <Text style={styles.memberMeta}>{s.phone}{s.staffRole ? ` • ${s.staffRole}` : ''}{(s.gymCount || 1) > 1 ? ` • 🏢 ${s.gymCount} gyms` : ''}</Text>
                     {s.staffSalary ? <Text style={styles.memberMeta}>💰 ₹{s.staffSalary}/mo</Text> : null}
                     <Text style={[styles.memberDue, { color: s.presentToday ? COLORS.success : COLORS.textMuted }]}>
                       {s.presentToday
@@ -1168,10 +1173,10 @@ const GymAdminScreen = ({ navigation }) => {
             <TextInput style={styles.input} placeholder="Monthly salary ₹ (optional)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={eSalary} onChangeText={setESalary} />
             {gyms.length > 1 && (
               <>
-                <Text style={styles.inputLabel}>Assign to gym</Text>
+                <Text style={styles.inputLabel}>Also add to another gym (optional)</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
                   {gyms.map((g) => (
-                    <TouchableOpacity key={g._id} style={[styles.planChip, eGym === g._id && styles.planChipActive]} onPress={() => setEGym(g._id)}>
+                    <TouchableOpacity key={g._id} style={[styles.planChip, eGym === g._id && styles.planChipActive]} onPress={() => setEGym(eGym === g._id ? '' : g._id)}>
                       <Text style={[styles.planChipText, eGym === g._id && { color: COLORS.onAccent }]}>{g.name}</Text>
                     </TouchableOpacity>
                   ))}
