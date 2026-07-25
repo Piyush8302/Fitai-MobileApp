@@ -1,5 +1,14 @@
-// Always use the live Render backend (works on emulator + real device)
-export const API_BASE_URL = 'https://fitai-backend-icbh.onrender.com';
+// Which backend this build talks to.
+//
+// Set EXPO_PUBLIC_API_URL to point somewhere else — .env.local for local runs
+// (gitignored, see .env.example), or the `env` block of an eas.json profile for
+// builds. Expo inlines EXPO_PUBLIC_* at BUILD time, so a change needs a reload
+// (local) or a rebuild (EAS).
+//
+// The fallback is PRODUCTION on purpose: a build that sets nothing keeps
+// talking to the live backend rather than silently landing somewhere else.
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || 'https://fitai-backend-icbh.onrender.com';
 
 // API Endpoints
 export const ENDPOINTS = {
