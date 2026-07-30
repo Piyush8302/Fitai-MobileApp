@@ -145,41 +145,51 @@ class ApiService {
     return headers;
   }
 
-  async get(endpoint, params = {}) {
-    const query = Object.keys(params).length
+  // One place for every request, so a failure says WHAT failed in the Metro
+  // logs. Screens still get a thrown error (their catch blocks are unchanged),
+  // but the log tells you whether the phone couldn't reach the server at all,
+  // or the server answered with an error page instead of JSON.
+  async request(method, endpoint, { data, params } = {}) {
+    const query = params && Object.keys(params).length
       ? '?' + new URLSearchParams(params).toString()
       : '';
-    const response = await fetch(`${API_BASE_URL}${endpoint}${query}`, {
-      method: 'GET',
-      headers: this.getHeaders(),
-    });
-    return response.json();
+    const url = `${API_BASE_URL}${endpoint}${query}`;
+    let response;
+    try {
+      response = await fetch(url, {
+        method,
+        headers: this.getHeaders(),
+        ...(data !== undefined ? { body: JSON.stringify(data) } : {}),
+      });
+    } catch (e) {
+      // Couldn't reach the server at all — DNS, no internet, wrong host.
+      console.log(`[api] ${method} ${url} — cannot reach server: ${e.message}`);
+      throw e;
+    }
+    const body = await response.text();
+    try {
+      return JSON.parse(body);
+    } catch (e) {
+      // Reached the server, but it replied with HTML (502/503 page, wrong URL).
+      console.log(`[api] ${method} ${url} — HTTP ${response.status}, non-JSON reply: ${body.slice(0, 120)}`);
+      throw new Error(`Server error ${response.status}`);
+    }
   }
 
-  async post(endpoint, data = {}) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-    });
-    return response.json();
+  get(endpoint, params = {}) {
+    return this.request('GET', endpoint, { params });
   }
 
-  async put(endpoint, data = {}) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-    });
-    return response.json();
+  post(endpoint, data = {}) {
+    return this.request('POST', endpoint, { data });
   }
 
-  async delete(endpoint) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-    });
-    return response.json();
+  put(endpoint, data = {}) {
+    return this.request('PUT', endpoint, { data });
+  }
+
+  delete(endpoint) {
+    return this.request('DELETE', endpoint);
   }
 }
 
