@@ -136,12 +136,14 @@ const GymAdminScreen = ({ navigation }) => {
   const [showAddStaff, setShowAddStaff] = useState(false);
   const [sName, setSName] = useState('');
   const [sPhone, setSPhone] = useState('');
+  const [sEmail, setSEmail] = useState('');
   const [sRole, setSRole] = useState('');
   const [sSalary, setSSalary] = useState('');
   const [sPhoto, setSPhoto] = useState('');
   // Edit staff
   const [editStaff, setEditStaff] = useState(null);
   const [eName, setEName] = useState('');
+  const [eEmail, setEEmail] = useState('');
   const [eRole, setERole] = useState('');
   const [eSalary, setESalary] = useState('');
   const [eGym, setEGym] = useState('');
@@ -519,15 +521,17 @@ const GymAdminScreen = ({ navigation }) => {
 
   const addStaff = async () => {
     if (!sPhone.trim() || sPhone.trim().length < 10) { Alert.alert('Required', 'Enter a valid phone number'); return; }
+    // Email is required — staff can log in with it, same as the owner.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sEmail.trim())) { Alert.alert('Required', 'Enter a valid email address'); return; }
     setBusy(true);
     try {
       const res = await api.post(ENDPOINTS.GYM_ADD_STAFF, {
-        gymId: activeGym._id, name: sName.trim(), phone: sPhone.trim(),
+        gymId: activeGym._id, name: sName.trim(), phone: sPhone.trim(), email: sEmail.trim().toLowerCase(),
         staffRole: sRole.trim(), salary: parseInt(sSalary) || undefined, avatar: sPhoto || undefined,
       });
       if (res.success) {
         Alert.alert('Staff added ✅', sName || sPhone);
-        setShowAddStaff(false); setSName(''); setSPhone(''); setSRole(''); setSSalary(''); setSPhoto('');
+        setShowAddStaff(false); setSName(''); setSPhone(''); setSEmail(''); setSRole(''); setSSalary(''); setSPhoto('');
         loadStaff();
       } else Alert.alert('Error', res.message || 'Failed to add staff');
     } catch (e) { Alert.alert('Error', 'Failed to add staff'); }
@@ -547,6 +551,7 @@ const GymAdminScreen = ({ navigation }) => {
   const openEditStaff = (s) => {
     setEditStaff(s);
     setEName(s.name || '');
+    setEEmail(s.email || '');
     setERole(s.staffRole || '');
     setESalary(s.staffSalary ? String(s.staffSalary) : '');
     setEGym(''); // picking a gym here ADDS the staff to it (multi-gym); blank = no change
@@ -554,10 +559,11 @@ const GymAdminScreen = ({ navigation }) => {
 
   const saveStaffEdit = async () => {
     if (!eName.trim()) { Alert.alert('Required', 'Enter staff name'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eEmail.trim())) { Alert.alert('Required', 'Enter a valid email address'); return; }
     setBusy(true);
     try {
       const res = await api.put(`/api/gym/staff/${editStaff._id}`, {
-        name: eName.trim(), staffRole: eRole.trim(), salary: eSalary, gymId: eGym || undefined,
+        name: eName.trim(), email: eEmail.trim().toLowerCase(), staffRole: eRole.trim(), salary: eSalary, gymId: eGym || undefined,
       });
       if (res.success) { setEditStaff(null); loadStaff(); }
       else Alert.alert('Error', res.message || 'Failed to update');
@@ -1145,6 +1151,8 @@ const GymAdminScreen = ({ navigation }) => {
             </TouchableOpacity>
             <TextInput style={styles.input} placeholder="Name" placeholderTextColor={COLORS.textMuted} value={sName} onChangeText={setSName} />
             <TextInput style={styles.input} placeholder="Mobile number" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" value={sPhone} onChangeText={setSPhone} />
+            <TextInput style={styles.input} placeholder="Email" placeholderTextColor={COLORS.textMuted} keyboardType="email-address" autoCapitalize="none" value={sEmail} onChangeText={setSEmail} />
+            <Text style={styles.fieldHint}>Required — staff can log in with this email or their phone.</Text>
             <TextInput style={styles.input} placeholder="Role (e.g. Receptionist, Trainer)" placeholderTextColor={COLORS.textMuted} value={sRole} onChangeText={setSRole} />
             <TextInput style={styles.input} placeholder="Monthly salary ₹ (optional)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={sSalary} onChangeText={setSSalary} />
             <TouchableOpacity style={styles.primaryBtn} onPress={addStaff} disabled={busy}>
@@ -1169,6 +1177,8 @@ const GymAdminScreen = ({ navigation }) => {
             </View>
             <Text style={styles.modalSub}>{editStaff?.phone}</Text>
             <TextInput style={styles.input} placeholder="Name" placeholderTextColor={COLORS.textMuted} value={eName} onChangeText={setEName} />
+            <TextInput style={styles.input} placeholder="Email" placeholderTextColor={COLORS.textMuted} keyboardType="email-address" autoCapitalize="none" value={eEmail} onChangeText={setEEmail} />
+            <Text style={styles.fieldHint}>Staff can log in with this email or their phone.</Text>
             <TextInput style={styles.input} placeholder="Role (e.g. Receptionist, Trainer)" placeholderTextColor={COLORS.textMuted} value={eRole} onChangeText={setERole} />
             <TextInput style={styles.input} placeholder="Monthly salary ₹ (optional)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={eSalary} onChangeText={setESalary} />
             {gyms.length > 1 && (
@@ -1514,6 +1524,7 @@ const styles = StyleSheet.create({
   priceLabel: { flex: 1, fontSize: SIZES.fontMd, color: COLORS.textSecondary, ...FONTS.semiBold },
   priceInput: { width: 130, marginBottom: 0, textAlign: 'right' },
   inputLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, marginBottom: 8 },
+  fieldHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: -6, marginBottom: 10, marginLeft: 4 },
   planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, backgroundColor: COLORS.darkSurface, borderWidth: 1, borderColor: COLORS.darkBorder, marginRight: 8 },
   planChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   planChipText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.semiBold },
