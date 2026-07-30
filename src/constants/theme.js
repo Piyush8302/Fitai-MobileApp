@@ -13,6 +13,24 @@ export const DARK_COLORS = {
   warning: '#FF9800',
   error: '#F44336',
 
+  // ── Design system (2026 refresh) ─────────────────────────────
+  // energy = effort/activity (rings, streaks, workout CTAs)
+  energy: '#FF6B4A',
+  energyLight: '#FFA24D',
+  energySoft: 'rgba(255,107,74,0.16)',   // tinted chip/icon background
+  // gold = earned moments only — PRs, badges, streak milestones, premium.
+  // Used sparingly, which is what keeps it feeling premium.
+  gold: '#E7C08B',
+  goldSoft: 'rgba(231,192,139,0.15)',
+  // active/live states, distinct from the brand hue
+  active: '#2DE0B0',
+  activeSoft: 'rgba(45,224,176,0.15)',
+  brandSoft: 'rgba(108,99,255,0.18)',
+  // a raised surface for cards that sit on top of cards
+  cardElevated: '#2A2D45',
+  hairline: 'rgba(255,255,255,0.07)',
+  trackBg: 'rgba(255,255,255,0.10)',      // empty part of a progress bar/ring
+
   dark: '#151725',
   darkCard: '#222438',
   darkSurface: '#252A45',
@@ -34,6 +52,12 @@ export const DARK_COLORS = {
   gradientDark: ['#151725', '#222438'],
   gradientCard: ['#222438', '#252A45'],
 
+  // Design-system gradients
+  gradientBrand: ['#6C63FF', '#8B85FF'],        // primary buttons
+  gradientEnergy: ['#FF6B4A', '#FFA24D'],       // activity ring, workout CTA
+  gradientHero: ['#6C63FF', '#8B85FF', '#FF6B4A'], // signature brand→energy sweep
+  gradientGold: ['#E7C08B', '#C79A5B'],         // achievements
+
   statusBar: 'light',
 };
 
@@ -46,6 +70,19 @@ export const LIGHT_COLORS = {
   success: '#3E9D43',
   warning: '#EF8A00',
   error: '#E53935',
+
+  // ── Design system — deepened so each stays legible on white ──
+  energy: '#EE5A2D',
+  energyLight: '#F0912E',
+  energySoft: 'rgba(238,90,45,0.12)',
+  gold: '#A8792F',              // champagne reads as mud on white; deepen it
+  goldSoft: 'rgba(168,121,47,0.13)',
+  active: '#10B48C',
+  activeSoft: 'rgba(16,180,140,0.13)',
+  brandSoft: 'rgba(108,99,255,0.12)',
+  cardElevated: '#FFFFFF',      // already white — the shadow does the lifting
+  hairline: 'rgba(19,21,42,0.07)',
+  trackBg: 'rgba(19,21,42,0.10)',
 
   // Surfaces — light
   dark: '#F4F5FB',        // app background
@@ -68,6 +105,12 @@ export const LIGHT_COLORS = {
   gradient4: ['#6C63FF', '#FF6B6B'],
   gradientDark: ['#F4F5FB', '#FFFFFF'],
   gradientCard: ['#FFFFFF', '#EDEFF8'],
+
+  // Design-system gradients (white text sits on these, so they stay saturated)
+  gradientBrand: ['#6C63FF', '#8B85FF'],
+  gradientEnergy: ['#F2542D', '#F5922E'],
+  gradientHero: ['#6C63FF', '#8B85FF', '#F2542D'],
+  gradientGold: ['#C79A5B', '#A8792F'],
 
   statusBar: 'dark',
 };
