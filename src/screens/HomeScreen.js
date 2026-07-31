@@ -121,23 +121,24 @@ const HomeScreen = ({ navigation }) => {
   const adjustedCalGoal = getGoalAdjustedCalories();
   const calPercent = adjustedCalGoal ? Math.round((tracking.caloriesConsumed / adjustedCalGoal) * 100) : 0;
   const overallProgress = Math.round((calPercent + (tracking.waterIntake / tracking.waterGoal * 100) + (tracking.steps / tracking.stepsGoal * 100)) / 3) || 0;
-  // Tinted icon on a calm card — the colour identifies the action without
-  // four full-bleed gradients competing for attention.
-  const quickActions = [
-    { id: 'bmi', title: 'BMI', sub: 'Check yours', icon: '⚖️', screen: 'BMI', tint: COLORS.energy },
-    { id: 'diet', title: 'Diet', sub: "Today's plan", icon: '🥗', screen: 'Diet', tint: COLORS.active },
-    { id: 'workout', title: 'Workout', sub: 'Start now', icon: '🏋️', screen: 'Workout', tint: COLORS.primary },
-    { id: 'ai', title: 'AI Chat', sub: 'Ask coach', icon: '🤖', screen: 'AIChat', tint: COLORS.accent },
+  // One horizontal rail instead of two grids. A grid of five always left an
+  // orphan card on the last row; a rail scrolls cleanly at any count and is the
+  // pattern people already know from the apps they use every day.
+  const shortcuts = [
+    { id: 'diet', title: 'Diet', icon: '🥗', screen: 'Diet', tint: COLORS.active },
+    { id: 'ai', title: 'AI Coach', icon: '🤖', screen: 'AIChat', tint: COLORS.accent },
+    { id: 'gym', title: 'My Gym', icon: '🎫', screen: 'MyGymCard', tint: COLORS.primary },
+    { id: 'bmi', title: 'BMI', icon: '⚖️', screen: 'BMI', tint: COLORS.energy },
+    { id: 'food', title: 'Food DB', icon: '🍽', screen: 'FoodDatabase', tint: COLORS.energyLight },
+    { id: 'exercises', title: 'Exercises', icon: '💪', screen: 'ExerciseLibrary', tint: COLORS.primaryLight },
+    { id: 'articles', title: 'Articles', icon: '📰', screen: 'Articles', tint: COLORS.accent },
+    // Gold is reserved for earned things — badges is the one place it belongs.
+    { id: 'achievements', title: 'Badges', icon: '🏆', screen: 'Achievements', tint: COLORS.gold },
   ];
 
-  const exploreActions = [
-    { id: 'gym', title: 'My Gym', sub: 'Card & check-in', icon: '🎫', screen: 'MyGymCard', tint: COLORS.primary },
-    { id: 'articles', title: 'Articles', sub: 'Read up', icon: '📰', screen: 'Articles', tint: COLORS.primaryLight },
-    { id: 'food', title: 'Food DB', sub: 'Calories', icon: '🍽', screen: 'FoodDatabase', tint: COLORS.energyLight },
-    { id: 'exercises', title: 'Exercises', sub: 'How-to', icon: '💪', screen: 'ExerciseLibrary', tint: COLORS.accent },
-    // Gold is reserved for earned things — badges is the one place it belongs.
-    { id: 'achievements', title: 'Badges', sub: 'Your wins', icon: '🏆', screen: 'Achievements', tint: COLORS.gold },
-  ];
+  // Nothing logged yet → the card should invite the first action, not show
+  // three empty bars and a hollow ring.
+  const nothingLogged = !tracking.caloriesConsumed && !tracking.waterIntake && !tracking.steps && !tracking.workoutMinutes;
 
   // Calories are the hero (the ring); the rest read as thin bars beside it —
   // one big number beats four competing tiles.
@@ -210,49 +211,37 @@ const HomeScreen = ({ navigation }) => {
               ))}
             </View>
           </View>
+
+          {nothingLogged && (
+            <TouchableOpacity style={styles.emptyCta} onPress={() => navigation.navigate('Tracking')} activeOpacity={0.85}>
+              <Text style={styles.emptyCtaText}>Log your first meal to start the day</Text>
+              <Ionicons name="arrow-forward" size={15} color={COLORS.energy} />
+            </TouchableOpacity>
+          )}
         </GradientCard>
 
-        {/* Quick Actions */}
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.actionGrid}>
-          {quickActions.map((a) => (
+        {/* Shortcuts — one scrolling rail, edge-to-edge so it reads as scrollable */}
+        <Text style={styles.sectionTitle}>Shortcuts</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.railScroll}
+          contentContainerStyle={styles.rail}
+        >
+          {shortcuts.map((a) => (
             <TouchableOpacity
               key={a.id}
-              style={styles.actionCard}
+              style={styles.railItem}
               onPress={() => navigation.navigate(a.screen)}
-              activeOpacity={0.85}
+              activeOpacity={0.8}
             >
-              <View style={[styles.actionChip, { backgroundColor: a.tint + '26' }]}>
-                <Text style={{ fontSize: 22 }}>{a.icon}</Text>
+              <View style={[styles.railIcon, { backgroundColor: a.tint + '1F', borderColor: a.tint + '38' }]}>
+                <Text style={{ fontSize: 25 }}>{a.icon}</Text>
               </View>
-              <View style={styles.actionText}>
-                <Text style={styles.actionTitle} numberOfLines={1}>{a.title}</Text>
-                <Text style={styles.actionSub} numberOfLines={1}>{a.sub}</Text>
-              </View>
+              <Text style={styles.railLabel} numberOfLines={1}>{a.title}</Text>
             </TouchableOpacity>
           ))}
-        </View>
-
-        {/* Explore Section */}
-        <Text style={styles.sectionTitle}>Explore</Text>
-        <View style={styles.actionGrid}>
-          {exploreActions.map((a) => (
-            <TouchableOpacity
-              key={a.id}
-              style={styles.actionCard}
-              onPress={() => navigation.navigate(a.screen)}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.actionChip, { backgroundColor: a.tint + '26' }]}>
-                <Text style={{ fontSize: 22 }}>{a.icon}</Text>
-              </View>
-              <View style={styles.actionText}>
-                <Text style={styles.actionTitle} numberOfLines={1}>{a.title}</Text>
-                <Text style={styles.actionSub} numberOfLines={1}>{a.sub}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+        </ScrollView>
 
         {/* Current Goal */}
         <GradientCard colors={['#FF6B6B15', COLORS.darkCard]} style={styles.goalCard}>
@@ -361,13 +350,6 @@ const HomeScreen = ({ navigation }) => {
           })()}
         </View>
 
-        {/* Motivational Quote */}
-        <GradientCard colors={['#9C27B015', COLORS.darkCard]} style={styles.quoteCard}>
-          <Text style={styles.quoteIcon}>💪</Text>
-          <Text style={styles.quoteText}>"The only bad workout is the one that didn't happen."</Text>
-          <Text style={styles.quoteAuthor}>— Daily Motivation</Text>
-        </GradientCard>
-
         {/* ===== COMING SOON CAROUSEL ===== */}
         <Text style={styles.sectionTitle}>✨ What's Next</Text>
         <View style={styles.bannerWrap}>
@@ -462,22 +444,24 @@ const styles = StyleSheet.create({
   metricTrack: { height: 6, borderRadius: SIZES.radiusFull, backgroundColor: COLORS.trackBg, overflow: 'hidden' },
   metricFill: { height: '100%', borderRadius: SIZES.radiusFull },
   sectionTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginBottom: 14, marginTop: 8 },
-  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
-  actionCard: {
-    width: '47%', flexGrow: 1, borderRadius: 18,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 14, paddingHorizontal: 13,
-    backgroundColor: COLORS.darkCard,
-    borderWidth: 1, borderColor: COLORS.darkBorder,
-    ...SHADOWS.small,
-  },
-  actionChip: {
-    width: 42, height: 42, borderRadius: 14,
+  // Shortcut rail — bleeds past the screen padding so a half-visible item
+  // signals "there's more this way".
+  railScroll: { marginHorizontal: -16, marginBottom: 26 },
+  rail: { paddingHorizontal: 16, gap: 16 },
+  railItem: { alignItems: 'center', width: 68 },
+  railIcon: {
+    width: 60, height: 60, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1,
   },
-  actionText: { flex: 1 },
-  actionTitle: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
-  actionSub: { fontSize: 10.5, color: COLORS.textMuted, ...FONTS.medium, marginTop: 1 },
+  railLabel: { fontSize: 11.5, color: COLORS.textSecondary, ...FONTS.semiBold, marginTop: 8, textAlign: 'center' },
+  // First-run nudge inside the activity card
+  emptyCta: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    marginTop: 16, paddingVertical: 12,
+    borderRadius: SIZES.radius, backgroundColor: COLORS.energySoft,
+  },
+  emptyCtaText: { fontSize: SIZES.fontSm, color: COLORS.energy, ...FONTS.bold },
   goalCard: { marginBottom: 24 },
   goalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   goalBadge: { backgroundColor: COLORS.secondary + '20', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
@@ -516,10 +500,6 @@ const styles = StyleSheet.create({
     width: 20, height: 20, borderRadius: 10,
     backgroundColor: COLORS.success, alignItems: 'center', justifyContent: 'center',
   },
-  quoteCard: { marginBottom: 16 },
-  quoteIcon: { fontSize: 32, marginBottom: 8, alignSelf: 'center' },
-  quoteText: { fontSize: SIZES.fontMd, color: COLORS.textSecondary, ...FONTS.medium, textAlign: 'center', lineHeight: 22, fontStyle: 'italic', alignSelf: 'center' },
-  quoteAuthor: { fontSize: SIZES.fontSm, color: COLORS.textMuted, marginTop: 8, alignSelf: 'center' },
 
   // Coming Soon Carousel
   bannerWrap: { marginBottom: 8 },
