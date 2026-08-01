@@ -163,7 +163,7 @@ export const WORKOUT_CATEGORIES = [
   { id: 'back', name: 'Back', icon: '🔙', color: '#6C63FF' },
   { id: 'shoulders', name: 'Shoulders', icon: '💪', color: '#00D2FF' },
   { id: 'arms', name: 'Arms', icon: '🦾', color: '#FF9800' },
-  { id: 'legs', name: 'Legs', icon: '🦵', color: '#4CAF50' },
+  { id: 'legs', name: 'Legs', icon: '🏃', color: '#4CAF50' },
   { id: 'abs', name: 'Abs', icon: '🧱', color: '#E91E63' },
   { id: 'cardio', name: 'Cardio', icon: '❤️', color: '#F44336' },
   { id: 'fullbody', name: 'Full Body', icon: '🏋️', color: '#9C27B0' },
@@ -223,7 +223,7 @@ export const EXERCISES = {
 // ========== HOME WORKOUT DATA ==========
 export const HOME_WORKOUT_CATEGORIES = [
   { id: 'upper', name: 'Upper Body', icon: '💪', color: '#4CAF50' },
-  { id: 'lower', name: 'Lower Body', icon: '🦵', color: '#FF9800' },
+  { id: 'lower', name: 'Lower Body', icon: '🏃', color: '#FF9800' },
   { id: 'core', name: 'Core', icon: '🧱', color: '#E91E63' },
   { id: 'cardio', name: 'Cardio', icon: '❤️', color: '#F44336' },
   { id: 'fullbody', name: 'Full Body', icon: '🏋️', color: '#9C27B0' },
@@ -271,7 +271,7 @@ export const HOME_EXERCISES = {
 
 export const HOME_WEEKLY_PLAN = [
   { day: 'Monday', focus: 'Upper Body', icon: '💪', color: '#4CAF50' },
-  { day: 'Tuesday', focus: 'Lower Body', icon: '🦵', color: '#FF9800' },
+  { day: 'Tuesday', focus: 'Lower Body', icon: '🏃', color: '#FF9800' },
   { day: 'Wednesday', focus: 'Cardio + Core', icon: '❤️', color: '#F44336' },
   { day: 'Thursday', focus: 'Full Body HIIT', icon: '🏋️', color: '#9C27B0' },
   { day: 'Friday', focus: 'Yoga & Stretch', icon: '🧘', color: '#00BCD4' },
@@ -279,13 +279,16 @@ export const HOME_WEEKLY_PLAN = [
   { day: 'Sunday', focus: 'Rest & Recover', icon: '😴', color: '#607D8B' },
 ];
 
+// Icons here are deliberately limited to long-established emoji. Newer ones
+// (🦵 for legs, added 2018) are missing from older Android fonts and render as
+// an empty box — which is exactly what happened to Wednesday.
 export const WEEKLY_WORKOUT_PLAN = [
   { day: 'Monday', focus: 'Chest + Triceps', icon: '🏋️', color: '#FF6B6B' },
-  { day: 'Tuesday', focus: 'Back + Biceps', icon: '🔙', color: '#6C63FF' },
-  { day: 'Wednesday', focus: 'Legs + Core', icon: '🦵', color: '#4CAF50' },
+  { day: 'Tuesday', focus: 'Back + Biceps', icon: '🚣', color: '#6C63FF' },
+  { day: 'Wednesday', focus: 'Legs + Core', icon: '🏃', color: '#4CAF50' },
   { day: 'Thursday', focus: 'Shoulders + Arms', icon: '💪', color: '#00D2FF' },
   { day: 'Friday', focus: 'Cardio + Abs', icon: '❤️', color: '#F44336' },
-  { day: 'Saturday', focus: 'Full Body', icon: '🏋️', color: '#9C27B0' },
+  { day: 'Saturday', focus: 'Full Body', icon: '⚡', color: '#9C27B0' },
   { day: 'Sunday', focus: 'Rest Day', icon: '😴', color: '#607D8B' },
 ];
 

@@ -60,7 +60,7 @@ const WeightGainScreen = ({ navigation }) => (
       {/* Strength Workouts */}
       <Text style={styles.sectionTitle}>💪 Strength Training</Text>
       {[
-        { name: 'Squats', sets: '4x12', muscle: 'Legs', icon: '🦵' },
+        { name: 'Squats', sets: '4x12', muscle: 'Legs', icon: '🏃' },
         { name: 'Bench Press', sets: '4x10', muscle: 'Chest', icon: '🏋️' },
         { name: 'Deadlift', sets: '3x8', muscle: 'Back', icon: '🏋️' },
         { name: 'Shoulder Press', sets: '4x10', muscle: 'Shoulders', icon: '💪' },
