@@ -202,12 +202,22 @@ const WorkoutScreen = ({ navigation }) => {
                 >
                   <Text style={styles.dayIcon}>{day.icon}</Text>
                   <Text style={[styles.dayName, isSelected && { color: COLORS.onAccent }]}>{day.day.slice(0, 3)}</Text>
-                  <Text style={[styles.dayFocus, isSelected && { color: 'rgba(255,255,255,0.9)' }]}>{day.focus}</Text>
-                  {isSelected && (
-                    <View style={styles.todayBadge}>
-                      <Text style={[styles.todayText, { color: day.color }]}>{i === 0 ? 'Today' : 'Selected'}</Text>
-                    </View>
-                  )}
+                  <Text
+                    style={[styles.dayFocus, isSelected && { color: 'rgba(255,255,255,0.9)' }]}
+                    numberOfLines={2}
+                  >
+                    {day.focus}
+                  </Text>
+                  {/* The badge slot is always present — rendering it only when
+                      selected made that one card taller and left the others
+                      with dead space under their text. */}
+                  <View style={styles.dayBadgeSlot}>
+                    {isSelected && (
+                      <View style={styles.todayBadge}>
+                        <Text style={[styles.todayText, { color: day.color }]}>{i === 0 ? 'Today' : 'Selected'}</Text>
+                      </View>
+                    )}
+                  </View>
                 </LinearGradient>
               </TouchableOpacity>
             );
@@ -414,12 +424,15 @@ const styles = StyleSheet.create({
 
   // Weekly Schedule
   weekScroll: { marginBottom: 24 },
-  dayCard: { width: 110, marginRight: 10, borderRadius: SIZES.radius, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.darkBorder },
-  dayGrad: { padding: 14, alignItems: 'center', borderRadius: SIZES.radius },
+  // Fixed height keeps every day card identical, whatever the focus text length
+  // or selection state — otherwise the row sizes itself to the tallest card.
+  dayCard: { width: 110, height: 138, marginRight: 10, borderRadius: SIZES.radius, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.darkBorder },
+  dayGrad: { flex: 1, paddingHorizontal: 12, paddingVertical: 12, alignItems: 'center', borderRadius: SIZES.radius },
   dayIcon: { fontSize: 24, marginBottom: 6 },
   dayName: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
-  dayFocus: { fontSize: SIZES.fontXs, color: COLORS.textMuted, textAlign: 'center', marginTop: 4 },
-  todayBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginTop: 8, backgroundColor: '#FFFFFF' },
+  dayFocus: { fontSize: SIZES.fontXs, color: COLORS.textMuted, textAlign: 'center', marginTop: 4, height: 28 },
+  dayBadgeSlot: { height: 18, marginTop: 6, justifyContent: 'center' },
+  todayBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: '#FFFFFF' },
   todayText: { fontSize: SIZES.fontXs, ...FONTS.bold },
 
   // Categories
