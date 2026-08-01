@@ -14,27 +14,30 @@ export const DARK_COLORS = {
   error: '#F44336',
 
   // ── Design system (2026 refresh) ─────────────────────────────
-  // energy = effort/activity (rings, streaks, workout CTAs)
-  energy: '#FF6B4A',
-  energyLight: '#FFA24D',
-  energySoft: 'rgba(255,107,74,0.16)',   // tinted chip/icon background
+  // Near-black canvas with a single lime accent — the palette premium fitness
+  // apps have settled on. One loud colour, everything else greyscale, so the
+  // accent always means "this is the thing to act on".
+  energy: '#C8FF4D',
+  energyLight: '#DFFF94',
+  energySoft: 'rgba(200,255,77,0.14)',   // tinted chip/icon background
+  onEnergy: '#0A0B0D',                    // text/icons ON lime — never white
   // gold = earned moments only — PRs, badges, streak milestones, premium.
   // Used sparingly, which is what keeps it feeling premium.
   gold: '#E7C08B',
   goldSoft: 'rgba(231,192,139,0.15)',
-  // active/live states, distinct from the brand hue
-  active: '#2DE0B0',
-  activeSoft: 'rgba(45,224,176,0.15)',
+  // active/live states share the accent; a second bright hue would dilute it
+  active: '#C8FF4D',
+  activeSoft: 'rgba(200,255,77,0.14)',
   brandSoft: 'rgba(108,99,255,0.18)',
   // a raised surface for cards that sit on top of cards
-  cardElevated: '#2A2D45',
+  cardElevated: '#22242A',
   hairline: 'rgba(255,255,255,0.07)',
-  trackBg: 'rgba(255,255,255,0.10)',      // empty part of a progress bar/ring
+  trackBg: 'rgba(255,255,255,0.09)',      // empty part of a progress bar/ring
 
-  dark: '#151725',
-  darkCard: '#222438',
-  darkSurface: '#252A45',
-  darkBorder: '#363A5C',
+  dark: '#0A0B0D',
+  darkCard: '#151619',
+  darkSurface: '#1C1E23',
+  darkBorder: '#26282E',
 
   // "white" doubles as primary content color — flips in light theme
   white: '#FFFFFF',
@@ -49,13 +52,14 @@ export const DARK_COLORS = {
   gradient2: ['#FF6B6B', '#FF8E53'],
   gradient3: ['#4CAF50', '#00D2FF'],
   gradient4: ['#6C63FF', '#FF6B6B'],
-  gradientDark: ['#151725', '#222438'],
-  gradientCard: ['#222438', '#252A45'],
+  // App canvas + card surfaces — near-black, barely-there step between them
+  gradientDark: ['#0A0B0D', '#101115'],
+  gradientCard: ['#151619', '#1C1E23'],
 
   // Design-system gradients
   gradientBrand: ['#6C63FF', '#8B85FF'],        // primary buttons
-  gradientEnergy: ['#FF6B4A', '#FFA24D'],       // activity ring, workout CTA
-  gradientHero: ['#6C63FF', '#8B85FF', '#FF6B4A'], // signature brand→energy sweep
+  gradientEnergy: ['#C8FF4D', '#9FE01F'],       // activity ring, workout CTA
+  gradientHero: ['#C8FF4D', '#9FE01F'],         // signature accent sweep
   gradientGold: ['#E7C08B', '#C79A5B'],         // achievements
 
   statusBar: 'light',
@@ -72,13 +76,16 @@ export const LIGHT_COLORS = {
   error: '#E53935',
 
   // ── Design system — deepened so each stays legible on white ──
-  energy: '#EE5A2D',
-  energyLight: '#F0912E',
-  energySoft: 'rgba(238,90,45,0.12)',
+  // Bright lime is invisible on white, so text/icons use a deep lime here.
+  // Filled surfaces still use the bright tone, carrying dark text (onEnergy).
+  energy: '#5E8C00',
+  energyLight: '#7BB300',
+  energySoft: 'rgba(94,140,0,0.12)',
+  onEnergy: '#0A0B0D',
   gold: '#A8792F',              // champagne reads as mud on white; deepen it
   goldSoft: 'rgba(168,121,47,0.13)',
-  active: '#10B48C',
-  activeSoft: 'rgba(16,180,140,0.13)',
+  active: '#5E8C00',
+  activeSoft: 'rgba(94,140,0,0.12)',
   brandSoft: 'rgba(108,99,255,0.12)',
   cardElevated: '#FFFFFF',      // already white — the shadow does the lifting
   hairline: 'rgba(19,21,42,0.07)',
@@ -106,10 +113,10 @@ export const LIGHT_COLORS = {
   gradientDark: ['#F4F5FB', '#FFFFFF'],
   gradientCard: ['#FFFFFF', '#EDEFF8'],
 
-  // Design-system gradients (white text sits on these, so they stay saturated)
+  // Design-system gradients
   gradientBrand: ['#6C63FF', '#8B85FF'],
-  gradientEnergy: ['#F2542D', '#F5922E'],
-  gradientHero: ['#6C63FF', '#8B85FF', '#F2542D'],
+  gradientEnergy: ['#A8E82F', '#7BB300'],   // dark text sits on these
+  gradientHero: ['#A8E82F', '#7BB300'],
   gradientGold: ['#C79A5B', '#A8792F'],
 
   statusBar: 'dark',
