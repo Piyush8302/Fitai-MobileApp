@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
-  ActivityIndicator, Vibration, RefreshControl,
+  ActivityIndicator, Vibration, RefreshControl, AppState,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -56,7 +56,11 @@ const WorkoutScreen = ({ navigation }) => {
   const [restTime, setRestTime] = useState(90);
   const [timeLeft, setTimeLeft] = useState(90);
   const [isRunning, setIsRunning] = useState(false);
-  const timerRef = useRef(null);
+  // The countdown reads the clock instead of counting ticks. You rest with the
+  // phone face-down, and Android stalls JS timers once the app is backgrounded
+  // — a counter would come back showing time that never passed.
+  const endAtRef = useRef(null);
+  const warnedRef = useRef(false);
 
   // ── data ──────────────────────────────────────────────────────────────
   const loadMuscles = useCallback(async () => {
@@ -110,33 +114,76 @@ const WorkoutScreen = ({ navigation }) => {
   useEffect(() => { setSelectedDay(0); }, [workoutType]);
 
   // ── timer ─────────────────────────────────────────────────────────────
+  // Remaining time is always derived from the end timestamp, so a missed or
+  // throttled tick can never make the clock lie.
+  const remaining = () => Math.max(0, Math.round((endAtRef.current - Date.now()) / 1000));
+
   useEffect(() => {
-    if (isRunning && timeLeft > 0) {
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current);
-            setIsRunning(false);
-            Vibration.vibrate([0, 500, 200, 500]);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    if (!isRunning) return;
+    const tick = () => {
+      const left = remaining();
+      setTimeLeft(left);
+      // A short buzz before it ends, so you can get back to the bar in time.
+      if (left <= 3 && left > 0 && !warnedRef.current) {
+        warnedRef.current = true;
+        Vibration.vibrate(120);
+      }
+      if (left === 0) {
+        setIsRunning(false);
+        Vibration.vibrate([0, 500, 200, 500]);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [isRunning]);
+
+  // Coming back from the lock screen: resync immediately rather than waiting
+  // for the next tick, which may be a long time coming.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && isRunning && endAtRef.current) {
+        const left = remaining();
+        setTimeLeft(left);
+        if (left === 0) setIsRunning(false);
+      }
+    });
+    return () => sub.remove();
   }, [isRunning]);
 
   const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+  const startFrom = (seconds) => {
+    endAtRef.current = Date.now() + seconds * 1000;
+    warnedRef.current = false;
+    setTimeLeft(seconds);
+    setIsRunning(true);
+  };
+
   const selectRestTime = (seconds) => {
-    if (isRunning) { clearInterval(timerRef.current); setIsRunning(false); }
-    setRestTime(seconds); setTimeLeft(seconds);
+    setIsRunning(false);
+    setRestTime(seconds);
+    setTimeLeft(seconds);
+    warnedRef.current = false;
   };
+
   const toggleTimer = () => {
-    if (timeLeft === 0) { setTimeLeft(restTime); setIsRunning(true); }
-    else setIsRunning(!isRunning);
+    if (isRunning) { setTimeLeft(remaining()); setIsRunning(false); return; } // pause
+    startFrom(timeLeft > 0 ? timeLeft : restTime);
   };
-  const resetTimer = () => { clearInterval(timerRef.current); setIsRunning(false); setTimeLeft(restTime); };
+
+  // Needing a few more seconds mid-rest is the norm, not an edge case.
+  const addTime = (secs) => {
+    if (isRunning) {
+      endAtRef.current += secs * 1000;
+      setTimeLeft(remaining());
+    } else {
+      setTimeLeft((t) => t + secs);
+    }
+    warnedRef.current = false;
+  };
+
+  const resetTimer = () => { setIsRunning(false); setTimeLeft(restTime); warnedRef.current = false; };
 
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
@@ -289,13 +336,20 @@ const WorkoutScreen = ({ navigation }) => {
             {timeLeft === 0 ? 'Rest complete' : isRunning ? 'Resting…' : 'Rest between sets'}
           </Text>
 
+          {/* The bar only means something once the clock is moving — sitting
+              full while idle read as "done" at a glance. */}
           <View style={styles.timerTrack}>
-            <View
-              style={[
-                styles.timerFill,
-                { width: `${(timeLeft / restTime) * 100}%`, backgroundColor: timeLeft === 0 ? COLORS.success : COLORS.energy },
-              ]}
-            />
+            {(isRunning || timeLeft !== restTime) && (
+              <View
+                style={[
+                  styles.timerFill,
+                  {
+                    width: `${Math.min(100, (timeLeft / Math.max(restTime, timeLeft)) * 100)}%`,
+                    backgroundColor: timeLeft === 0 ? COLORS.success : COLORS.energy,
+                  },
+                ]}
+              />
+            )}
           </View>
 
           <View style={styles.timerBtns}>
@@ -313,12 +367,19 @@ const WorkoutScreen = ({ navigation }) => {
             })}
           </View>
 
-          <TouchableOpacity style={styles.startBtn} onPress={toggleTimer} activeOpacity={0.85}>
-            <Ionicons name={timeLeft === 0 ? 'refresh' : isRunning ? 'pause' : 'play'} size={20} color={COLORS.onEnergy} />
-            <Text style={styles.startBtnText}>
-              {timeLeft === 0 ? 'Restart' : isRunning ? 'Pause' : 'Start timer'}
-            </Text>
-          </TouchableOpacity>
+          {/* +15s sits with the running controls, not the presets — you reach
+              for it mid-rest, when the set took more out of you than planned. */}
+          <View style={styles.runRow}>
+            <TouchableOpacity style={styles.addBtn} onPress={() => addTime(15)} activeOpacity={0.85}>
+              <Text style={styles.addBtnText}>+15s</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.startBtn} onPress={toggleTimer} activeOpacity={0.85}>
+              <Ionicons name={timeLeft === 0 ? 'refresh' : isRunning ? 'pause' : 'play'} size={20} color={COLORS.onEnergy} />
+              <Text style={styles.startBtnText}>
+                {timeLeft === 0 ? 'Restart' : isRunning ? 'Pause' : 'Start timer'}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           {(isRunning || timeLeft !== restTime) && (
             <TouchableOpacity style={styles.resetBtn} onPress={resetTimer}>
@@ -422,9 +483,16 @@ const styles = StyleSheet.create({
   },
   timerBtnOn: { backgroundColor: COLORS.energy, borderColor: COLORS.energy },
   timerBtnText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.bold },
+  runRow: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 18 },
+  addBtn: {
+    paddingHorizontal: 18, justifyContent: 'center', borderRadius: 16,
+    backgroundColor: COLORS.darkSurface, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  addBtnText: { fontSize: SIZES.fontSm, color: COLORS.energy, ...FONTS.extraBold },
   startBtn: {
+    flex: 1,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
-    width: '100%', paddingVertical: 15, borderRadius: 16, marginTop: 18,
+    paddingVertical: 15, borderRadius: 16,
     backgroundColor: COLORS.energy, ...SHADOWS.small,
   },
   startBtnText: { fontSize: SIZES.fontMd, color: COLORS.onEnergy, ...FONTS.extraBold },
