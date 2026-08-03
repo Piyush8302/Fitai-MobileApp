@@ -55,7 +55,15 @@ const GymScanScreen = ({ navigation, route }) => {
           payload = { gymCode };
         }
         const res = await api.post(ENDPOINTS.GYM_MY_CHECKIN, payload);
-        if (res.success) {
+        if (res.success && res.data?.needsRegistration) {
+          // First scan at this gym → collect the gym's registration details once,
+          // then that form marks attendance. Members skip this on every later scan.
+          navigation.replace('GymJoin', {
+            gym: res.data.gym,
+            regToken: res.data.regToken,
+            prefill: res.data.prefill,
+          });
+        } else if (res.success) {
           // Closed (outside gym hours) = attendance NOT marked — show a cross, not a tick.
           const title = res.data?.closed ? '❌ Attendance NOT marked' : '✅ Checked in';
           Alert.alert(title, res.message, [{ text: 'OK', onPress: () => navigation.goBack() }]);

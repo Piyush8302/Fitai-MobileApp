@@ -47,6 +47,7 @@ import LogMealScreen from '../screens/LogMealScreen';
 import MyGymCardScreen from '../screens/MyGymCardScreen';
 import GymAdminScreen from '../screens/GymAdminScreen';
 import GymScanScreen from '../screens/GymScanScreen';
+import GymJoinScreen from '../screens/GymJoinScreen';
 import GymCashbookScreen from '../screens/GymCashbookScreen';
 import GymOwnerSettingsScreen from '../screens/GymOwnerSettingsScreen';
 import GymMemberDetailScreen from '../screens/GymMemberDetailScreen';
@@ -235,6 +236,7 @@ const AppNavigator = () => (
       <Stack.Screen name="GymFees" component={GymFeesScreen} />
       <Stack.Screen name="GymStaffDetail" component={GymStaffDetailScreen} />
       <Stack.Screen name="GymScan" component={GymScanScreen} />
+      <Stack.Screen name="GymJoin" component={GymJoinScreen} />
       <Stack.Screen name="Subscription" component={SubscriptionScreen} />
       <Stack.Screen name="Articles" component={ArticlesScreen} />
       <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />

@@ -73,6 +73,61 @@ export async function disableAutoCheckin() {
   await AsyncStorage.setItem(FLAG_KEY, '0');
 }
 
+// ─── Check in when the app is OPENED at the gym ──────────────────────────────
+// The web check-in page marks attendance the moment a member opens it at the
+// gym, and the app should feel the same: open FitAI while you're there and your
+// attendance is already marked. This runs on launch/resume and is deliberately
+// silent — it never asks for a permission it doesn't already have, and the
+// server re-checks membership, status, gym hours and distance anyway.
+let lastOpenCheck = 0;
+
+export async function checkInOnAppOpen() {
+  try {
+    // Once every 10 minutes at most — resume fires often.
+    if (Date.now() - lastOpenCheck < 10 * 60 * 1000) return;
+    lastOpenCheck = Date.now();
+
+    const token = await AsyncStorage.getItem('token');
+    if (!token) return;
+
+    // Never prompt here. If the member hasn't granted location yet, the
+    // "Auto check-in" toggle on the gym card is where that conversation happens.
+    const perm = await Location.getForegroundPermissionsAsync();
+    if (perm.status !== 'granted') return;
+
+    const cardRes = await fetch(`${API_BASE_URL}/api/gym/my/card`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((r) => r.json()).catch(() => null);
+    const gyms = (cardRes?.data?.gyms || [])
+      .filter((g) => g?.canCheckIn !== false && g?.gym?.lat != null && g?.gym?.lng != null)
+      .map((g) => g.gym);
+    if (!gyms.length) return;
+
+    const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
+    if (!pos?.coords) return;
+    const { latitude: lat, longitude: lng } = pos.coords;
+
+    // Straight-line metres — good enough to pick which gym we're standing in.
+    const distance = (a, b, c, d) => {
+      const R = 6371000, rad = (x) => (x * Math.PI) / 180;
+      const dLat = rad(c - a), dLng = rad(d - b);
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a)) * Math.cos(rad(c)) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    };
+    const near = gyms
+      .map((g) => ({ g, d: distance(lat, lng, g.lat, g.lng) }))
+      .filter((x) => x.d <= 120)
+      .sort((x, y) => x.d - y.d)[0];
+    if (!near) return;
+
+    await fetch(`${API_BASE_URL}/api/gym/my/auto-checkin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ gymId: String(near.g._id), lat, lng }),
+    });
+  } catch (e) { /* silent — attendance on app open is a bonus, never a blocker */ }
+}
+
 export async function isAutoCheckinEnabled() {
   try {
     const flag = (await AsyncStorage.getItem(FLAG_KEY)) === '1';

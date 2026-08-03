@@ -18,6 +18,19 @@ const PLANS = [
   { key: 'yearly', label: 'Yearly', months: 12 },
 ];
 const PLAN_LABEL = { trial: 'Trial', day_pass: 'Day Pass', monthly: 'Monthly', quarterly: '3 Months', half_yearly: '6 Months', yearly: 'Yearly' };
+const GENDER_LABEL = { male: 'Male', female: 'Female', other: 'Other' };
+// Where this membership came from — a self scan in the app, the public web
+// check-in page, or someone adding them at the counter.
+const REGISTERED_VIA = { app_scan: 'Scanned the gym QR (app)', web: 'Web check-in page', counter: 'Added at the counter' };
+const ageFrom = (dob) => {
+  const d = new Date(dob);
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  let a = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) a--;
+  return a >= 0 && a < 120 ? a : null;
+};
 // Day-based cycle to match the backend (monthly = join + 30 days, not a calendar month).
 const PLAN_DAYS = { monthly: 30, quarterly: 90, half_yearly: 180, yearly: 365 };
 const dueForPlan = (planKey) => { const d = new Date(); d.setDate(d.getDate() + (PLAN_DAYS[planKey] || 30)); return d.toISOString(); };
@@ -91,7 +104,9 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
       } catch (e) { Alert.alert('Error', 'Could not update photo'); }
       finally { setPhotoBusy(false); }
     };
-    Alert.alert('Update member photo', 'Choose a source', [
+    // This is the GYM's copy of the photo — the member's own app profile picture
+    // is never touched by it.
+    Alert.alert('Update gym photo', "Used on your member list. The member's own app photo stays as it is.", [
       { text: 'Take photo', onPress: () => pick('camera') },
       { text: 'Choose from gallery', onPress: () => pick('gallery') },
       { text: 'Cancel', style: 'cancel' },
@@ -272,6 +287,31 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
           <Row icon="mail-outline" label="Email" value={realEmail || 'Not provided'} />
           <Row icon="calendar-outline" label="Member since" value={u.createdAt ? new Date(m.joinDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'} last />
         </View>
+
+        {/* What the member filled in when registering at THIS gym */}
+        {(() => {
+          const p = m.profile || {};
+          const rows = [
+            p.gender && { icon: 'person-outline', label: 'Gender', value: GENDER_LABEL[p.gender] || p.gender },
+            p.dob && { icon: 'gift-outline', label: 'Date of birth', value: `${new Date(p.dob).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}${ageFrom(p.dob) ? ` (${ageFrom(p.dob)} yrs)` : ''}` },
+            p.bloodGroup && { icon: 'water-outline', label: 'Blood group', value: p.bloodGroup },
+            (p.height || p.weight) && { icon: 'body-outline', label: 'Height / Weight', value: `${p.height ? `${p.height} cm` : '—'} · ${p.weight ? `${p.weight} kg` : '—'}` },
+            p.goal && { icon: 'flag-outline', label: 'Goal', value: p.goal },
+            p.address && { icon: 'location-outline', label: 'Address', value: p.address },
+            (p.emergencyName || p.emergencyPhone) && { icon: 'medkit-outline', label: 'Emergency contact', value: [p.emergencyName, p.emergencyPhone].filter(Boolean).join(' · ') },
+            { icon: 'log-in-outline', label: 'Registered via', value: REGISTERED_VIA[p.registeredVia] || 'At the counter' },
+          ].filter(Boolean);
+          return (
+            <>
+              <Text style={styles.sectionLabel}>Registration details</Text>
+              <View style={styles.card}>
+                {rows.map((r, i) => (
+                  <Row key={r.label} icon={r.icon} label={r.label} value={r.value} last={i === rows.length - 1} />
+                ))}
+              </View>
+            </>
+          );
+        })()}
 
         {/* Membership status */}
         <Text style={styles.sectionLabel}>Membership</Text>
