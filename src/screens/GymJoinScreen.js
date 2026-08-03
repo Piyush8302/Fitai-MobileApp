@@ -1,9 +1,13 @@
 // ─── First-time gym registration ─────────────────────────────────────────────
 // Scanning a gym's QR when you're NOT a member of that gym lands here instead of
-// silently creating a membership. The member fills in what the gym needs once —
-// the same details the public web check-in page asks a walk-in for — and the
-// submit both registers them AND marks today's attendance. From the next scan
-// onwards the scanner goes straight to attendance and never shows this screen.
+// silently creating a membership. The member only gives what THEY should hand
+// over from their own phone — photo, name, email (phone is the FitAI login and
+// locked). Everything else the gym wants (gender, DOB, address, emergency
+// contact, blood group, goal, height/weight) is filled in later by the owner or
+// staff from the member detail page — see the "Edit details" flow there. The
+// submit both registers the member here AND marks today's attendance. From the
+// next scan onwards the scanner goes straight to attendance and never shows
+// this screen again.
 
 import React, { useState } from 'react';
 import {
@@ -15,24 +19,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { pickSquarePhoto } from '../utils/photo';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
-
-// DOB as plain typed text — the app's wheel picker only offers a few years
-// around today, which is useless for a birth year.
-const parseDob = (s) => {
-  const m = /^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/.exec(String(s || '').trim());
-  if (!m) return null;
-  const [, dd, mm, yyyy] = m;
-  const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-  if (isNaN(d.getTime()) || d.getMonth() !== Number(mm) - 1 || d > new Date()) return null;
-  return d;
-};
-
-const GENDERS = [
-  { key: 'male', label: 'Male' },
-  { key: 'female', label: 'Female' },
-  { key: 'other', label: 'Other' },
-];
-const GOALS = ['Weight loss', 'Muscle gain', 'General fitness', 'Strength', 'Stamina'];
 
 const Field = ({ label, hint, children }) => (
   <View style={styles.field}>
@@ -52,15 +38,6 @@ const GymJoinScreen = ({ navigation, route }) => {
   const [photo, setPhoto] = useState('');                  // base64, gym's copy only
   const [name, setName] = useState(prefill.name === 'Member' ? '' : (prefill.name || ''));
   const [email, setEmail] = useState(prefill.email || '');
-  const [gender, setGender] = useState('');
-  const [dob, setDob] = useState('');                      // typed as DD/MM/YYYY
-  const [address, setAddress] = useState('');
-  const [emergencyName, setEmergencyName] = useState('');
-  const [emergencyPhone, setEmergencyPhone] = useState('');
-  const [bloodGroup, setBloodGroup] = useState('');
-  const [goal, setGoal] = useState('');
-  const [height, setHeight] = useState('');
-  const [weight, setWeight] = useState('');
   const [busy, setBusy] = useState(false);
 
   const pickPhoto = (source) => async () => {
@@ -76,21 +53,11 @@ const GymJoinScreen = ({ navigation, route }) => {
     if (busy) return;
     if (!skipProfile && !name.trim()) return Alert.alert('Name needed', 'Please enter your name so the gym can identify you.');
     if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) return Alert.alert('Check the email', 'That email address does not look right.');
-    const dobDate = dob.trim() ? parseDob(dob) : null;
-    if (dob.trim() && !dobDate) return Alert.alert('Check the date', 'Enter your date of birth as DD/MM/YYYY.');
     setBusy(true);
     try {
       const body = skipProfile
         ? { regToken, skipProfile: true }
-        : {
-            regToken,
-            profile: {
-              name: name.trim(), email: email.trim(), gender, dob: dobDate ? dobDate.toISOString() : undefined,
-              address: address.trim(), emergencyName: emergencyName.trim(), emergencyPhone: emergencyPhone.trim(),
-              bloodGroup: bloodGroup.trim(), goal, height, weight,
-              avatar: photo || undefined,
-            },
-          };
+        : { regToken, profile: { name: name.trim(), email: email.trim(), avatar: photo || undefined } };
       const res = await api.post(ENDPOINTS.GYM_MY_CHECKIN, body);
       if (res.success) {
         const closed = res.data?.closed;
@@ -161,63 +128,7 @@ const GymJoinScreen = ({ navigation, route }) => {
             <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="you@email.com" placeholderTextColor={COLORS.textMuted} keyboardType="email-address" autoCapitalize="none" />
           </Field>
 
-          <Field label="Gender" hint="(optional)">
-            <View style={styles.chipRow}>
-              {GENDERS.map((g) => (
-                <TouchableOpacity key={g.key} style={[styles.chip, gender === g.key && styles.chipOn]} onPress={() => setGender(gender === g.key ? '' : g.key)}>
-                  <Text style={[styles.chipText, gender === g.key && styles.chipTextOn]}>{g.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Field>
-
-          <Field label="Date of birth" hint="(optional)">
-            <TextInput style={styles.input} value={dob} onChangeText={setDob} placeholder="DD/MM/YYYY" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" maxLength={10} />
-          </Field>
-
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Field label="Height (cm)" hint="(optional)">
-                <TextInput style={styles.input} value={height} onChangeText={setHeight} placeholder="170" placeholderTextColor={COLORS.textMuted} keyboardType="numeric" />
-              </Field>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Field label="Weight (kg)" hint="(optional)">
-                <TextInput style={styles.input} value={weight} onChangeText={setWeight} placeholder="70" placeholderTextColor={COLORS.textMuted} keyboardType="numeric" />
-              </Field>
-            </View>
-          </View>
-
-          <Field label="Your goal" hint="(optional)">
-            <View style={styles.chipRow}>
-              {GOALS.map((g) => (
-                <TouchableOpacity key={g} style={[styles.chip, goal === g && styles.chipOn]} onPress={() => setGoal(goal === g ? '' : g)}>
-                  <Text style={[styles.chipText, goal === g && styles.chipTextOn]}>{g}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Field>
-
-          <Field label="Address" hint="(optional)">
-            <TextInput style={[styles.input, styles.inputArea]} value={address} onChangeText={setAddress} placeholder="House, street, area" placeholderTextColor={COLORS.textMuted} multiline />
-          </Field>
-
-          <View style={styles.row}>
-            <View style={{ flex: 1.4 }}>
-              <Field label="Emergency contact" hint="(optional)">
-                <TextInput style={styles.input} value={emergencyName} onChangeText={setEmergencyName} placeholder="Name" placeholderTextColor={COLORS.textMuted} />
-              </Field>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Field label="Blood group" hint="">
-                <TextInput style={styles.input} value={bloodGroup} onChangeText={setBloodGroup} placeholder="O+" placeholderTextColor={COLORS.textMuted} autoCapitalize="characters" />
-              </Field>
-            </View>
-          </View>
-
-          <Field label="Emergency number" hint="(optional)">
-            <TextInput style={styles.input} value={emergencyPhone} onChangeText={setEmergencyPhone} placeholder="10-digit number" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" maxLength={15} />
-          </Field>
+          <Text style={styles.footerNote}>Anything else the gym needs — like your goal, address or an emergency contact — the gym team can add from your member profile.</Text>
 
           <TouchableOpacity style={[styles.submit, busy && { opacity: 0.6 }]} onPress={() => submit(false)} disabled={busy}>
             {busy ? <ActivityIndicator color={COLORS.onAccent} /> : (
@@ -252,7 +163,6 @@ const styles = StyleSheet.create({
   label: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold, marginBottom: 6 },
   hint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
   note: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: 6, lineHeight: 16 },
-  row: { flexDirection: 'row', gap: 12 },
 
   input: {
     backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder, borderRadius: SIZES.radius,
@@ -260,7 +170,6 @@ const styles = StyleSheet.create({
   },
   inputText: { color: COLORS.white, fontSize: SIZES.fontMd, ...FONTS.medium },
   inputLocked: { color: COLORS.textMuted, backgroundColor: COLORS.darkSurface },
-  inputArea: { minHeight: 76, textAlignVertical: 'top' },
 
   photoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   photo: { width: 62, height: 62, borderRadius: 31 },
@@ -271,11 +180,7 @@ const styles = StyleSheet.create({
   },
   photoBtnText: { color: COLORS.primary, fontSize: SIZES.fontSm, ...FONTS.bold },
 
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder },
-  chipOn: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  chipText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.semiBold },
-  chipTextOn: { color: COLORS.onAccent },
+  footerNote: { fontSize: SIZES.fontXs, color: COLORS.textMuted, lineHeight: 17, marginBottom: 18, marginTop: 4 },
 
   submit: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
