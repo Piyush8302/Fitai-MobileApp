@@ -18,31 +18,6 @@ const PLANS = [
   { key: 'yearly', label: 'Yearly', months: 12 },
 ];
 const PLAN_LABEL = { trial: 'Trial', day_pass: 'Day Pass', monthly: 'Monthly', quarterly: '3 Months', half_yearly: '6 Months', yearly: 'Yearly' };
-const GENDER_LABEL = { male: 'Male', female: 'Female', other: 'Other' };
-// Where this membership came from — a self scan in the app, the public web
-// check-in page, or someone adding them at the counter.
-const REGISTERED_VIA = { app_scan: 'Scanned the gym QR (app)', web: 'Web check-in page', counter: 'Added at the counter' };
-const ageFrom = (dob) => {
-  const d = new Date(dob);
-  if (isNaN(d.getTime())) return null;
-  const now = new Date();
-  let a = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) a--;
-  return a >= 0 && a < 120 ? a : null;
-};
-// DOB as plain typed text — matches the join screen; a wheel picker limited to
-// a few years around today is useless for a birth year.
-const parseDob = (s) => {
-  const mm2 = /^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/.exec(String(s || '').trim());
-  if (!mm2) return null;
-  const [, dd, mm, yyyy] = mm2;
-  const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-  if (isNaN(d.getTime()) || d.getMonth() !== Number(mm) - 1 || d > new Date()) return null;
-  return d;
-};
-const GENDERS = [{ key: 'male', label: 'Male' }, { key: 'female', label: 'Female' }, { key: 'other', label: 'Other' }];
-const GOALS = ['Weight loss', 'Muscle gain', 'General fitness', 'Strength', 'Stamina'];
 // Day-based cycle to match the backend (monthly = join + 30 days, not a calendar month).
 const PLAN_DAYS = { monthly: 30, quarterly: 90, half_yearly: 180, yearly: 365 };
 const dueForPlan = (planKey) => { const d = new Date(); d.setDate(d.getDate() + (PLAN_DAYS[planKey] || 30)); return d.toISOString(); };
@@ -64,21 +39,6 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   const [payMethod, setPayMethod] = useState('cash'); // 'cash' | 'online'
   const [picker, setPicker] = useState(null); // null | 'pay' | 'edit' — which flow the date picker serves
   const [busy, setBusy] = useState(false);
-
-  // ── Registration details (gender/DOB/address/emergency/etc.) — the member
-  // only gives name/email/phone/photo at sign-up; everything else here is
-  // filled in by the owner/staff whenever they have it.
-  const [showProfile, setShowProfile] = useState(false);
-  const [pGender, setPGender] = useState('');
-  const [pDob, setPDob] = useState('');
-  const [pAddress, setPAddress] = useState('');
-  const [pEmergName, setPEmergName] = useState('');
-  const [pEmergPhone, setPEmergPhone] = useState('');
-  const [pBlood, setPBlood] = useState('');
-  const [pGoal, setPGoal] = useState('');
-  const [pHeight, setPHeight] = useState('');
-  const [pWeight, setPWeight] = useState('');
-  const [profileBusy, setProfileBusy] = useState(false);
   const [calMonth, setCalMonth] = useState(new Date()); // month shown in calendar
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = async () => { setRefreshing(true); try { await load(); } catch (e) {} setRefreshing(false); };
@@ -105,37 +65,6 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   }, [gymId, membershipId]);
 
   useEffect(() => { load(); }, [load]);
-
-  const openProfileEdit = () => {
-    const p = data?.membership?.profile || {};
-    setPGender(p.gender || '');
-    setPDob(p.dob ? new Date(p.dob).toLocaleDateString('en-GB').replace(/\//g, '/') : '');
-    setPAddress(p.address || '');
-    setPEmergName(p.emergencyName || '');
-    setPEmergPhone(p.emergencyPhone || '');
-    setPBlood(p.bloodGroup || '');
-    setPGoal(p.goal || '');
-    setPHeight(p.height ? String(p.height) : '');
-    setPWeight(p.weight ? String(p.weight) : '');
-    setShowProfile(true);
-  };
-
-  const saveProfile = async () => {
-    if (profileBusy) return;
-    const dobDate = pDob.trim() ? parseDob(pDob) : null;
-    if (pDob.trim() && !dobDate) return Alert.alert('Check the date', 'Enter date of birth as DD/MM/YYYY.');
-    setProfileBusy(true);
-    try {
-      const res = await api.put(`/api/gym/member/${membershipId}/profile`, {
-        gender: pGender, dob: dobDate ? dobDate.toISOString() : undefined,
-        address: pAddress.trim(), emergencyName: pEmergName.trim(), emergencyPhone: pEmergPhone.trim(),
-        bloodGroup: pBlood.trim(), goal: pGoal, height: pHeight, weight: pWeight,
-      });
-      if (res.success) { setShowProfile(false); await load(); }
-      else Alert.alert('Not saved', res.message || 'Could not save details.');
-    } catch (e) { Alert.alert('Error', 'Could not save details.'); }
-    finally { setProfileBusy(false); }
-  };
 
   const markPresent = async () => {
     try {
@@ -346,39 +275,6 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
           <Row icon="calendar-outline" label="Member since" value={u.createdAt ? new Date(m.joinDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'} last />
         </View>
 
-        {/* What the member filled in when registering at THIS gym */}
-        {(() => {
-          const p = m.profile || {};
-          const rows = [
-            p.gender && { icon: 'person-outline', label: 'Gender', value: GENDER_LABEL[p.gender] || p.gender },
-            p.dob && { icon: 'gift-outline', label: 'Date of birth', value: `${new Date(p.dob).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}${ageFrom(p.dob) ? ` (${ageFrom(p.dob)} yrs)` : ''}` },
-            p.bloodGroup && { icon: 'water-outline', label: 'Blood group', value: p.bloodGroup },
-            (p.height || p.weight) && { icon: 'body-outline', label: 'Height / Weight', value: `${p.height ? `${p.height} cm` : '—'} · ${p.weight ? `${p.weight} kg` : '—'}` },
-            p.goal && { icon: 'flag-outline', label: 'Goal', value: p.goal },
-            p.address && { icon: 'location-outline', label: 'Address', value: p.address },
-            (p.emergencyName || p.emergencyPhone) && { icon: 'medkit-outline', label: 'Emergency contact', value: [p.emergencyName, p.emergencyPhone].filter(Boolean).join(' · ') },
-            { icon: 'log-in-outline', label: 'Registered via', value: REGISTERED_VIA[p.registeredVia] || 'At the counter' },
-          ].filter(Boolean);
-          return (
-            <>
-              <View style={styles.sectionHeadRow}>
-                <Text style={[styles.sectionLabel, { marginTop: 0, marginHorizontal: 0 }]}>Registration details</Text>
-                {can('canAddMember') && (
-                  <TouchableOpacity style={styles.editLink} onPress={openProfileEdit}>
-                    <Ionicons name="create-outline" size={14} color={COLORS.primary} />
-                    <Text style={styles.editLinkText}>Edit</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              <View style={styles.card}>
-                {rows.map((r, i) => (
-                  <Row key={r.label} icon={r.icon} label={r.label} value={r.value} last={i === rows.length - 1} />
-                ))}
-              </View>
-            </>
-          );
-        })()}
-
         {/* Membership status */}
         <Text style={styles.sectionLabel}>Membership</Text>
         <View style={styles.card}>
@@ -568,76 +464,6 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Registration-details edit — owner/staff with canAddMember fill in whatever
-          the gym has (gender, DOB, address, emergency contact, goal, height/weight).
-          The member only ever gave name/email/phone/photo at sign-up. */}
-      <Modal visible={showProfile} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowProfile(false)}>
-        <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={Platform.OS === 'android' ? 20 : 0} style={styles.modalWrap}>
-          <ScrollView style={[styles.modalCard, { maxHeight: '88%' }]} contentContainerStyle={{ paddingBottom: 12 }} keyboardShouldPersistTaps="handled">
-            <View style={styles.modalHead}>
-              <Text style={styles.modalTitle}>📋 Registration Details</Text>
-              <TouchableOpacity onPress={() => setShowProfile(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.modalSub}>{u.name} • {u.phone}</Text>
-
-            <Text style={styles.inputLabel}>Gender</Text>
-            <View style={styles.planGrid}>
-              {GENDERS.map((g) => (
-                <TouchableOpacity key={g.key} style={[styles.planChip, pGender === g.key && styles.planChipActive]} onPress={() => setPGender(pGender === g.key ? '' : g.key)}>
-                  <Text style={[styles.planChipText, pGender === g.key && { color: COLORS.onAccent }]}>{g.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.inputLabel}>Date of birth</Text>
-            <TextInput style={styles.input} value={pDob} onChangeText={setPDob} placeholder="DD/MM/YYYY" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" maxLength={10} />
-
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>Height (cm)</Text>
-                <TextInput style={styles.input} value={pHeight} onChangeText={setPHeight} placeholder="170" placeholderTextColor={COLORS.textMuted} keyboardType="numeric" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>Weight (kg)</Text>
-                <TextInput style={styles.input} value={pWeight} onChangeText={setPWeight} placeholder="70" placeholderTextColor={COLORS.textMuted} keyboardType="numeric" />
-              </View>
-            </View>
-
-            <Text style={styles.inputLabel}>Goal</Text>
-            <View style={styles.planGrid}>
-              {GOALS.map((g) => (
-                <TouchableOpacity key={g} style={[styles.planChip, pGoal === g && styles.planChipActive]} onPress={() => setPGoal(pGoal === g ? '' : g)}>
-                  <Text style={[styles.planChipText, pGoal === g && { color: COLORS.onAccent }]}>{g}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.inputLabel}>Address</Text>
-            <TextInput style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]} value={pAddress} onChangeText={setPAddress} placeholder="House, street, area" placeholderTextColor={COLORS.textMuted} multiline />
-
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <View style={{ flex: 1.4 }}>
-                <Text style={styles.inputLabel}>Emergency contact</Text>
-                <TextInput style={styles.input} value={pEmergName} onChangeText={setPEmergName} placeholder="Name" placeholderTextColor={COLORS.textMuted} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>Blood group</Text>
-                <TextInput style={styles.input} value={pBlood} onChangeText={setPBlood} placeholder="O+" placeholderTextColor={COLORS.textMuted} autoCapitalize="characters" />
-              </View>
-            </View>
-
-            <Text style={styles.inputLabel}>Emergency number</Text>
-            <TextInput style={styles.input} value={pEmergPhone} onChangeText={setPEmergPhone} placeholder="10-digit number" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" maxLength={15} />
-
-            <TouchableOpacity style={styles.payBtn} onPress={saveProfile} disabled={profileBusy}>
-              {profileBusy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.payBtnText}>Save Details</Text>}
-            </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </Modal>
-
       {/* Date + time picker — serves both the payment due-date and the standalone edit */}
       <DateTimePickerModal
         visible={picker !== null}
@@ -688,9 +514,6 @@ const styles = StyleSheet.create({
   planBadgeText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.bold },
 
   sectionLabel: { fontSize: SIZES.fontMd, color: COLORS.primary, ...FONTS.bold, marginHorizontal: 16, marginTop: 18, marginBottom: 8 },
-  sectionHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 18, marginBottom: 8 },
-  editLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  editLinkText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.bold },
   card: { marginHorizontal: 16, paddingHorizontal: 16, paddingVertical: 4, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.darkBorder },
 
   actions: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginTop: 16 },
