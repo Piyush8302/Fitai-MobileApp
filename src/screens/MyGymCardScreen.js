@@ -34,6 +34,7 @@ const MyGymCardScreen = ({ navigation }) => {
   const [history, setHistory] = useState({});           // { gymId: [attendance] }
   const qrRef = useRef(null);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [showCode, setShowCode] = useState(false); // QR/barcode collapsed by default — saves card space
 
   const load = useCallback(async () => {
     try {
@@ -186,16 +187,39 @@ const MyGymCardScreen = ({ navigation }) => {
             <Ionicons name="barbell" size={28} color={COLORS.onAccent} />
           </View>
 
-          {/* QR */}
-          <View style={styles.qrWrap}>
-            <QRCode value={qrValue} size={150} backgroundColor="#FFFFFF" color="#000000" getRef={(c) => { qrRef.current = c; }} />
-          </View>
-          <Text style={styles.scanHint}>Show this at the gym counter to check in</Text>
+          {showCode ? (
+            <>
+              {/* QR */}
+              <View style={styles.qrWrap}>
+                <QRCode value={qrValue} size={150} backgroundColor="#FFFFFF" color="#000000" getRef={(c) => { qrRef.current = c; }} />
+              </View>
+              <Text style={styles.scanHint}>Show this at the gym counter to check in</Text>
 
-          {/* Barcode */}
-          <View style={styles.barcodeWrap}>
-            <Barcode value={barcodeValue} format="CODE128" height={48} singleBarWidth={1.6} backgroundColor="#FFFFFF" lineColor="#000000" />
-          </View>
+              {/* Barcode */}
+              <View style={styles.barcodeWrap}>
+                <Barcode value={barcodeValue} format="CODE128" height={48} singleBarWidth={1.6} backgroundColor="#FFFFFF" lineColor="#000000" />
+              </View>
+
+              <TouchableOpacity style={styles.hideCodeBtn} onPress={() => setShowCode(false)}>
+                <Ionicons name="chevron-up" size={16} color={COLORS.onAccent} />
+                <Text style={styles.hideCodeText}>Hide</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity style={styles.showCodeBtn} onPress={() => setShowCode(true)} activeOpacity={0.8}>
+              <Ionicons name="qr-code" size={22} color={COLORS.onAccent} />
+              <Text style={styles.showCodeText}>Tap to show QR &amp; barcode</Text>
+              <Ionicons name="chevron-down" size={18} color={COLORS.onAccent} />
+            </TouchableOpacity>
+          )}
+
+          {/* Kept mounted off-screen so the PDF download always has a QR to capture,
+              even if the member never taps "show" before downloading. */}
+          {!showCode && (
+            <View style={styles.qrHidden} pointerEvents="none">
+              <QRCode value={qrValue} size={150} backgroundColor="#FFFFFF" color="#000000" getRef={(c) => { qrRef.current = c; }} />
+            </View>
+          )}
         </LinearGradient>
 
         {/* ===== DOWNLOAD PDF ===== */}
@@ -328,6 +352,15 @@ const styles = StyleSheet.create({
   qrWrap: { backgroundColor: '#FFFFFF', padding: 14, borderRadius: 16 },
   scanHint: { fontSize: SIZES.fontXs, color: COLORS.onAccent, opacity: 0.9, marginTop: 10, ...FONTS.medium },
   barcodeWrap: { backgroundColor: '#FFFFFF', padding: 10, borderRadius: 10, marginTop: 14, alignItems: 'center' },
+  showCodeBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%',
+    paddingVertical: 14, borderRadius: SIZES.radius, backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
+  },
+  showCodeText: { fontSize: SIZES.fontMd, color: COLORS.onAccent, ...FONTS.bold },
+  hideCodeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, paddingVertical: 4, paddingHorizontal: 10 },
+  hideCodeText: { fontSize: SIZES.fontSm, color: COLORS.onAccent, opacity: 0.85, ...FONTS.semiBold },
+  qrHidden: { position: 'absolute', opacity: 0, width: 1, height: 1, overflow: 'hidden' },
 
   checkinBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
