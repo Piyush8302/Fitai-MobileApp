@@ -78,6 +78,7 @@ export const ENDPOINTS = {
   FOOD: '/api/food',
   FOOD_CATEGORIES: '/api/food/categories',
   FOOD_CALCULATE: '/api/food/calculate',
+  FOOD_ANALYZE_PHOTO: '/api/food/analyze-photo',
 
   // Gym module
   GYM_CREATE: '/api/gym',
