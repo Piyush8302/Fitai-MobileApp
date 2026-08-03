@@ -389,7 +389,9 @@ const WorkoutScreen = ({ navigation }) => {
           )}
         </View>
 
-        <View style={{ height: 40 }} />
+        {/* The tab bar is absolutely positioned and floats over the content,
+            so the last card needs room to clear it — 100 everywhere else too. */}
+        <View style={{ height: 100 }} />
       </ScrollView>
     </LinearGradient>
   );
