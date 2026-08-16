@@ -266,7 +266,7 @@ const FoodDatabaseScreen = ({ navigation }) => {
       )}
 
       {/* ===== FOOD DETAIL MODAL ===== */}
-      <Modal visible={showDetail} transparent animationType="slide" onRequestClose={() => setShowDetail(false)}>
+      <Modal visible={showDetail} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowDetail(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalGrad}>

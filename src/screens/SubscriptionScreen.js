@@ -344,7 +344,7 @@ const SubscriptionScreen = ({ navigation }) => {
       )}
 
       {/* Payment Confirmation Modal */}
-      <Modal visible={showUpiModal} transparent animationType="slide" onRequestClose={() => setShowUpiModal(false)}>
+      <Modal visible={showUpiModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowUpiModal(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowUpiModal(false)} />
         <View style={styles.modalCard}>
           <View style={styles.modalHandle} />

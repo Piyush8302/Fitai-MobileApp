@@ -858,7 +858,7 @@ const TrackingScreen = ({ navigation }) => {
       </ScrollView>
 
       {/* ===== WALK/RUN MODAL ===== */}
-      <Modal visible={showWalkModal} transparent animationType="slide" onRequestClose={closeWalkModal}>
+      <Modal visible={showWalkModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={closeWalkModal}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalBox}>
@@ -936,7 +936,7 @@ const TrackingScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== MEAL MODAL (Enhanced with suggestions) ===== */}
-      <Modal visible={showMealModal} transparent animationType="slide" onRequestClose={() => setShowMealModal(false)}>
+      <Modal visible={showMealModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowMealModal(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalBox}>
@@ -1129,7 +1129,7 @@ const TrackingScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== SLEEP MODAL ===== */}
-      <Modal visible={showSleepModal} transparent animationType="slide" onRequestClose={closeSleepModal}>
+      <Modal visible={showSleepModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={closeSleepModal}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
@@ -1170,7 +1170,7 @@ const TrackingScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== EXERCISE MODAL ===== */}
-      <Modal visible={showExerciseModal} transparent animationType="slide" onRequestClose={closeExerciseModal}>
+      <Modal visible={showExerciseModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={closeExerciseModal}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalBox, { maxHeight: '85%' }]}>
             <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
@@ -1260,7 +1260,7 @@ const TrackingScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== WEIGHT MODAL ===== */}
-      <Modal visible={showWeightModal} transparent animationType="slide" onRequestClose={closeWeightModal}>
+      <Modal visible={showWeightModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={closeWeightModal}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -1331,7 +1331,7 @@ const TrackingScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== CALORIE INFO MODAL (BMR / TDEE / Target) ===== */}
-      <Modal visible={showCalorieInfo} transparent animationType="slide" onRequestClose={() => setShowCalorieInfo(false)}>
+      <Modal visible={showCalorieInfo} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowCalorieInfo(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
