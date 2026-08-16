@@ -9,6 +9,7 @@ import { pickSquarePhoto } from '../utils/photo';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { numericText, digitsOnly, rangeError, LIMITS } from '../utils/numericInput';
 
 const EditProfileScreen = ({ navigation }) => {
   const [user, setUser] = useState(null);
@@ -412,7 +413,7 @@ const EditProfileScreen = ({ navigation }) => {
               <TextInput
                 style={styles.otpInput}
                 value={otpValue}
-                onChangeText={setOtpValue}
+                onChangeText={(t) => setOtpValue(digitsOnly(t, 6))}
                 keyboardType="number-pad"
                 maxLength={6}
                 placeholder="Enter OTP"
@@ -499,7 +500,8 @@ const EditProfileScreen = ({ navigation }) => {
               <TextInput
                 style={styles.fieldInput}
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(t) => setPhone(digitsOnly(t, 10))}
+                maxLength={10}
                 placeholder="Enter phone number"
                 placeholderTextColor={COLORS.textMuted}
                 keyboardType="phone-pad"
@@ -534,7 +536,7 @@ const EditProfileScreen = ({ navigation }) => {
           <View style={styles.rowFields}>
             <View style={[styles.fieldCard, { flex: 1, marginRight: 7 }]}>
               <Text style={styles.fieldLabel}>Age</Text>
-              <TextInput style={styles.fieldInputSmall} value={age} onChangeText={setAge} keyboardType="number-pad" placeholder="25" placeholderTextColor={COLORS.textMuted} />
+              <TextInput style={styles.fieldInputSmall} value={age} onChangeText={(t) => setAge(digitsOnly(t, 3))} maxLength={3} keyboardType="number-pad" placeholder="25" placeholderTextColor={COLORS.textMuted} />
             </View>
             <View style={[styles.fieldCard, { flex: 1, marginLeft: 7 }]}>
               <Text style={styles.fieldLabel}>Gender</Text>
@@ -552,18 +554,18 @@ const EditProfileScreen = ({ navigation }) => {
           <View style={styles.rowFields}>
             <View style={[styles.fieldCard, { flex: 1, marginRight: 7 }]}>
               <Text style={styles.fieldLabel}>Height (cm)</Text>
-              <TextInput style={styles.fieldInputSmall} value={height} onChangeText={setHeight} keyboardType="number-pad" placeholder="175" placeholderTextColor={COLORS.textMuted} />
+              <TextInput style={styles.fieldInputSmall} value={height} onChangeText={(t) => setHeight(numericText(t, { decimals: true, maxLen: 5 }))} maxLength={5} keyboardType="decimal-pad" placeholder="175" placeholderTextColor={COLORS.textMuted} />
             </View>
             <View style={[styles.fieldCard, { flex: 1, marginLeft: 7 }]}>
               <Text style={styles.fieldLabel}>Weight (kg)</Text>
-              <TextInput style={styles.fieldInputSmall} value={weight} onChangeText={setWeight} keyboardType="number-pad" placeholder="70" placeholderTextColor={COLORS.textMuted} />
+              <TextInput style={styles.fieldInputSmall} value={weight} onChangeText={(t) => setWeight(numericText(t, { decimals: true, maxLen: 5 }))} maxLength={5} keyboardType="decimal-pad" placeholder="70" placeholderTextColor={COLORS.textMuted} />
             </View>
           </View>
 
           {/* Target Weight */}
           <View style={styles.fieldCard}>
             <Text style={styles.fieldLabel}>Target Weight (kg)</Text>
-            <TextInput style={styles.fieldInputSmall} value={targetWeight} onChangeText={setTargetWeight} keyboardType="number-pad" placeholder="65" placeholderTextColor={COLORS.textMuted} />
+            <TextInput style={styles.fieldInputSmall} value={targetWeight} onChangeText={(t) => setTargetWeight(numericText(t, { decimals: true, maxLen: 5 }))} maxLength={5} keyboardType="decimal-pad" placeholder="65" placeholderTextColor={COLORS.textMuted} />
           </View>
 
           {/* Fitness Goal */}
@@ -622,7 +624,7 @@ const EditProfileScreen = ({ navigation }) => {
                   <TextInput
                     style={styles.customInput}
                     value={customValue}
-                    onChangeText={(v) => applyCustomTimeline(v, customUnit)}
+                    onChangeText={(v) => applyCustomTimeline(digitsOnly(v, 3), customUnit)}
                     keyboardType="number-pad"
                     placeholder="e.g. 6"
                     placeholderTextColor={COLORS.textMuted}
@@ -717,6 +719,14 @@ const EditProfileScreen = ({ navigation }) => {
           <TouchableOpacity
             style={styles.saveProfileBtn}
             onPress={async () => {
+              // The server recalculates BMR, BMI, daily calories and protein
+              // from these three, so a stray digit here quietly rewrites the
+              // member's whole plan. Check before sending, not after.
+              const bad = (age && rangeError(age, { label: 'Age', integer: true, ...LIMITS.age }))
+                || (height && rangeError(height, { label: 'Height', ...LIMITS.heightCm }))
+                || (weight && rangeError(weight, { label: 'Weight', ...LIMITS.weightKg }))
+                || (targetWeight && rangeError(targetWeight, { label: 'Target weight', ...LIMITS.weightKg }));
+              if (bad) { Alert.alert('Check your details', bad); return; }
               setSavingProfile(true);
               try {
                 const updates = {};

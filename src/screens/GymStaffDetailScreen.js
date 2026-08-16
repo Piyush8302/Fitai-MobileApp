@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api from '../config/api';
+import { digitsOnly } from '../utils/numericInput';
 
 const GymStaffDetailScreen = ({ navigation, route }) => {
   const { staff, gymId } = route.params;
@@ -246,7 +247,7 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
             <TextInput style={styles.input} placeholder="Name" placeholderTextColor={COLORS.textMuted} value={eName} onChangeText={setEName} />
             <TextInput style={styles.input} placeholder="Email" placeholderTextColor={COLORS.textMuted} keyboardType="email-address" autoCapitalize="none" value={eEmail} onChangeText={setEEmail} />
             <TextInput style={styles.input} placeholder="Role (e.g. Receptionist)" placeholderTextColor={COLORS.textMuted} value={eRole} onChangeText={setERole} />
-            <TextInput style={styles.input} placeholder="Monthly salary ₹" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={eSalary} onChangeText={setESalary} />
+            <TextInput style={styles.input} placeholder="Monthly salary ₹" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={eSalary} maxLength={7} onChangeText={(t) => setESalary(digitsOnly(t, 7))} />
             <TouchableOpacity style={styles.saveBtn} onPress={saveEdit} disabled={busy}>
               {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.saveText}>Save Changes</Text>}
             </TouchableOpacity>

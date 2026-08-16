@@ -9,6 +9,7 @@ import { pickSquarePhoto } from '../utils/photo';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { digitsOnly, rangeError, LIMITS } from '../utils/numericInput';
 import DateTimePickerModal from '../components/DateTimePickerModal';
 
 const PLANS = [
@@ -101,7 +102,8 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
   };
 
   const markPayment = async () => {
-    if (!payAmount || parseInt(payAmount) <= 0) { Alert.alert('Required', 'Enter amount'); return; }
+    const badAmount = rangeError(payAmount, { label: 'Amount', min: 1, max: LIMITS.money.max });
+    if (badAmount) { Alert.alert('Check the amount', badAmount); return; }
     setBusy(true);
     try {
       const res = await api.post(ENDPOINTS.GYM_PAYMENT, { membershipId, amount: parseInt(payAmount), plan: payPlan, method: payMethod, dueDate: payDueDate || undefined });
@@ -437,7 +439,7 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
             </View>
 
             <Text style={styles.inputLabel}>Amount received (₹)</Text>
-            <TextInput style={styles.input} placeholder="e.g. 1000" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={payAmount} onChangeText={setPayAmount} />
+            <TextInput style={styles.input} placeholder="e.g. 1000" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={payAmount} maxLength={7} onChangeText={(t) => setPayAmount(digitsOnly(t, 7))} />
 
             <Text style={styles.inputLabel}>Paid by</Text>
             <View style={styles.planGrid}>

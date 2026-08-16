@@ -9,25 +9,15 @@ import ProgressRing from '../components/ProgressRing';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXERCISES, WORKOUT_CATEGORIES, MEAL_PLAN_SAMPLE, DIET_MEAL_SUGGESTIONS } from '../constants/data';
+import { numericText, LIMITS } from '../utils/numericInput';
 
 const { width } = Dimensions.get('window');
 
-// Number fields used to accept whatever the keypad could produce: a distance of
-// 66666666666666666666 km went through and the preview happily read
-// "~1.35e+107 steps". Clean the text at the source — digits only, at most one
-// decimal point, and a length no genuine entry needs.
-const numericText = (text, { decimals = true, maxLen = 6 } = {}) => {
-  let clean = String(text ?? '').replace(decimals ? /[^0-9.]/g : /[^0-9]/g, '');
-  const parts = clean.split('.');
-  if (parts.length > 2) clean = `${parts[0]}.${parts.slice(1).join('')}`;
-  return clean.slice(0, maxLen);
-};
-
 // Upper bounds are sanity checks, not fitness limits — a 300 km ride and a 24 h
-// duration are both already generous for one day's entry.
-const MAX_KM = 300;
-const MAX_MINUTES = 1440;
-const MAX_SLEEP_HOURS = 24;
+// duration are both already generous for one day's entry. See LIMITS.
+const MAX_KM = LIMITS.distanceKm.max;
+const MAX_MINUTES = LIMITS.minutes.max;
+const MAX_SLEEP_HOURS = LIMITS.sleepHours.max;
 
 const TrackingScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('daily');
@@ -901,7 +891,7 @@ const TrackingScreen = ({ navigation }) => {
                   keyboardType="decimal-pad"
                   value={walkKm}
                   maxLength={5}
-                  onChangeText={(t) => setWalkKm(numericText(t, { maxLen: 5 }))}
+                  onChangeText={(t) => setWalkKm(numericText(t, { decimals: true, maxLen: 5 }))}
                 />
 
                 <Text style={styles.inputLabel}>Duration (minutes) - Optional</Text>
@@ -1060,7 +1050,11 @@ const TrackingScreen = ({ navigation }) => {
                               placeholderTextColor={COLORS.textMuted}
                               keyboardType="number-pad"
                               value={item.calText}
-                              onChangeText={(t) => updateItem(item.id, { calText: t, baseCal: parseInt(t) || 0 })}
+                              maxLength={4}
+                              onChangeText={(t) => {
+                                const v = numericText(t, { maxLen: 4 });
+                                updateItem(item.id, { calText: v, baseCal: Math.min(parseInt(v) || 0, LIMITS.calories.max) });
+                              }}
                             />
                             <TextInput
                               style={styles.itemMiniInput}
@@ -1068,7 +1062,11 @@ const TrackingScreen = ({ navigation }) => {
                               placeholderTextColor={COLORS.textMuted}
                               keyboardType="decimal-pad"
                               value={item.proText}
-                              onChangeText={(t) => updateItem(item.id, { proText: t, baseProtein: parseFloat(t) || 0 })}
+                              maxLength={5}
+                              onChangeText={(t) => {
+                                const v = numericText(t, { decimals: true, maxLen: 5 });
+                                updateItem(item.id, { proText: v, baseProtein: Math.min(parseFloat(v) || 0, LIMITS.protein.max) });
+                              }}
                             />
                           </View>
                         ) : (
@@ -1298,7 +1296,7 @@ const TrackingScreen = ({ navigation }) => {
                 keyboardType="decimal-pad"
                 value={weightInput}
                 maxLength={5}
-                onChangeText={(t) => setWeightInput(numericText(t, { maxLen: 5 }))}
+                onChangeText={(t) => setWeightInput(numericText(t, { decimals: true, maxLen: 5 }))}
               />
 
               {weightInput && userProfile?.weight && (

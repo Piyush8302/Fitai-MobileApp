@@ -14,6 +14,7 @@ import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import AdminDrawer from '../components/AdminDrawer';
 import api, { ENDPOINTS, API_BASE_URL } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { digitsOnly, rangeError, LIMITS } from '../utils/numericInput';
 
 const PLANS = [
   { key: 'trial', label: 'Trial', months: 0 },
@@ -591,6 +592,10 @@ const GymAdminScreen = ({ navigation }) => {
 
   const addMember = async () => {
     if (!mPhone.trim() || mPhone.trim().length < 10) { Alert.alert('Required', 'Enter a valid phone number'); return; }
+    if (mFee) {
+      const badFee = rangeError(mFee, { label: 'Fee', min: 0, max: LIMITS.money.max });
+      if (badFee) { Alert.alert('Check the fee', badFee); return; }
+    }
     setBusy(true);
     try {
       const res = await api.post(ENDPOINTS.GYM_ADD_MEMBER, {
@@ -607,6 +612,10 @@ const GymAdminScreen = ({ navigation }) => {
   };
 
   const markPayment = async () => {
+    // Was `parseInt(payAmount) || 0` with nothing in front of it, so an empty
+    // box recorded a ₹0 payment against the member's account.
+    const bad = rangeError(payAmount, { label: 'Amount received', min: 1, max: LIMITS.money.max });
+    if (bad) { Alert.alert('Check the amount', bad); return; }
     setBusy(true);
     try {
       const res = await api.post(ENDPOINTS.GYM_PAYMENT, {
@@ -999,7 +1008,7 @@ const GymAdminScreen = ({ navigation }) => {
             <TextInput style={styles.input} placeholder="Gym name (e.g. Anand Gym)" placeholderTextColor={COLORS.textMuted} value={gName} onChangeText={setGName} />
             <TextInput style={styles.input} placeholder="Location / area (optional)" placeholderTextColor={COLORS.textMuted} value={gLoc} onChangeText={setGLoc} />
             {gyms.length === 0 && (
-              <TextInput style={styles.input} placeholder="Your mobile number (required)" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" maxLength={10} value={gOwnerPhone} onChangeText={setGOwnerPhone} />
+              <TextInput style={styles.input} placeholder="Your mobile number (required)" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" maxLength={10} value={gOwnerPhone} onChangeText={(t) => setGOwnerPhone(digitsOnly(t, 10))} />
             )}
             <Text style={styles.timeLabel}>🕒 Gym timings (attendance only in these slots)</Text>
             {gSlots.map((s, i) => (
@@ -1079,7 +1088,7 @@ const GymAdminScreen = ({ navigation }) => {
               {[['monthly', 'Monthly'], ['quarterly', '3 Months'], ['half_yearly', '6 Months'], ['yearly', 'Yearly']].map(([key, label]) => (
                 <View key={key} style={styles.priceRow}>
                   <Text style={styles.priceLabel}>{label}</Text>
-                  <TextInput style={[styles.input, styles.priceInput]} placeholder="₹0" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={egPrices[key]} onChangeText={(t) => setEgPrices(prev => ({ ...prev, [key]: t.replace(/\D/g, '') }))} />
+                  <TextInput style={[styles.input, styles.priceInput]} placeholder="₹0" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={egPrices[key]} maxLength={7} onChangeText={(t) => setEgPrices(prev => ({ ...prev, [key]: digitsOnly(t, 7) }))} />
                 </View>
               ))}
               <Text style={styles.timeHint}>Leave a plan blank to keep it custom. You can edit anytime.</Text>
@@ -1123,7 +1132,7 @@ const GymAdminScreen = ({ navigation }) => {
                 );
               })}
             </ScrollView>
-            <TextInput style={styles.input} placeholder="Fee amount (₹)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={mFee} onChangeText={setMFee} />
+            <TextInput style={styles.input} placeholder="Fee amount (₹)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={mFee} maxLength={7} onChangeText={(t) => setMFee(digitsOnly(t, 7))} />
             <TouchableOpacity style={styles.primaryBtn} onPress={addMember} disabled={busy}>
               {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.primaryBtnText}>Add Member</Text>}
             </TouchableOpacity>
@@ -1150,11 +1159,11 @@ const GymAdminScreen = ({ navigation }) => {
               <Text style={styles.photoText}>{sPhoto ? 'Change photo' : 'Add photo (optional)'}</Text>
             </TouchableOpacity>
             <TextInput style={styles.input} placeholder="Name" placeholderTextColor={COLORS.textMuted} value={sName} onChangeText={setSName} />
-            <TextInput style={styles.input} placeholder="Mobile number" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" value={sPhone} onChangeText={setSPhone} />
+            <TextInput style={styles.input} placeholder="Mobile number" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" value={sPhone} maxLength={10} onChangeText={(t) => setSPhone(digitsOnly(t, 10))} />
             <TextInput style={styles.input} placeholder="Email" placeholderTextColor={COLORS.textMuted} keyboardType="email-address" autoCapitalize="none" value={sEmail} onChangeText={setSEmail} />
             <Text style={styles.fieldHint}>Required — staff can log in with this email or their phone.</Text>
             <TextInput style={styles.input} placeholder="Role (e.g. Receptionist, Trainer)" placeholderTextColor={COLORS.textMuted} value={sRole} onChangeText={setSRole} />
-            <TextInput style={styles.input} placeholder="Monthly salary ₹ (optional)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={sSalary} onChangeText={setSSalary} />
+            <TextInput style={styles.input} placeholder="Monthly salary ₹ (optional)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={sSalary} maxLength={7} onChangeText={(t) => setSSalary(digitsOnly(t, 7))} />
             <TouchableOpacity style={styles.primaryBtn} onPress={addStaff} disabled={busy}>
               {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.primaryBtnText}>Add Staff</Text>}
             </TouchableOpacity>
@@ -1180,7 +1189,7 @@ const GymAdminScreen = ({ navigation }) => {
             <TextInput style={styles.input} placeholder="Email" placeholderTextColor={COLORS.textMuted} keyboardType="email-address" autoCapitalize="none" value={eEmail} onChangeText={setEEmail} />
             <Text style={styles.fieldHint}>Staff can log in with this email or their phone.</Text>
             <TextInput style={styles.input} placeholder="Role (e.g. Receptionist, Trainer)" placeholderTextColor={COLORS.textMuted} value={eRole} onChangeText={setERole} />
-            <TextInput style={styles.input} placeholder="Monthly salary ₹ (optional)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={eSalary} onChangeText={setESalary} />
+            <TextInput style={styles.input} placeholder="Monthly salary ₹ (optional)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={eSalary} maxLength={7} onChangeText={(t) => setESalary(digitsOnly(t, 7))} />
             {gyms.length > 1 && (
               <>
                 <Text style={styles.inputLabel}>Also add to another gym (optional)</Text>
@@ -1258,7 +1267,7 @@ const GymAdminScreen = ({ navigation }) => {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <TextInput style={styles.input} placeholder="Amount received (₹)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={payAmount} onChangeText={setPayAmount} />
+            <TextInput style={styles.input} placeholder="Amount received (₹)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={payAmount} maxLength={7} onChangeText={(t) => setPayAmount(digitsOnly(t, 7))} />
             <TouchableOpacity style={styles.primaryBtn} onPress={markPayment} disabled={busy}>
               {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.primaryBtnText}>Mark as Paid</Text>}
             </TouchableOpacity>

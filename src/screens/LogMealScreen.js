@@ -10,6 +10,7 @@ import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DIET_MEAL_SUGGESTIONS } from '../constants/data';
 import { pickMealPhoto } from '../utils/photo';
+import { numericText, LIMITS } from '../utils/numericInput';
 
 // Modern speech recognition (Expo, new-arch compatible). Lazy require so the
 // app never crashes in Expo Go where the native module isn't bundled.
@@ -457,13 +458,19 @@ const LogMealScreen = ({ navigation, route }) => {
                     <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
                       <TextInput
                         style={styles.miniInput} placeholder="kcal" placeholderTextColor={COLORS.textMuted}
-                        keyboardType="number-pad" value={item.calText}
-                        onChangeText={(t) => updateItem(item.id, { calText: t, baseCal: parseInt(t) || 0 })}
+                        keyboardType="number-pad" value={item.calText} maxLength={4}
+                        onChangeText={(t) => {
+                          const v = numericText(t, { maxLen: 4 });
+                          updateItem(item.id, { calText: v, baseCal: Math.min(parseInt(v) || 0, LIMITS.calories.max) });
+                        }}
                       />
                       <TextInput
                         style={styles.miniInput} placeholder="protein g" placeholderTextColor={COLORS.textMuted}
-                        keyboardType="decimal-pad" value={item.proText}
-                        onChangeText={(t) => updateItem(item.id, { proText: t, baseProtein: parseFloat(t) || 0 })}
+                        keyboardType="decimal-pad" value={item.proText} maxLength={5}
+                        onChangeText={(t) => {
+                          const v = numericText(t, { decimals: true, maxLen: 5 });
+                          updateItem(item.id, { proText: v, baseProtein: Math.min(parseFloat(v) || 0, LIMITS.protein.max) });
+                        }}
                       />
                     </View>
                   ) : (
