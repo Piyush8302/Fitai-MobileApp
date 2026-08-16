@@ -296,7 +296,7 @@ const ProfileScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 60, paddingBottom: 20 },
+  scroll: { paddingHorizontal: 16, paddingTop: 60, paddingBottom: 100 },
   hero: {
     alignItems: 'center', marginBottom: 16, paddingTop: 26, paddingBottom: 22, paddingHorizontal: 16,
     borderRadius: SIZES.radiusXl, ...SHADOWS.medium,

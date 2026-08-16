@@ -7,6 +7,7 @@ import { GENDER_OPTIONS, ACTIVITY_LEVELS, FITNESS_GOALS } from '../constants/dat
 import GradientButton from '../components/GradientButton';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { digitsOnly } from '../utils/numericInput';
 
 const { width } = Dimensions.get('window');
 
@@ -390,7 +391,7 @@ const ProfileSetupScreen = ({ navigation }) => {
                 <TextInput
                   style={styles.customInput}
                   value={customValue}
-                  onChangeText={(v) => applyCustomTimeline(v, customUnit)}
+                  onChangeText={(v) => applyCustomTimeline(digitsOnly(v, 3), customUnit)}
                   keyboardType="number-pad"
                   placeholder="e.g. 6"
                   placeholderTextColor={COLORS.textMuted}

@@ -1,15 +1,16 @@
 // ─── First-time gym registration ─────────────────────────────────────────────
 // Scanning a gym's QR when you're NOT a member of that gym lands here instead of
 // silently creating a membership. The member only gives what THEY should hand
-// over from their own phone — photo, name, email (phone is the FitAI login and
-// locked). Everything else the gym wants (gender, DOB, address, emergency
+// over from their own phone — photo, name, email, and the mobile number (locked
+// when it is already the FitAI login, asked for and required when the account
+// was created with Google and has none). Everything else the gym wants (gender, DOB, address, emergency
 // contact, blood group, goal, height/weight) is filled in later by the owner or
 // staff from the member detail page — see the "Edit details" flow there. The
 // submit both registers the member here AND marks today's attendance. From the
 // next scan onwards the scanner goes straight to attendance and never shows
 // this screen again.
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image,
   ActivityIndicator, Alert, Platform, KeyboardAvoidingView,
@@ -19,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { pickSquarePhoto } from '../utils/photo';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
+import { digitsOnly } from '../utils/numericInput';
 
 const Field = ({ label, hint, children }) => (
   <View style={styles.field}>
@@ -33,12 +35,19 @@ const Field = ({ label, hint, children }) => (
 const GymJoinScreen = ({ navigation, route }) => {
   // Everything below comes from the scan response — see selfCheckIn's
   // `needsRegistration` branch on the backend.
-  const { gym, regToken, prefill = {} } = route.params || {};
+  const { gym, regToken, prefill = {}, needsPhone = false } = route.params || {};
 
   const [photo, setPhoto] = useState('');                  // base64, gym's copy only
   const [name, setName] = useState(prefill.name === 'Member' ? '' : (prefill.name || ''));
   const [email, setEmail] = useState(prefill.email || '');
+  // Signing in with Google leaves the account without a phone number. The field
+  // below used to be locked in every case, so those members registered with a
+  // blank number and the gym had no way to ring them. When there is no number
+  // on the account, the field opens up and becomes required.
+  const [phone, setPhone] = useState(prefill.phone || '');
+  const askPhone = needsPhone || !prefill.phone;
   const [busy, setBusy] = useState(false);
+  const done = useRef(false);   // this form is good for exactly one submission
 
   const pickPhoto = (source) => async () => {
     try {
@@ -50,21 +59,40 @@ const GymJoinScreen = ({ navigation, route }) => {
   // Sends the form back to the SAME check-in endpoint. The backend creates the
   // membership from `profile` and then marks attendance in one go.
   const submit = async (skipProfile = false) => {
-    if (busy) return;
+    // `busy` only covers a request in flight; `done` covers the window between a
+    // successful reply and the screen going away.
+    if (busy || done.current) return;
     if (!skipProfile && !name.trim()) return Alert.alert('Name needed', 'Please enter your name so the gym can identify you.');
     if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) return Alert.alert('Check the email', 'That email address does not look right.');
+    // Required whichever button was pressed — skipping cannot leave the gym
+    // with a member it has no way to contact.
+    if (askPhone && phone.trim().length !== 10) {
+      return Alert.alert('Mobile number needed', 'Your account has no mobile number yet. Enter a 10-digit number so the gym can reach you.');
+    }
     setBusy(true);
     try {
       const body = skipProfile
-        ? { regToken, skipProfile: true }
-        : { regToken, profile: { name: name.trim(), email: email.trim(), avatar: photo || undefined } };
+        ? { regToken, skipProfile: true, ...(askPhone ? { profile: { phone: phone.trim() } } : {}) }
+        : { regToken, profile: { name: name.trim(), email: email.trim(), avatar: photo || undefined, ...(askPhone ? { phone: phone.trim() } : {}) } };
       const res = await api.post(ENDPOINTS.GYM_MY_CHECKIN, body);
       if (res.success) {
+        done.current = true;
         const closed = res.data?.closed;
         Alert.alert(
           closed ? '📝 Registered' : '✅ Registered & checked in',
           res.message || `You're now a member of ${gym?.name || 'this gym'}.`,
-          [{ text: 'OK', onPress: () => navigation.navigate('MyGymCard') }],
+          // Reset rather than navigate. `navigate` left this form sitting in the
+          // stack, so back from the gym card returned to a filled-in
+          // registration screen whose regToken was still good for 15 minutes —
+          // the member could submit it again and again, under a different name
+          // each time. Nothing here should be reachable once it has been used.
+          [{
+            text: 'OK',
+            onPress: () => navigation.reset({
+              index: 1,
+              routes: [{ name: 'Main' }, { name: 'MyGymCard' }],
+            }),
+          }],
         );
       } else {
         Alert.alert('Could not register', res.message || 'Please try again.');
@@ -119,9 +147,26 @@ const GymJoinScreen = ({ navigation, route }) => {
             <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={COLORS.textMuted} />
           </Field>
 
-          <Field label="Mobile number">
-            <TextInput style={[styles.input, styles.inputLocked]} value={prefill.phone || ''} editable={false} />
-            <Text style={styles.note}>This is your FitAI login number and can't be changed here.</Text>
+          <Field label="Mobile number" hint={askPhone ? '(required)' : undefined}>
+            {askPhone ? (
+              <>
+                <TextInput
+                  style={styles.input}
+                  value={phone}
+                  onChangeText={(t) => setPhone(digitsOnly(t, 10))}
+                  maxLength={10}
+                  keyboardType="phone-pad"
+                  placeholder="10-digit mobile number"
+                  placeholderTextColor={COLORS.textMuted}
+                />
+                <Text style={styles.note}>Your account was created with Google and has no number yet. The gym needs one to reach you — it also becomes a way to log in.</Text>
+              </>
+            ) : (
+              <>
+                <TextInput style={[styles.input, styles.inputLocked]} value={prefill.phone} editable={false} />
+                <Text style={styles.note}>This is your FitAI login number and can't be changed here.</Text>
+              </>
+            )}
           </Field>
 
           <Field label="Email" hint="(optional)">

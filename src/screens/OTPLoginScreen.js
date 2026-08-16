@@ -7,6 +7,7 @@ import InputField from '../components/InputField';
 import GradientButton from '../components/GradientButton';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { digitsOnly } from '../utils/numericInput';
 import { savePushTokenAfterLogin } from '../utils/notifications';
 
 // Lazy-require so the app never crashes if the native module isn't in the build
@@ -78,7 +79,10 @@ const OTPLoginScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleOtpChange = (text, index) => {
+  const handleOtpChange = (raw, index) => {
+    // A number-pad still lets letters through on paste, and an OTP box holding
+    // a letter can never match — strip to digits before anything else.
+    const text = digitsOnly(raw, 6);
     // OS autofill / paste may drop the whole code into one box
     if (text.length > 1) { fillOtp(text); return; }
     const newOtp = [...otp];

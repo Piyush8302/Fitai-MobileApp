@@ -24,6 +24,9 @@
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.piyush.fitai",
       "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.health.READ_STEPS"
+      ],
       "backgroundColor": "#F4F5FB",
       "intentFilters": [
         {
@@ -40,6 +43,15 @@
     "plugins": [
       "expo-font",
       "expo-web-browser",
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ],
       [
         "expo-location",
         {

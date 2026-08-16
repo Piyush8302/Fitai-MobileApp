@@ -6,7 +6,9 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { BOTTOM_INSET } from '../constants/layout';
 import api from '../config/api';
+import { digitsOnly } from '../utils/numericInput';
 
 const GymStaffDetailScreen = ({ navigation, route }) => {
   const { staff, gymId } = route.params;
@@ -246,7 +248,7 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
             <TextInput style={styles.input} placeholder="Name" placeholderTextColor={COLORS.textMuted} value={eName} onChangeText={setEName} />
             <TextInput style={styles.input} placeholder="Email" placeholderTextColor={COLORS.textMuted} keyboardType="email-address" autoCapitalize="none" value={eEmail} onChangeText={setEEmail} />
             <TextInput style={styles.input} placeholder="Role (e.g. Receptionist)" placeholderTextColor={COLORS.textMuted} value={eRole} onChangeText={setERole} />
-            <TextInput style={styles.input} placeholder="Monthly salary ₹" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={eSalary} onChangeText={setESalary} />
+            <TextInput style={styles.input} placeholder="Monthly salary ₹" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={eSalary} maxLength={7} onChangeText={(t) => setESalary(digitsOnly(t, 7))} />
             <TouchableOpacity style={styles.saveBtn} onPress={saveEdit} disabled={busy}>
               {busy ? <ActivityIndicator color={COLORS.onAccent} /> : <Text style={styles.saveText}>Save Changes</Text>}
             </TouchableOpacity>
@@ -314,7 +316,7 @@ const styles = StyleSheet.create({
   deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 24, paddingVertical: 14, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.error + '40', backgroundColor: COLORS.error + '10' },
   deleteText: { color: COLORS.error, fontSize: SIZES.fontMd, ...FONTS.bold },
 
-  modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)', paddingBottom: BOTTOM_INSET },
   modalCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 48 },
   modalHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   modalTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },

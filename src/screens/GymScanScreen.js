@@ -65,6 +65,9 @@ const GymScanScreen = ({ navigation, route }) => {
             gym: res.data.gym,
             regToken: res.data.regToken,
             prefill: res.data.prefill,
+            // true when the account has no phone at all (Google sign-in) — the
+            // form then asks for one instead of showing a blank locked field.
+            needsPhone: !!res.data.needsPhone,
           });
         } else if (res.success) {
           // Closed (outside gym hours) = attendance NOT marked — show a cross, not a tick.

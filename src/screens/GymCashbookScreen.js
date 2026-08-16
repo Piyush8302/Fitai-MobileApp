@@ -6,8 +6,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
+import { BOTTOM_INSET } from '../constants/layout';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { digitsOnly, rangeError, LIMITS } from '../utils/numericInput';
 
 const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
@@ -114,7 +116,8 @@ const GymCashbookScreen = ({ navigation }) => {
   };
 
   const addEntry = async () => {
-    if (!amount || parseFloat(amount) <= 0) { Alert.alert('Required', 'Enter amount'); return; }
+    const bad = rangeError(amount, { label: 'Amount', min: 1, max: LIMITS.money.max });
+    if (bad) { Alert.alert('Check the amount', bad); return; }
     setBusy(true);
     try {
       const res = await api.post(ENDPOINTS.GYM_CASHBOOK_ADD, {
@@ -272,7 +275,7 @@ const GymCashbookScreen = ({ navigation }) => {
                 <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
-            <TextInput style={styles.input} placeholder="Amount (₹)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={amount} onChangeText={setAmount} autoFocus />
+            <TextInput style={styles.input} placeholder="Amount (₹)" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={amount} maxLength={7} onChangeText={(t) => setAmount(digitsOnly(t, 7))} autoFocus />
             <TextInput style={styles.input} placeholder="Description (e.g. membership fee, electricity)" placeholderTextColor={COLORS.textMuted} value={desc} onChangeText={setDesc} />
             <TouchableOpacity style={[styles.saveBtn, { backgroundColor: addType === 'income' ? COLORS.success : COLORS.error }]} onPress={addEntry} disabled={busy}>
               {busy ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveText}>Save</Text>}
@@ -328,7 +331,7 @@ const styles = StyleSheet.create({
   actionBtn: { flex: 1, alignItems: 'center', paddingVertical: 16, borderRadius: SIZES.radius },
   actionText: { color: '#FFF', fontSize: SIZES.fontLg, ...FONTS.bold },
 
-  modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.85)' },
+  modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.85)', paddingBottom: BOTTOM_INSET },
   modalCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 48 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   modalTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },

@@ -8,6 +8,7 @@ import ProgressRing from '../components/ProgressRing';
 import GradientCard from '../components/GradientCard';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getGoalAdjustedCalories } from '../utils/calorieGoal';
 
 const { width } = Dimensions.get('window');
 const BANNER_WIDTH = width - 32;
@@ -96,21 +97,7 @@ const HomeScreen = ({ navigation }) => {
     return 'Good Evening 🌙';
   };
 
-  // Goal-adjusted calorie target (same logic as TrackingScreen getGoalInfo)
-  const getGoalAdjustedCalories = () => {
-    const dailyCal = user.dailyCalories || tracking.caloriesGoal || 2000;
-    const bmr = user.bmr || Math.round(dailyCal / 1.55);
-    const safeDeficit = Math.max(bmr + 100, dailyCal - 500);
-    switch (user.fitnessGoal) {
-      case 'weight_loss':
-      case 'fat_loss': return safeDeficit;
-      case 'weight_gain': return Math.round(dailyCal + 400);
-      case 'muscle_building': return Math.round(dailyCal + 300);
-      case 'height_growth':
-      case 'gym_workout': return Math.round(dailyCal * 1.1);
-      default: return dailyCal;
-    }
-  };
+  // One shared formula, mirrored from the backend — see utils/calorieGoal.js.
 
   const goalLabel = (user.fitnessGoal || 'maintenance').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   const weightDiff = Math.abs((user.weight || 70) - (user.targetWeight || 65));
@@ -118,7 +105,10 @@ const HomeScreen = ({ navigation }) => {
   const startW = user.startWeight || user.weight || 70;
   const weightTotal = Math.abs(startW - (user.targetWeight || startW)) || 1;
   const goalPercent = Math.min(100, Math.max(0, Math.round(((weightTotal - weightDiff) / weightTotal) * 100)));
-  const adjustedCalGoal = getGoalAdjustedCalories();
+  const adjustedCalGoal = getGoalAdjustedCalories({
+    ...user,
+    dailyCalories: user.dailyCalories || tracking.caloriesGoal || 2000,
+  });
   const calPercent = adjustedCalGoal ? Math.round((tracking.caloriesConsumed / adjustedCalGoal) * 100) : 0;
   const overallProgress = Math.round((calPercent + (tracking.waterIntake / tracking.waterGoal * 100) + (tracking.steps / tracking.stepsGoal * 100)) / 3) || 0;
   // One horizontal rail instead of two grids. A grid of five always left an
@@ -130,8 +120,9 @@ const HomeScreen = ({ navigation }) => {
     { id: 'gym', title: 'My Gym', icon: '🎫', screen: 'MyGymCard', tint: COLORS.primary },
     { id: 'bmi', title: 'BMI', icon: '⚖️', screen: 'BMI', tint: COLORS.energy },
     { id: 'food', title: 'Food DB', icon: '🍽', screen: 'FoodDatabase', tint: COLORS.energyLight },
-    { id: 'exercises', title: 'Exercises', icon: '💪', screen: 'ExerciseLibrary', tint: COLORS.primaryLight },
-    { id: 'articles', title: 'Articles', icon: '📰', screen: 'Articles', tint: COLORS.accent },
+    // Exercises and Articles are deliberately not on Home — the library is
+    // reachable from Workout, and the articles list was noise on the rail.
+    // Both screens are still registered in the navigator.
     // Gold is reserved for earned things — badges is the one place it belongs.
     { id: 'achievements', title: 'Badges', icon: '🏆', screen: 'Achievements', tint: COLORS.gold },
   ];
@@ -404,7 +395,7 @@ const HomeScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 55 },
+  scroll: { paddingHorizontal: 16, paddingTop: 55, paddingBottom: 100 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   greeting: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium },
   userName: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold, marginTop: 2 },

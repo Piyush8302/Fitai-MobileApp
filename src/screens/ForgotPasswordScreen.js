@@ -6,6 +6,7 @@ import { COLORS, SIZES, FONTS } from '../constants/theme';
 import Header from '../components/Header';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { digitsOnly } from '../utils/numericInput';
 
 const ForgotPasswordScreen = ({ navigation }) => {
   const [step, setStep] = useState(1); // 1 = email, 2 = OTP + new password
@@ -96,7 +97,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
                 placeholder="Enter 6-digit OTP"
                 placeholderTextColor={COLORS.textMuted}
                 value={otp}
-                onChangeText={setOtp}
+                onChangeText={(t) => setOtp(digitsOnly(t, 6))}
                 keyboardType="number-pad"
                 maxLength={6}
               />

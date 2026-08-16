@@ -9,8 +9,18 @@ import ProgressRing from '../components/ProgressRing';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXERCISES, WORKOUT_CATEGORIES, MEAL_PLAN_SAMPLE, DIET_MEAL_SUGGESTIONS } from '../constants/data';
+import { numericText, boundedText, LIMITS } from '../utils/numericInput';
+import { getGoalAdjustedCalories } from '../utils/calorieGoal';
+import { SHEET_PAD } from '../constants/layout';
+import { syncTodaySteps, stepsComeFromPhone, checkAvailability, requestPermission as requestStepPermission, setSyncEnabled, openSettings as openHealthSettings } from '../utils/steps';
 
 const { width } = Dimensions.get('window');
+
+// Upper bounds are sanity checks, not fitness limits — a 300 km ride and a 24 h
+// duration are both already generous for one day's entry. See LIMITS.
+const MAX_KM = LIMITS.distanceKm.max;
+const MAX_MINUTES = LIMITS.minutes.max;
+const MAX_SLEEP_HOURS = LIMITS.sleepHours.max;
 
 const TrackingScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('daily');
@@ -24,6 +34,10 @@ const TrackingScreen = ({ navigation }) => {
   const [showSleepModal, setShowSleepModal] = useState(false);
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [showWeightModal, setShowWeightModal] = useState(false);
+
+  // True once the phone itself is supplying the step count, which makes the
+  // manual estimate below redundant — see connectSteps.
+  const [phoneSteps, setPhoneSteps] = useState(false);
 
   // Walk/Activity form
   const [walkKm, setWalkKm] = useState('');
@@ -91,6 +105,12 @@ const TrackingScreen = ({ navigation }) => {
       setLoading(true);
       const token = await AsyncStorage.getItem('token');
       if (token) api.setToken(token);
+
+      // Pull the phone's own step count first, so the figures below already
+      // include it. Fails soft — in Expo Go, on a build without the native
+      // module, or before the member has connected, this simply returns null.
+      await syncTodaySteps();
+      setPhoneSteps(await stepsComeFromPhone());
 
       const [trackRes, profileRes] = await Promise.all([
         api.get(ENDPOINTS.TODAY_TRACKING),
@@ -165,10 +185,69 @@ const TrackingScreen = ({ navigation }) => {
     } catch (e) { console.log('Mood error:', e); }
   };
 
+  // Closing a modal has to wipe what was typed. Leaving it behind meant the
+  // next open showed a stale distance that was never logged.
+  const closeWalkModal = () => {
+    setShowWalkModal(false);
+    setWalkKm('');
+    setWalkMin('');
+    setActivityType('walk');
+  };
+
+  const closeSleepModal = () => {
+    setShowSleepModal(false);
+    setSleepHours('7');
+  };
+
+  const closeWeightModal = () => {
+    setShowWeightModal(false);
+    setWeightInput('');
+  };
+
+  const closeExerciseModal = () => {
+    setShowExerciseModal(false);
+    setSelectedExercises([]);
+  };
+
+  // Hook the phone's step counter up to the app, via Health Connect.
+  const connectSteps = async () => {
+    const problem = await checkAvailability();
+    if (problem === 'ios') {
+      return Alert.alert('Android only for now', 'Reading the phone\'s step count uses Health Connect, which is an Android feature.');
+    }
+    if (problem === 'module') {
+      return Alert.alert('Needs the installed app', 'Step syncing works in the built APK, not in Expo Go. Install the latest FitAI build and try again.');
+    }
+    if (problem === 'provider') {
+      return Alert.alert(
+        'Health Connect needed',
+        'Your steps are read from Health Connect — the app Android uses to hold health data. Install or update it from the Play Store, then come back and connect.',
+      );
+    }
+    const granted = await requestStepPermission();
+    if (!granted) {
+      return Alert.alert(
+        'Permission not given',
+        'FitAI needs read access to Steps in Health Connect. You can grant it any time from Health Connect → App permissions.',
+        [{ text: 'Open Health Connect', onPress: openHealthSettings }, { text: 'Later', style: 'cancel' }],
+      );
+    }
+    await setSyncEnabled(true);
+    const synced = await syncTodaySteps();
+    setPhoneSteps(true);
+    loadData();
+    Alert.alert('👟 Steps connected', synced != null
+      ? `Your phone counted ${synced.toLocaleString('en-IN')} steps today. It will keep updating on its own.`
+      : 'Connected. Your step count will appear as your phone records it.');
+  };
+
   const logWalkActivity = async () => {
     const km = parseFloat(walkKm);
     const min = parseInt(walkMin) || 0;
-    if (!km || km <= 0) { Alert.alert('Error', 'Enter valid distance'); return; }
+    const label = activityType === 'run' ? 'run' : activityType === 'cycle' ? 'ride' : 'walk';
+    if (!km || km <= 0) { Alert.alert('Enter a distance', `Type how far your ${label} was — for example 2.5 km.`); return; }
+    if (km > MAX_KM) { Alert.alert('That looks too far', `Distance must be ${MAX_KM} km or less. Enter the distance in kilometres, not steps or metres.`); return; }
+    if (min > MAX_MINUTES) { Alert.alert('That looks too long', `Duration must be ${MAX_MINUTES} minutes (24 hours) or less.`); return; }
 
     // Weight-based calorie burn (MET research: ACSM & ICMR guidelines)
     const userWeight = userProfile?.weight || 60;
@@ -178,24 +257,25 @@ const TrackingScreen = ({ navigation }) => {
         ? Math.round(userWeight * 0.45)    // MET ~6, ~0.45 kcal/kg/km
         : Math.round(userWeight * 0.72);   // Walking MET ~3.5, ~0.72 kcal/kg/km
     const calBurned = Math.round(km * caloriesPerKm);
-    const stepCount = activityType === 'cycle' ? 0 : Math.round(km * 1350);
+    // km × 1350 is an estimate, and only worth adding while nothing is actually
+    // counting. Once the phone is connected it has already counted this same
+    // walk, so adding our guess on top would book it twice.
+    const stepCount = (activityType === 'cycle' || phoneSteps) ? 0 : Math.round(km * 1350);
 
     try {
       const currentSteps = tracking?.steps || 0;
       const currentBurned = tracking?.caloriesBurned || 0;
       const currentWorkoutMin = tracking?.workoutMinutes || 0;
       const res = await api.post(ENDPOINTS.LOG_TRACKING, {
-        steps: currentSteps + stepCount,
+        ...(stepCount > 0 ? { steps: currentSteps + stepCount } : {}),
         caloriesBurned: currentBurned + calBurned,
         workoutMinutes: currentWorkoutMin + min,
         workoutCompleted: true,
       });
       if (res.success) {
         setTracking(res.data);
-        showToast(activityType === 'run' ? '🏃' : '🚶', `${activityType === 'run' ? 'Run' : 'Walk'} Logged`, `${km} km • ~${stepCount} steps • ${calBurned} kcal burned`);
-        setShowWalkModal(false);
-        setWalkKm('');
-        setWalkMin('');
+        showToast(activityType === 'run' ? '🏃' : '🚶', `${activityType === 'run' ? 'Run' : 'Walk'} Logged`, `${km} km${stepCount > 0 ? ` • ~${stepCount} steps` : ''} • ${calBurned} kcal burned`);
+        closeWalkModal();
       }
     } catch (e) { Alert.alert('Error', 'Failed to log activity'); }
   };
@@ -290,7 +370,8 @@ const TrackingScreen = ({ navigation }) => {
 
   const logSleepEntry = async () => {
     const hours = parseFloat(sleepHours);
-    if (!hours || hours < 0) { Alert.alert('Error', 'Enter valid sleep hours'); return; }
+    if (!hours || hours <= 0) { Alert.alert('Enter sleep hours', 'Type how long you slept — for example 7.5.'); return; }
+    if (hours > MAX_SLEEP_HOURS) { Alert.alert('That looks too long', `Sleep must be ${MAX_SLEEP_HOURS} hours or less.`); return; }
     try {
       const res = await api.post(ENDPOINTS.LOG_TRACKING, { sleepHours: hours });
       if (res.success) {
@@ -353,13 +434,16 @@ const TrackingScreen = ({ navigation }) => {
     // Research-based calorie & protein targets (ICMR 2020, ACSM, ISSN position papers)
     // Safe deficit: TDEE - 500 kcal (never below BMR) → ~0.5 kg/week loss
     // Surplus: +300-500 kcal for lean gain
-    const safeDeficit = Math.max(bmr + 100, dailyCal - 500);
+    // One shared formula for the number itself — utils/calorieGoal.js, mirrored
+    // from the backend. The per-goal copy below stays for the wording, protein
+    // split and tips, which do differ by goal.
+    const goalCalories = getGoalAdjustedCalories({ bmr, dailyCalories: dailyCal, fitnessGoal: goal });
     switch (goal) {
       case 'weight_loss':
         return {
           icon: '🔥', title: 'Weight Loss Mode', color: COLORS.secondary,
-          desc: `Target: lose ${diff > 0 ? diff : 5} kg. Eat ~${safeDeficit} kcal/day (500 kcal deficit, never below BMR ${bmr}).`,
-          targetCalories: safeDeficit, proteinTarget: Math.round(w * 1.6),
+          desc: `Target: lose ${diff > 0 ? diff : 5} kg. Eat ~${goalCalories} kcal/day (500 kcal deficit, never below BMR ${bmr}).`,
+          targetCalories: goalCalories, proteinTarget: Math.round(w * 1.6),
           tips: [
             `Eat ${Math.round(w * 1.6)}g protein/day to preserve muscle (ISSN)`,
             'Avoid sugary drinks, maida, fried snacks',
@@ -370,8 +454,8 @@ const TrackingScreen = ({ navigation }) => {
       case 'fat_loss':
         return {
           icon: '⚡', title: 'Fat Loss Mode', color: '#FF9800',
-          desc: `Reduce body fat while preserving muscle. Eat ~${safeDeficit} kcal/day with high protein.`,
-          targetCalories: safeDeficit, proteinTarget: Math.round(w * 2.0),
+          desc: `Reduce body fat while preserving muscle. Eat ~${goalCalories} kcal/day with high protein.`,
+          targetCalories: goalCalories, proteinTarget: Math.round(w * 2.0),
           tips: [
             `High protein: ${Math.round(w * 2.0)}g/day (ISSN recommendation)`,
             'Combine strength training + HIIT cardio',
@@ -383,7 +467,7 @@ const TrackingScreen = ({ navigation }) => {
         return {
           icon: '💪', title: 'Weight Gain Mode', color: '#4CAF50',
           desc: `Target: gain ${diff > 0 ? diff : 5} kg. Eat ~${Math.round(dailyCal + 400)} kcal/day (+400 surplus for lean gain).`,
-          targetCalories: Math.round(dailyCal + 400), proteinTarget: Math.round(w * 1.6),
+          targetCalories: goalCalories, proteinTarget: Math.round(w * 1.6),
           tips: [
             'Eat 5-6 meals per day — don\'t skip breakfast',
             'Include banana shake, peanut butter, ghee, dry fruits',
@@ -395,7 +479,7 @@ const TrackingScreen = ({ navigation }) => {
         return {
           icon: '🏋️', title: 'Muscle Building Mode', color: COLORS.primary,
           desc: `Lean muscle gain. Eat ~${Math.round(dailyCal + 300)} kcal/day (+300 surplus) with ${Math.round(w * 1.8)}g protein.`,
-          targetCalories: Math.round(dailyCal + 300), proteinTarget: Math.round(w * 1.8),
+          targetCalories: goalCalories, proteinTarget: Math.round(w * 1.8),
           tips: [
             `${Math.round(w * 1.8)}g protein/day — split across 4-5 meals (ISSN)`,
             'Progressive overload: increase weight/reps weekly',
@@ -407,7 +491,7 @@ const TrackingScreen = ({ navigation }) => {
         return {
           icon: '📏', title: 'Growth & Posture Focus', color: COLORS.accent,
           desc: `Nutrition for growth. Eat ~${Math.round(dailyCal * 1.1)} kcal/day with calcium & vitamin D.`,
-          targetCalories: Math.round(dailyCal * 1.1), proteinTarget: Math.round(w * 1.4),
+          targetCalories: goalCalories, proteinTarget: Math.round(w * 1.4),
           tips: [
             'Sleep 8-10 hours — growth hormone peaks during deep sleep',
             'Eat calcium-rich: milk, curd, ragi, paneer (1000mg/day)',
@@ -419,7 +503,7 @@ const TrackingScreen = ({ navigation }) => {
         return {
           icon: '🏋️', title: 'Gym Performance', color: COLORS.primary,
           desc: `Fuel workouts. Eat ~${Math.round(dailyCal * 1.1)} kcal/day with adequate protein & carbs.`,
-          targetCalories: Math.round(dailyCal * 1.1), proteinTarget: Math.round(w * 1.6),
+          targetCalories: goalCalories, proteinTarget: Math.round(w * 1.6),
           tips: [
             'Pre-workout: banana + oats 30-60 min before',
             'Post-workout: protein shake/eggs within 1-2 hours',
@@ -431,7 +515,7 @@ const TrackingScreen = ({ navigation }) => {
         return {
           icon: '🏠', title: 'Home Workout Mode', color: COLORS.success,
           desc: `Balanced nutrition at ~${dailyCal} kcal/day with bodyweight training.`,
-          targetCalories: dailyCal, proteinTarget: Math.round(w * 1.4),
+          targetCalories: goalCalories, proteinTarget: Math.round(w * 1.4),
           tips: [
             'Be consistent: 4-5 sessions per week, 30-45 min',
             'Focus on push-ups, squats, lunges, planks',
@@ -443,7 +527,7 @@ const TrackingScreen = ({ navigation }) => {
         return {
           icon: '🧘', title: 'Maintain & Stay Fit', color: COLORS.success,
           desc: `Eat ~${dailyCal} kcal/day to maintain weight with balanced nutrition.`,
-          targetCalories: dailyCal, proteinTarget: protein,
+          targetCalories: goalCalories, proteinTarget: protein,
           tips: [
             'Balanced plate: 50% veggies, 25% protein, 25% carbs',
             'Walk 7000-10000 steps daily',
@@ -820,14 +904,14 @@ const TrackingScreen = ({ navigation }) => {
       </ScrollView>
 
       {/* ===== WALK/RUN MODAL ===== */}
-      <Modal visible={showWalkModal} transparent animationType="slide" onRequestClose={() => setShowWalkModal(false)}>
+      <Modal visible={showWalkModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={closeWalkModal}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalBox}>
-              <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+              <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>🚶 Log Activity</Text>
-                  <TouchableOpacity onPress={() => setShowWalkModal(false)}>
+                  <TouchableOpacity onPress={closeWalkModal}>
                     <Ionicons name="close" size={24} color={COLORS.white} />
                   </TouchableOpacity>
                 </View>
@@ -850,14 +934,28 @@ const TrackingScreen = ({ navigation }) => {
                   ))}
                 </View>
 
-                <Text style={styles.inputLabel}>Distance (km)</Text>
+                {/* Steps were always an estimate from this distance. Offer the
+                    real thing once, right where the guess is being made. */}
+                {phoneSteps ? (
+                  <View style={styles.stepSyncRow}>
+                    <Text style={styles.stepSyncOn}>👟 Steps are coming from your phone — this logs distance and calories only.</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.stepSyncRow} onPress={connectSteps}>
+                    <Text style={styles.stepSyncText}>👟 Use your phone's step counter instead of an estimate</Text>
+                    <Text style={styles.stepSyncLink}>Connect</Text>
+                  </TouchableOpacity>
+                )}
+
+                <Text style={styles.inputLabel}>Distance (km) — up to {MAX_KM}</Text>
                 <TextInput
                   style={styles.modalInput}
                   placeholder="e.g., 2.5"
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="decimal-pad"
                   value={walkKm}
-                  onChangeText={setWalkKm}
+                  maxLength={6}
+                  onChangeText={(t) => setWalkKm(boundedText(walkKm, t, { decimals: true, maxLen: 6, max: MAX_KM }))}
                 />
 
                 <Text style={styles.inputLabel}>Duration (minutes) - Optional</Text>
@@ -867,7 +965,8 @@ const TrackingScreen = ({ navigation }) => {
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   value={walkMin}
-                  onChangeText={setWalkMin}
+                  maxLength={4}
+                  onChangeText={(t) => setWalkMin(boundedText(walkMin, t, { maxLen: 4, max: MAX_MINUTES }))}
                 />
 
                 {walkKm > 0 && (() => {
@@ -896,11 +995,11 @@ const TrackingScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== MEAL MODAL (Enhanced with suggestions) ===== */}
-      <Modal visible={showMealModal} transparent animationType="slide" onRequestClose={() => setShowMealModal(false)}>
+      <Modal visible={showMealModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowMealModal(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalBox}>
-              <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+              <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>🍽 Log Meal</Text>
                   <TouchableOpacity onPress={() => setShowMealModal(false)}>
@@ -1015,7 +1114,11 @@ const TrackingScreen = ({ navigation }) => {
                               placeholderTextColor={COLORS.textMuted}
                               keyboardType="number-pad"
                               value={item.calText}
-                              onChangeText={(t) => updateItem(item.id, { calText: t, baseCal: parseInt(t) || 0 })}
+                              maxLength={4}
+                              onChangeText={(t) => {
+                                const v = numericText(t, { maxLen: 4 });
+                                updateItem(item.id, { calText: v, baseCal: Math.min(parseInt(v) || 0, LIMITS.calories.max) });
+                              }}
                             />
                             <TextInput
                               style={styles.itemMiniInput}
@@ -1023,7 +1126,11 @@ const TrackingScreen = ({ navigation }) => {
                               placeholderTextColor={COLORS.textMuted}
                               keyboardType="decimal-pad"
                               value={item.proText}
-                              onChangeText={(t) => updateItem(item.id, { proText: t, baseProtein: parseFloat(t) || 0 })}
+                              maxLength={5}
+                              onChangeText={(t) => {
+                                const v = numericText(t, { decimals: true, maxLen: 5 });
+                                updateItem(item.id, { proText: v, baseProtein: Math.min(parseFloat(v) || 0, LIMITS.protein.max) });
+                              }}
                             />
                           </View>
                         ) : (
@@ -1081,13 +1188,13 @@ const TrackingScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== SLEEP MODAL ===== */}
-      <Modal visible={showSleepModal} transparent animationType="slide" onRequestClose={() => setShowSleepModal(false)}>
+      <Modal visible={showSleepModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={closeSleepModal}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>😴 Log Sleep</Text>
-                <TouchableOpacity onPress={() => setShowSleepModal(false)}>
+                <TouchableOpacity onPress={closeSleepModal}>
                   <Ionicons name="close" size={24} color={COLORS.white} />
                 </TouchableOpacity>
               </View>
@@ -1122,13 +1229,13 @@ const TrackingScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== EXERCISE MODAL ===== */}
-      <Modal visible={showExerciseModal} transparent animationType="slide" onRequestClose={() => setShowExerciseModal(false)}>
+      <Modal visible={showExerciseModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={closeExerciseModal}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalBox, { maxHeight: '85%' }]}>
-            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>🏋️ Log Exercise</Text>
-                <TouchableOpacity onPress={() => { setShowExerciseModal(false); setSelectedExercises([]); }}>
+                <TouchableOpacity onPress={closeExerciseModal}>
                   <Ionicons name="close" size={24} color={COLORS.white} />
                 </TouchableOpacity>
               </View>
@@ -1212,14 +1319,14 @@ const TrackingScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== WEIGHT MODAL ===== */}
-      <Modal visible={showWeightModal} transparent animationType="slide" onRequestClose={() => setShowWeightModal(false)}>
+      <Modal visible={showWeightModal} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={closeWeightModal}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>⚖️ Log Weight</Text>
-                <TouchableOpacity onPress={() => setShowWeightModal(false)}>
+                <TouchableOpacity onPress={closeWeightModal}>
                   <Ionicons name="close" size={24} color={COLORS.white} />
                 </TouchableOpacity>
               </View>
@@ -1252,7 +1359,8 @@ const TrackingScreen = ({ navigation }) => {
                 placeholderTextColor={COLORS.textMuted}
                 keyboardType="decimal-pad"
                 value={weightInput}
-                onChangeText={setWeightInput}
+                maxLength={5}
+                onChangeText={(t) => setWeightInput(boundedText(weightInput, t, { decimals: true, maxLen: 5, max: LIMITS.weightKg.max }))}
               />
 
               {weightInput && userProfile?.weight && (
@@ -1282,10 +1390,10 @@ const TrackingScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== CALORIE INFO MODAL (BMR / TDEE / Target) ===== */}
-      <Modal visible={showCalorieInfo} transparent animationType="slide" onRequestClose={() => setShowCalorieInfo(false)}>
+      <Modal visible={showCalorieInfo} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setShowCalorieInfo(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>📖 What do these numbers mean?</Text>
                 <TouchableOpacity onPress={() => setShowCalorieInfo(false)}>
@@ -1364,7 +1472,7 @@ const TrackingScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingBottom: 20 },
+  scroll: { paddingHorizontal: 16, paddingBottom: 100 },
 
   // Tabs
   tabs: { flexDirection: 'row', backgroundColor: COLORS.darkCard, borderRadius: SIZES.radiusFull, padding: 5, marginBottom: 20, borderWidth: 1, borderColor: COLORS.darkBorder },
@@ -1521,6 +1629,14 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   modalTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },
   inputLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium, marginBottom: 8, marginTop: 12 },
+  stepSyncRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+    backgroundColor: COLORS.primary + '12', borderWidth: 1, borderColor: COLORS.primary + '30',
+    borderRadius: SIZES.radius, paddingVertical: 10, paddingHorizontal: 12, marginTop: 14,
+  },
+  stepSyncText: { flex: 1, fontSize: SIZES.fontXs, color: COLORS.textSecondary, ...FONTS.medium },
+  stepSyncLink: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.bold },
+  stepSyncOn: { flex: 1, fontSize: SIZES.fontXs, color: COLORS.success, ...FONTS.medium },
   inputRow: { flexDirection: 'row' },
   modalInput: {
     backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, AppState } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -80,11 +81,30 @@ const TabIcon = ({ name, focused, color, label }) => (
   </View>
 );
 
-const MainTabs = () => (
+// The bar is positioned absolutely, so its height is whatever we say it is —
+// and a flat 70 ignored the strip the system keeps for its own navigation. On a
+// phone with the three-button bar that left the app's bar floating with an empty
+// band beneath it. Extend the bar by the bottom inset so its background runs all
+// the way down, and keep the icons above the system buttons.
+const useTabBarStyle = () => {
+  const insets = useSafeAreaInsets();
+  return [styles.tabBar, { height: 70 + insets.bottom, paddingBottom: 10 + insets.bottom }];
+};
+
+// How much room a screen inside the tabs must leave at the bottom so its last
+// card is not covered by that bar.
+export const useTabBarSpacer = () => {
+  const insets = useSafeAreaInsets();
+  return 70 + insets.bottom + 16;
+};
+
+const MainTabs = () => {
+  const tabBarStyle = useTabBarStyle();
+  return (
   <Tab.Navigator
     screenOptions={{
       headerShown: false,
-      tabBarStyle: styles.tabBar,
+      tabBarStyle,
       tabBarActiveTintColor: COLORS.primary,
       tabBarInactiveTintColor: COLORS.textMuted,
       tabBarShowLabel: false,
@@ -132,11 +152,13 @@ const MainTabs = () => (
       }}
     />
   </Tab.Navigator>
-);
+  );
+};
 
 // ===== Gym Owner / Staff bottom tabs =====
 // Staff get a restricted set — no Cashbook (financials).
 const AdminTabs = () => {
+  const adminTabBarStyle = useTabBarStyle();
   const [isStaff, setIsStaff] = React.useState(false);
   // Cashbook tab: owner always; a staff only if the owner granted access.
   const [showCashbook, setShowCashbook] = React.useState(false);
@@ -179,7 +201,7 @@ const AdminTabs = () => {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: adminTabBarStyle,
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
         tabBarShowLabel: false,

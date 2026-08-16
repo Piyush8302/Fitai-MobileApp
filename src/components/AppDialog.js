@@ -8,7 +8,7 @@ import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 const AppDialog = ({ visible, icon = 'information-circle', iconColor, title, message, buttons = [], onRequestClose }) => {
   const accent = iconColor || COLORS.primary;
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
+    <Modal visible={visible} transparent statusBarTranslucent navigationBarTranslucent animationType="fade" onRequestClose={onRequestClose}>
       <TouchableOpacity activeOpacity={1} style={styles.backdrop} onPress={onRequestClose}>
         <TouchableOpacity activeOpacity={1} style={styles.card} onPress={() => {}}>
           <View style={[styles.iconWrap, { backgroundColor: accent + '1A' }]}>
