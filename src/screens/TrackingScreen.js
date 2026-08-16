@@ -12,6 +12,7 @@ import { EXERCISES, WORKOUT_CATEGORIES, MEAL_PLAN_SAMPLE, DIET_MEAL_SUGGESTIONS 
 import { numericText, boundedText, LIMITS } from '../utils/numericInput';
 import { getGoalAdjustedCalories } from '../utils/calorieGoal';
 import { SHEET_PAD } from '../constants/layout';
+import { syncTodaySteps, stepsComeFromPhone, checkAvailability, requestPermission as requestStepPermission, setSyncEnabled, openSettings as openHealthSettings } from '../utils/steps';
 
 const { width } = Dimensions.get('window');
 
@@ -33,6 +34,10 @@ const TrackingScreen = ({ navigation }) => {
   const [showSleepModal, setShowSleepModal] = useState(false);
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [showWeightModal, setShowWeightModal] = useState(false);
+
+  // True once the phone itself is supplying the step count, which makes the
+  // manual estimate below redundant — see connectSteps.
+  const [phoneSteps, setPhoneSteps] = useState(false);
 
   // Walk/Activity form
   const [walkKm, setWalkKm] = useState('');
@@ -100,6 +105,12 @@ const TrackingScreen = ({ navigation }) => {
       setLoading(true);
       const token = await AsyncStorage.getItem('token');
       if (token) api.setToken(token);
+
+      // Pull the phone's own step count first, so the figures below already
+      // include it. Fails soft — in Expo Go, on a build without the native
+      // module, or before the member has connected, this simply returns null.
+      await syncTodaySteps();
+      setPhoneSteps(await stepsComeFromPhone());
 
       const [trackRes, profileRes] = await Promise.all([
         api.get(ENDPOINTS.TODAY_TRACKING),
@@ -198,6 +209,38 @@ const TrackingScreen = ({ navigation }) => {
     setSelectedExercises([]);
   };
 
+  // Hook the phone's step counter up to the app, via Health Connect.
+  const connectSteps = async () => {
+    const problem = await checkAvailability();
+    if (problem === 'ios') {
+      return Alert.alert('Android only for now', 'Reading the phone\'s step count uses Health Connect, which is an Android feature.');
+    }
+    if (problem === 'module') {
+      return Alert.alert('Needs the installed app', 'Step syncing works in the built APK, not in Expo Go. Install the latest FitAI build and try again.');
+    }
+    if (problem === 'provider') {
+      return Alert.alert(
+        'Health Connect needed',
+        'Your steps are read from Health Connect — the app Android uses to hold health data. Install or update it from the Play Store, then come back and connect.',
+      );
+    }
+    const granted = await requestStepPermission();
+    if (!granted) {
+      return Alert.alert(
+        'Permission not given',
+        'FitAI needs read access to Steps in Health Connect. You can grant it any time from Health Connect → App permissions.',
+        [{ text: 'Open Health Connect', onPress: openHealthSettings }, { text: 'Later', style: 'cancel' }],
+      );
+    }
+    await setSyncEnabled(true);
+    const synced = await syncTodaySteps();
+    setPhoneSteps(true);
+    loadData();
+    Alert.alert('👟 Steps connected', synced != null
+      ? `Your phone counted ${synced.toLocaleString('en-IN')} steps today. It will keep updating on its own.`
+      : 'Connected. Your step count will appear as your phone records it.');
+  };
+
   const logWalkActivity = async () => {
     const km = parseFloat(walkKm);
     const min = parseInt(walkMin) || 0;
@@ -214,21 +257,24 @@ const TrackingScreen = ({ navigation }) => {
         ? Math.round(userWeight * 0.45)    // MET ~6, ~0.45 kcal/kg/km
         : Math.round(userWeight * 0.72);   // Walking MET ~3.5, ~0.72 kcal/kg/km
     const calBurned = Math.round(km * caloriesPerKm);
-    const stepCount = activityType === 'cycle' ? 0 : Math.round(km * 1350);
+    // km × 1350 is an estimate, and only worth adding while nothing is actually
+    // counting. Once the phone is connected it has already counted this same
+    // walk, so adding our guess on top would book it twice.
+    const stepCount = (activityType === 'cycle' || phoneSteps) ? 0 : Math.round(km * 1350);
 
     try {
       const currentSteps = tracking?.steps || 0;
       const currentBurned = tracking?.caloriesBurned || 0;
       const currentWorkoutMin = tracking?.workoutMinutes || 0;
       const res = await api.post(ENDPOINTS.LOG_TRACKING, {
-        steps: currentSteps + stepCount,
+        ...(stepCount > 0 ? { steps: currentSteps + stepCount } : {}),
         caloriesBurned: currentBurned + calBurned,
         workoutMinutes: currentWorkoutMin + min,
         workoutCompleted: true,
       });
       if (res.success) {
         setTracking(res.data);
-        showToast(activityType === 'run' ? '🏃' : '🚶', `${activityType === 'run' ? 'Run' : 'Walk'} Logged`, `${km} km • ~${stepCount} steps • ${calBurned} kcal burned`);
+        showToast(activityType === 'run' ? '🏃' : '🚶', `${activityType === 'run' ? 'Run' : 'Walk'} Logged`, `${km} km${stepCount > 0 ? ` • ~${stepCount} steps` : ''} • ${calBurned} kcal burned`);
         closeWalkModal();
       }
     } catch (e) { Alert.alert('Error', 'Failed to log activity'); }
@@ -887,6 +933,19 @@ const TrackingScreen = ({ navigation }) => {
                     </TouchableOpacity>
                   ))}
                 </View>
+
+                {/* Steps were always an estimate from this distance. Offer the
+                    real thing once, right where the guess is being made. */}
+                {phoneSteps ? (
+                  <View style={styles.stepSyncRow}>
+                    <Text style={styles.stepSyncOn}>👟 Steps are coming from your phone — this logs distance and calories only.</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.stepSyncRow} onPress={connectSteps}>
+                    <Text style={styles.stepSyncText}>👟 Use your phone's step counter instead of an estimate</Text>
+                    <Text style={styles.stepSyncLink}>Connect</Text>
+                  </TouchableOpacity>
+                )}
 
                 <Text style={styles.inputLabel}>Distance (km) — up to {MAX_KM}</Text>
                 <TextInput
@@ -1570,6 +1629,14 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   modalTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },
   inputLabel: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium, marginBottom: 8, marginTop: 12 },
+  stepSyncRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+    backgroundColor: COLORS.primary + '12', borderWidth: 1, borderColor: COLORS.primary + '30',
+    borderRadius: SIZES.radius, paddingVertical: 10, paddingHorizontal: 12, marginTop: 14,
+  },
+  stepSyncText: { flex: 1, fontSize: SIZES.fontXs, color: COLORS.textSecondary, ...FONTS.medium },
+  stepSyncLink: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.bold },
+  stepSyncOn: { flex: 1, fontSize: SIZES.fontXs, color: COLORS.success, ...FONTS.medium },
   inputRow: { flexDirection: 'row' },
   modalInput: {
     backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius,
