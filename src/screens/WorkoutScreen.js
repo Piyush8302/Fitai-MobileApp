@@ -399,7 +399,7 @@ const WorkoutScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 8 },
+  scroll: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 100 },
 
   sectionTitle: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, marginBottom: 12, letterSpacing: -0.3 },
 

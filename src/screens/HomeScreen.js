@@ -395,7 +395,7 @@ const HomeScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 55 },
+  scroll: { paddingHorizontal: 16, paddingTop: 55, paddingBottom: 100 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   greeting: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.medium },
   userName: { fontSize: SIZES.fontXxl, color: COLORS.white, ...FONTS.bold, marginTop: 2 },

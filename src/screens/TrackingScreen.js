@@ -1412,7 +1412,7 @@ const TrackingScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingBottom: 20 },
+  scroll: { paddingHorizontal: 16, paddingBottom: 100 },
 
   // Tabs
   tabs: { flexDirection: 'row', backgroundColor: COLORS.darkCard, borderRadius: SIZES.radiusFull, padding: 5, marginBottom: 20, borderWidth: 1, borderColor: COLORS.darkBorder },
