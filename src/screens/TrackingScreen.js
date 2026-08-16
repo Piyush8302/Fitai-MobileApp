@@ -12,6 +12,23 @@ import { EXERCISES, WORKOUT_CATEGORIES, MEAL_PLAN_SAMPLE, DIET_MEAL_SUGGESTIONS 
 
 const { width } = Dimensions.get('window');
 
+// Number fields used to accept whatever the keypad could produce: a distance of
+// 66666666666666666666 km went through and the preview happily read
+// "~1.35e+107 steps". Clean the text at the source — digits only, at most one
+// decimal point, and a length no genuine entry needs.
+const numericText = (text, { decimals = true, maxLen = 6 } = {}) => {
+  let clean = String(text ?? '').replace(decimals ? /[^0-9.]/g : /[^0-9]/g, '');
+  const parts = clean.split('.');
+  if (parts.length > 2) clean = `${parts[0]}.${parts.slice(1).join('')}`;
+  return clean.slice(0, maxLen);
+};
+
+// Upper bounds are sanity checks, not fitness limits — a 300 km ride and a 24 h
+// duration are both already generous for one day's entry.
+const MAX_KM = 300;
+const MAX_MINUTES = 1440;
+const MAX_SLEEP_HOURS = 24;
+
 const TrackingScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('daily');
   const [tracking, setTracking] = useState(null);
@@ -165,10 +182,37 @@ const TrackingScreen = ({ navigation }) => {
     } catch (e) { console.log('Mood error:', e); }
   };
 
+  // Closing a modal has to wipe what was typed. Leaving it behind meant the
+  // next open showed a stale distance that was never logged.
+  const closeWalkModal = () => {
+    setShowWalkModal(false);
+    setWalkKm('');
+    setWalkMin('');
+    setActivityType('walk');
+  };
+
+  const closeSleepModal = () => {
+    setShowSleepModal(false);
+    setSleepHours('7');
+  };
+
+  const closeWeightModal = () => {
+    setShowWeightModal(false);
+    setWeightInput('');
+  };
+
+  const closeExerciseModal = () => {
+    setShowExerciseModal(false);
+    setSelectedExercises([]);
+  };
+
   const logWalkActivity = async () => {
     const km = parseFloat(walkKm);
     const min = parseInt(walkMin) || 0;
-    if (!km || km <= 0) { Alert.alert('Error', 'Enter valid distance'); return; }
+    const label = activityType === 'run' ? 'run' : activityType === 'cycle' ? 'ride' : 'walk';
+    if (!km || km <= 0) { Alert.alert('Enter a distance', `Type how far your ${label} was — for example 2.5 km.`); return; }
+    if (km > MAX_KM) { Alert.alert('That looks too far', `Distance must be ${MAX_KM} km or less. Enter the distance in kilometres, not steps or metres.`); return; }
+    if (min > MAX_MINUTES) { Alert.alert('That looks too long', `Duration must be ${MAX_MINUTES} minutes (24 hours) or less.`); return; }
 
     // Weight-based calorie burn (MET research: ACSM & ICMR guidelines)
     const userWeight = userProfile?.weight || 60;
@@ -193,9 +237,7 @@ const TrackingScreen = ({ navigation }) => {
       if (res.success) {
         setTracking(res.data);
         showToast(activityType === 'run' ? '🏃' : '🚶', `${activityType === 'run' ? 'Run' : 'Walk'} Logged`, `${km} km • ~${stepCount} steps • ${calBurned} kcal burned`);
-        setShowWalkModal(false);
-        setWalkKm('');
-        setWalkMin('');
+        closeWalkModal();
       }
     } catch (e) { Alert.alert('Error', 'Failed to log activity'); }
   };
@@ -290,7 +332,8 @@ const TrackingScreen = ({ navigation }) => {
 
   const logSleepEntry = async () => {
     const hours = parseFloat(sleepHours);
-    if (!hours || hours < 0) { Alert.alert('Error', 'Enter valid sleep hours'); return; }
+    if (!hours || hours <= 0) { Alert.alert('Enter sleep hours', 'Type how long you slept — for example 7.5.'); return; }
+    if (hours > MAX_SLEEP_HOURS) { Alert.alert('That looks too long', `Sleep must be ${MAX_SLEEP_HOURS} hours or less.`); return; }
     try {
       const res = await api.post(ENDPOINTS.LOG_TRACKING, { sleepHours: hours });
       if (res.success) {
@@ -820,14 +863,14 @@ const TrackingScreen = ({ navigation }) => {
       </ScrollView>
 
       {/* ===== WALK/RUN MODAL ===== */}
-      <Modal visible={showWalkModal} transparent animationType="slide" onRequestClose={() => setShowWalkModal(false)}>
+      <Modal visible={showWalkModal} transparent animationType="slide" onRequestClose={closeWalkModal}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalBox}>
               <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>🚶 Log Activity</Text>
-                  <TouchableOpacity onPress={() => setShowWalkModal(false)}>
+                  <TouchableOpacity onPress={closeWalkModal}>
                     <Ionicons name="close" size={24} color={COLORS.white} />
                   </TouchableOpacity>
                 </View>
@@ -857,7 +900,8 @@ const TrackingScreen = ({ navigation }) => {
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="decimal-pad"
                   value={walkKm}
-                  onChangeText={setWalkKm}
+                  maxLength={5}
+                  onChangeText={(t) => setWalkKm(numericText(t, { maxLen: 5 }))}
                 />
 
                 <Text style={styles.inputLabel}>Duration (minutes) - Optional</Text>
@@ -867,7 +911,8 @@ const TrackingScreen = ({ navigation }) => {
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   value={walkMin}
-                  onChangeText={setWalkMin}
+                  maxLength={4}
+                  onChangeText={(t) => setWalkMin(numericText(t, { decimals: false, maxLen: 4 }))}
                 />
 
                 {walkKm > 0 && (() => {
@@ -1081,13 +1126,13 @@ const TrackingScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== SLEEP MODAL ===== */}
-      <Modal visible={showSleepModal} transparent animationType="slide" onRequestClose={() => setShowSleepModal(false)}>
+      <Modal visible={showSleepModal} transparent animationType="slide" onRequestClose={closeSleepModal}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>😴 Log Sleep</Text>
-                <TouchableOpacity onPress={() => setShowSleepModal(false)}>
+                <TouchableOpacity onPress={closeSleepModal}>
                   <Ionicons name="close" size={24} color={COLORS.white} />
                 </TouchableOpacity>
               </View>
@@ -1122,13 +1167,13 @@ const TrackingScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== EXERCISE MODAL ===== */}
-      <Modal visible={showExerciseModal} transparent animationType="slide" onRequestClose={() => setShowExerciseModal(false)}>
+      <Modal visible={showExerciseModal} transparent animationType="slide" onRequestClose={closeExerciseModal}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalBox, { maxHeight: '85%' }]}>
             <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>🏋️ Log Exercise</Text>
-                <TouchableOpacity onPress={() => { setShowExerciseModal(false); setSelectedExercises([]); }}>
+                <TouchableOpacity onPress={closeExerciseModal}>
                   <Ionicons name="close" size={24} color={COLORS.white} />
                 </TouchableOpacity>
               </View>
@@ -1212,14 +1257,14 @@ const TrackingScreen = ({ navigation }) => {
       </Modal>
 
       {/* ===== WEIGHT MODAL ===== */}
-      <Modal visible={showWeightModal} transparent animationType="slide" onRequestClose={() => setShowWeightModal(false)}>
+      <Modal visible={showWeightModal} transparent animationType="slide" onRequestClose={closeWeightModal}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>⚖️ Log Weight</Text>
-                <TouchableOpacity onPress={() => setShowWeightModal(false)}>
+                <TouchableOpacity onPress={closeWeightModal}>
                   <Ionicons name="close" size={24} color={COLORS.white} />
                 </TouchableOpacity>
               </View>
@@ -1252,7 +1297,8 @@ const TrackingScreen = ({ navigation }) => {
                 placeholderTextColor={COLORS.textMuted}
                 keyboardType="decimal-pad"
                 value={weightInput}
-                onChangeText={setWeightInput}
+                maxLength={5}
+                onChangeText={(t) => setWeightInput(numericText(t, { maxLen: 5 }))}
               />
 
               {weightInput && userProfile?.weight && (

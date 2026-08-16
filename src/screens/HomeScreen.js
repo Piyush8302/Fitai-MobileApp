@@ -130,8 +130,9 @@ const HomeScreen = ({ navigation }) => {
     { id: 'gym', title: 'My Gym', icon: '🎫', screen: 'MyGymCard', tint: COLORS.primary },
     { id: 'bmi', title: 'BMI', icon: '⚖️', screen: 'BMI', tint: COLORS.energy },
     { id: 'food', title: 'Food DB', icon: '🍽', screen: 'FoodDatabase', tint: COLORS.energyLight },
-    { id: 'exercises', title: 'Exercises', icon: '💪', screen: 'ExerciseLibrary', tint: COLORS.primaryLight },
-    { id: 'articles', title: 'Articles', icon: '📰', screen: 'Articles', tint: COLORS.accent },
+    // Exercises and Articles are deliberately not on Home — the library is
+    // reachable from Workout, and the articles list was noise on the rail.
+    // Both screens are still registered in the navigator.
     // Gold is reserved for earned things — badges is the one place it belongs.
     { id: 'achievements', title: 'Badges', icon: '🏆', screen: 'Achievements', tint: COLORS.gold },
   ];

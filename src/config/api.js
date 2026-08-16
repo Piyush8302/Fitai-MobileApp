@@ -1,3 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { navigationRef } from '../navigation/navigationRef';
+
 // Which backend this build talks to.
 //
 // Set EXPO_PUBLIC_API_URL to point somewhere else — .env.local for local runs
@@ -130,10 +133,49 @@ export const ENDPOINTS = {
   DELETE_ACCOUNT: '/api/auth/delete-account',
 };
 
+// Ways IN to the app. A 401 from one of these is a wrong password or a bad OTP
+// — the screen shows it and the user retries. Everywhere else a 401 means the
+// saved session is finished, which is a different thing entirely.
+const PUBLIC_ENDPOINTS = new Set([
+  ENDPOINTS.LOGIN,
+  ENDPOINTS.REGISTER,
+  ENDPOINTS.REGISTER_OWNER,
+  ENDPOINTS.SEND_OTP,
+  ENDPOINTS.VERIFY_OTP,
+  ENDPOINTS.GOOGLE_LOGIN,
+  ENDPOINTS.FORGOT_PASSWORD,
+  ENDPOINTS.RESET_PASSWORD,
+  ENDPOINTS.PHONE_EXISTS,
+  ENDPOINTS.OWNER_STATUS,
+]);
+
 // API Helper
 class ApiService {
   constructor() {
     this.token = null;
+    // Guards against a screen that fires five requests at once bouncing the
+    // user to Login five times.
+    this.signingOut = false;
+  }
+
+  // A 401 means the saved token is no longer valid for THIS backend — expired,
+  // or issued by the other one (a staging build carrying a production token
+  // fails the same way, since the two services sign with different secrets).
+  // Without this the app just showed the raw "Not authorized, token failed"
+  // on every screen and there was no way out but reinstalling.
+  async handleUnauthorized() {
+    if (this.signingOut) return;
+    this.signingOut = true;
+    this.token = null;
+    try {
+      await AsyncStorage.multiRemove(['token', 'user', 'loginRole']);
+    } catch (e) { /* storage gone — logging in again will overwrite anyway */ }
+    try {
+      if (navigationRef.isReady()) {
+        navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] });
+      }
+    } catch (e) { /* navigator not mounted yet */ }
+    setTimeout(() => { this.signingOut = false; }, 2000);
   }
 
   setToken(token) {
@@ -168,6 +210,11 @@ class ApiService {
       throw e;
     }
     const body = await response.text();
+    // Session is dead — drop the user at Login instead of letting every screen
+    // render the server's "Not authorized, token failed" and go nowhere.
+    if (response.status === 401 && !PUBLIC_ENDPOINTS.has(endpoint)) {
+      this.handleUnauthorized();
+    }
     try {
       return JSON.parse(body);
     } catch (e) {
