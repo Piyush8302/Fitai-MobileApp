@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXERCISES, WORKOUT_CATEGORIES, MEAL_PLAN_SAMPLE, DIET_MEAL_SUGGESTIONS } from '../constants/data';
 import { numericText, boundedText, LIMITS } from '../utils/numericInput';
 import { getGoalAdjustedCalories } from '../utils/calorieGoal';
+import { SHEET_PAD } from '../constants/layout';
 
 const { width } = Dimensions.get('window');
 
@@ -861,7 +862,7 @@ const TrackingScreen = ({ navigation }) => {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalBox}>
-              <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+              <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>🚶 Log Activity</Text>
                   <TouchableOpacity onPress={closeWalkModal}>
@@ -939,7 +940,7 @@ const TrackingScreen = ({ navigation }) => {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalBox}>
-              <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+              <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>🍽 Log Meal</Text>
                   <TouchableOpacity onPress={() => setShowMealModal(false)}>
@@ -1131,7 +1132,7 @@ const TrackingScreen = ({ navigation }) => {
       <Modal visible={showSleepModal} transparent animationType="slide" onRequestClose={closeSleepModal}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>😴 Log Sleep</Text>
                 <TouchableOpacity onPress={closeSleepModal}>
@@ -1172,7 +1173,7 @@ const TrackingScreen = ({ navigation }) => {
       <Modal visible={showExerciseModal} transparent animationType="slide" onRequestClose={closeExerciseModal}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalBox, { maxHeight: '85%' }]}>
-            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>🏋️ Log Exercise</Text>
                 <TouchableOpacity onPress={closeExerciseModal}>
@@ -1263,7 +1264,7 @@ const TrackingScreen = ({ navigation }) => {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>⚖️ Log Weight</Text>
                 <TouchableOpacity onPress={closeWeightModal}>
@@ -1333,7 +1334,7 @@ const TrackingScreen = ({ navigation }) => {
       <Modal visible={showCalorieInfo} transparent animationType="slide" onRequestClose={() => setShowCalorieInfo(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={styles.modalContent}>
+            <LinearGradient colors={[COLORS.darkCard, COLORS.dark]} style={[styles.modalContent, { paddingBottom: SHEET_PAD }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>📖 What do these numbers mean?</Text>
                 <TouchableOpacity onPress={() => setShowCalorieInfo(false)}>

@@ -6,6 +6,7 @@ import Constants from 'expo-constants';
 import { downloadAndSharePdf } from '../utils/pdf';
 import { pickSquarePhoto } from '../utils/photo';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
+import { BOTTOM_INSET } from '../constants/layout';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { reloadApp } from '../utils/reload';
@@ -462,7 +463,7 @@ const styles = StyleSheet.create({
   reqBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginHorizontal: 16, marginTop: 10, paddingVertical: 10 },
   reqText: { fontSize: SIZES.fontSm, color: COLORS.primary, ...FONTS.semiBold },
 
-  reqWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  reqWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)', paddingBottom: BOTTOM_INSET },
   reqCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, paddingBottom: 44 },
   reqHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   reqTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },
@@ -487,7 +488,7 @@ const styles = StyleSheet.create({
   logoutText: { color: COLORS.error, fontSize: SIZES.fontMd, ...FONTS.bold },
 
   // Report gym picker
-  pickBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  pickBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)', paddingBottom: BOTTOM_INSET },
   pickCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 46 },
   pickHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
   pickTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold },

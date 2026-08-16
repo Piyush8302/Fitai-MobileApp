@@ -11,6 +11,7 @@ import { pickSquarePhoto } from '../utils/photo';
 import { downloadAndSharePdf } from '../utils/pdf';
 import { Image } from 'react-native';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
+import { BOTTOM_INSET } from '../constants/layout';
 import AdminDrawer from '../components/AdminDrawer';
 import api, { ENDPOINTS, API_BASE_URL } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1473,7 +1474,7 @@ const styles = StyleSheet.create({
   attDate: { fontSize: SIZES.fontXs, color: COLORS.textMuted },
   attMethod: { fontSize: SIZES.fontMd, marginLeft: 6 },
 
-  modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.85)' },
+  modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.85)', paddingBottom: BOTTOM_INSET },
   modalCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 48 },
   modalHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   modalTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginBottom: 6 },
@@ -1483,7 +1484,7 @@ const styles = StyleSheet.create({
   photoText: { fontSize: SIZES.fontXs, color: COLORS.primary, ...FONTS.semiBold },
 
   // Modern photo-source bottom sheet
-  sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)', paddingBottom: BOTTOM_INSET },
   sheetCard: { backgroundColor: COLORS.darkCard, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 46 },
   sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.darkBorder, marginBottom: 16 },
   sheetTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, textAlign: 'center' },
