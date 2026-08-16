@@ -55,6 +55,7 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
   // Edit
   const [showEdit, setShowEdit] = useState(false);
   const [eName, setEName] = useState(staff?.name || '');
+  const [eEmail, setEEmail] = useState(staff?.email || '');
   const [eRole, setERole] = useState(staff?.staffRole || '');
   const [eSalary, setESalary] = useState(staff?.staffSalary ? String(staff.staffSalary) : '');
 
@@ -70,11 +71,12 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
 
   const saveEdit = async () => {
     if (!eName.trim()) { Alert.alert('Required', 'Enter name'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eEmail.trim())) { Alert.alert('Required', 'Enter a valid email address'); return; }
     setBusy(true);
     try {
-      const res = await api.put(`/api/gym/staff/${s._id}`, { name: eName.trim(), staffRole: eRole.trim(), salary: eSalary });
+      const res = await api.put(`/api/gym/staff/${s._id}`, { name: eName.trim(), email: eEmail.trim().toLowerCase(), staffRole: eRole.trim(), salary: eSalary });
       if (res.success) {
-        setS({ ...s, name: eName.trim(), staffRole: eRole.trim(), staffSalary: eSalary ? Number(eSalary) : undefined });
+        setS({ ...s, name: eName.trim(), email: eEmail.trim().toLowerCase(), staffRole: eRole.trim(), staffSalary: eSalary ? Number(eSalary) : undefined });
         setShowEdit(false);
       } else Alert.alert('Error', res.message || 'Failed');
     } catch (e) { Alert.alert('Error', 'Failed to update'); }
@@ -136,6 +138,7 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
         <Text style={styles.sectionLabel}>Details</Text>
         <View style={styles.card}>
           <Row icon="call-outline" label="Phone" value={s.phone || '—'} />
+          <Row icon="mail-outline" label="Email" value={s.email || '—'} />
           <Row icon="briefcase-outline" label="Role" value={s.staffRole || '—'} />
           <Row icon="cash-outline" label="Salary" value={s.staffSalary ? `₹${s.staffSalary}/mo` : '—'} />
           <Row icon="calendar-outline" label="Joined" value={s.staffJoinDate ? new Date(s.staffJoinDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'} last />
@@ -241,6 +244,7 @@ const GymStaffDetailScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             </View>
             <TextInput style={styles.input} placeholder="Name" placeholderTextColor={COLORS.textMuted} value={eName} onChangeText={setEName} />
+            <TextInput style={styles.input} placeholder="Email" placeholderTextColor={COLORS.textMuted} keyboardType="email-address" autoCapitalize="none" value={eEmail} onChangeText={setEEmail} />
             <TextInput style={styles.input} placeholder="Role (e.g. Receptionist)" placeholderTextColor={COLORS.textMuted} value={eRole} onChangeText={setERole} />
             <TextInput style={styles.input} placeholder="Monthly salary ₹" placeholderTextColor={COLORS.textMuted} keyboardType="number-pad" value={eSalary} onChangeText={setESalary} />
             <TouchableOpacity style={styles.saveBtn} onPress={saveEdit} disabled={busy}>

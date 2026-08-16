@@ -1,145 +1,180 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
-import { WORKOUT_CATEGORIES, EXERCISES } from '../constants/data';
 import Header from '../components/Header';
-import GradientCard from '../components/GradientCard';
+import api, { ENDPOINTS } from '../config/api';
 
-const GymExerciseScreen = ({ navigation }) => {
+const MUSCLE_ICON = {
+  chest: '🏋️', back: '🚣', legs: '🏃', shoulders: '💪',
+  biceps: '💪', triceps: '🔥', abs: '⚡', glutes: '🍑', forearms: '✊',
+};
+const iconFor = (m) => MUSCLE_ICON[m] || '🏋️';
+const label = (s = '') => String(s).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+const DIFF_COLOR = { beginner: COLORS.success, intermediate: COLORS.warning, advanced: COLORS.error };
+
+const GymExerciseScreen = ({ navigation, route }) => {
+  // Opened from a list → show that exercise. Opened on its own → browse.
+  const passed = route?.params?.exercise || null;
+
+  const [muscles, setMuscles] = useState([]);
   const [selectedMuscle, setSelectedMuscle] = useState('chest');
-  const [expandedEx, setExpandedEx] = useState(null);
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(!passed);
+  const [openId, setOpenId] = useState(null);
 
-  const exercises = EXERCISES[selectedMuscle] || EXERCISES.chest;
+  const loadBrowse = useCallback(async () => {
+    if (passed) return;
+    setLoading(true);
+    try {
+      const [m, ex] = await Promise.all([
+        api.get(ENDPOINTS.EXERCISES_MUSCLES),
+        api.get(ENDPOINTS.EXERCISES, { muscle: selectedMuscle, limit: 30 }),
+      ]);
+      if (m.success && Array.isArray(m.data)) setMuscles(m.data);
+      setList(ex.success && Array.isArray(ex.data) ? ex.data : []);
+    } catch (e) {
+      setList([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [passed, selectedMuscle]);
 
+  useEffect(() => { loadBrowse(); }, [loadBrowse]);
+
+  // ── detail view ───────────────────────────────────────────────────────
+  if (passed) {
+    const steps = String(passed.instructions || '')
+      .split(/(?<=\.)\s+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    return (
+      <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
+        <Header title={passed.name} subtitle={label(passed.muscle)} onBack={() => navigation.goBack()} />
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+          {passed.images?.length ? (
+            <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={styles.shots}>
+              {passed.images.map((src, i) => (
+                <Image key={i} source={{ uri: src }} style={styles.shot} resizeMode="cover" />
+              ))}
+            </ScrollView>
+          ) : null}
+
+          <View style={styles.statRow}>
+            <View style={styles.stat}>
+              <Text style={styles.statValue}>{passed.sets} × {passed.reps}</Text>
+              <Text style={styles.statLabel}>Sets × reps</Text>
+            </View>
+            <View style={styles.stat}>
+              <Text style={styles.statValue}>{passed.calories_per_set}</Text>
+              <Text style={styles.statLabel}>kcal / set</Text>
+            </View>
+            <View style={styles.stat}>
+              <Text style={[styles.statValue, { color: DIFF_COLOR[passed.difficulty] || COLORS.white }]}>
+                {label(passed.difficulty)}
+              </Text>
+              <Text style={styles.statLabel}>Level</Text>
+            </View>
+          </View>
+
+          <View style={styles.tagRow}>
+            <View style={styles.tag}><Text style={styles.tagText}>{label(passed.equipment)}</Text></View>
+            {(passed.secondaryMuscles || []).slice(0, 3).map((m) => (
+              <View key={m} style={styles.tag}><Text style={styles.tagText}>{label(m)}</Text></View>
+            ))}
+          </View>
+
+          {steps.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>How to do it</Text>
+              <View style={styles.card}>
+                {steps.map((s, i) => (
+                  <View key={i} style={[styles.step, i === steps.length - 1 && { marginBottom: 0 }]}>
+                    <View style={styles.stepNum}><Text style={styles.stepNumText}>{i + 1}</Text></View>
+                    <Text style={styles.stepText}>{s}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
+
+          {passed.tips ? (
+            <>
+              <Text style={styles.sectionTitle}>Coach's tip</Text>
+              <View style={[styles.card, styles.tipCard]}>
+                <Ionicons name="bulb-outline" size={17} color={COLORS.energy} />
+                <Text style={styles.tipText}>{passed.tips}</Text>
+              </View>
+            </>
+          ) : null}
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </LinearGradient>
+    );
+  }
+
+  // ── browse view ───────────────────────────────────────────────────────
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
-      <Header title="Gym Exercise Guide" subtitle="Learn Proper Form" onBack={() => navigation.goBack()} />
+      <Header title="Exercise guide" subtitle="Learn proper form" onBack={() => navigation.goBack()} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {/* Muscle Selector */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.muscleScroll}>
-          {WORKOUT_CATEGORIES.map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              style={[styles.muscleChip, selectedMuscle === cat.id && { borderColor: cat.color, backgroundColor: cat.color + '15' }]}
-              onPress={() => { setSelectedMuscle(cat.id); setExpandedEx(null); }}
-            >
-              <Text style={styles.muscleIcon}>{cat.icon}</Text>
-              <Text style={[styles.muscleText, selectedMuscle === cat.id && { color: cat.color }]}>{cat.name}</Text>
-            </TouchableOpacity>
-          ))}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railScroll} contentContainerStyle={styles.rail}>
+          {muscles.map((m) => {
+            const on = selectedMuscle === m.name;
+            return (
+              <TouchableOpacity
+                key={m.name}
+                style={[styles.chip, on && styles.chipOn]}
+                onPress={() => { setSelectedMuscle(m.name); setOpenId(null); }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.chipIcon}>{iconFor(m.name)}</Text>
+                <Text style={[styles.chipText, on && { color: COLORS.onEnergy }]}>{label(m.name)}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
-        {/* Exercise Cards */}
-        {exercises.map((ex, i) => (
-          <TouchableOpacity
-            key={i}
-            style={styles.exCard}
-            onPress={() => setExpandedEx(expandedEx === i ? null : i)}
-            activeOpacity={0.85}
-          >
-            <LinearGradient colors={[COLORS.darkCard, COLORS.darkSurface]} style={styles.exGrad}>
-              {/* Header */}
-              <View style={styles.exHeader}>
-                <View style={styles.exTitleRow}>
-                  <View style={[styles.exNum, { backgroundColor: WORKOUT_CATEGORIES.find(c => c.id === selectedMuscle)?.color + '20' }]}>
-                    <Text style={[styles.exNumText, { color: WORKOUT_CATEGORIES.find(c => c.id === selectedMuscle)?.color }]}>{i + 1}</Text>
-                  </View>
-                  <View style={styles.exTitleInfo}>
-                    <Text style={styles.exName}>{ex.name}</Text>
-                    <Text style={styles.exMuscle}>{ex.muscle}</Text>
-                  </View>
-                </View>
-                <Ionicons
-                  name={expandedEx === i ? 'chevron-up' : 'chevron-down'}
-                  size={20}
-                  color={COLORS.textMuted}
-                />
-              </View>
-
-              {/* Quick Stats */}
-              <View style={styles.quickStats}>
-                <View style={styles.qStat}>
-                  <Text style={styles.qStatIcon}>🔄</Text>
-                  <Text style={styles.qStatVal}>{ex.sets}×{ex.reps}</Text>
-                </View>
-                <View style={styles.qStat}>
-                  <Text style={styles.qStatIcon}>⏱️</Text>
-                  <Text style={styles.qStatVal}>{ex.duration}</Text>
-                </View>
-                <View style={styles.qStat}>
-                  <Text style={styles.qStatIcon}>🔥</Text>
-                  <Text style={styles.qStatVal}>{ex.calories} kcal</Text>
-                </View>
-                <View style={[styles.diffTag, {
-                  backgroundColor: ex.difficulty === 'Beginner' ? COLORS.success + '20' :
-                    ex.difficulty === 'Intermediate' ? COLORS.warning + '20' : COLORS.secondary + '20'
-                }]}>
-                  <Text style={[styles.diffTagText, {
-                    color: ex.difficulty === 'Beginner' ? COLORS.success :
-                      ex.difficulty === 'Intermediate' ? COLORS.warning : COLORS.secondary
-                  }]}>{ex.difficulty}</Text>
-                </View>
-              </View>
-
-              {/* Expanded Details */}
-              {expandedEx === i && (
-                <View style={styles.expanded}>
-                  <View style={styles.divider} />
-
-                  {/* Correct Posture */}
-                  <View style={styles.detailSection}>
-                    <View style={styles.detailHeader}>
-                      <Text style={styles.detailIcon}>✅</Text>
-                      <Text style={styles.detailTitle}>Correct Posture</Text>
+        {loading ? (
+          <View style={styles.loadingBox}><ActivityIndicator color={COLORS.energy} /></View>
+        ) : list.length === 0 ? (
+          <View style={styles.card}><Text style={styles.emptyText}>No exercises found.</Text></View>
+        ) : (
+          list.map((ex) => {
+            const open = openId === ex.id;
+            return (
+              <TouchableOpacity
+                key={ex.id}
+                style={styles.exCard}
+                onPress={() => setOpenId(open ? null : ex.id)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.exTop}>
+                  {ex.images?.[0] ? (
+                    <Image source={{ uri: ex.images[0] }} style={styles.exThumb} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.exThumb, styles.exThumbFallback]}>
+                      <Text style={{ fontSize: 22 }}>{iconFor(ex.muscle)}</Text>
                     </View>
-                    <Text style={styles.detailText}>{ex.tips}</Text>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.exName} numberOfLines={2}>{ex.name}</Text>
+                    <Text style={styles.exMeta}>{ex.sets} × {ex.reps} · {label(ex.equipment)}</Text>
                   </View>
-
-                  {/* Common Mistakes */}
-                  <View style={styles.detailSection}>
-                    <View style={styles.detailHeader}>
-                      <Text style={styles.detailIcon}>❌</Text>
-                      <Text style={styles.detailTitle}>Common Mistakes</Text>
-                    </View>
-                    <Text style={styles.detailText}>
-                      {ex.name === 'Push Ups' ? 'Sagging hips, flaring elbows too wide, not going full range' :
-                       ex.name === 'Bench Press' ? 'Bouncing bar off chest, uneven grip, not using leg drive' :
-                       'Using momentum instead of controlled movement, ego lifting too heavy'}
-                    </Text>
-                  </View>
-
-                  {/* Injury Prevention */}
-                  <View style={styles.detailSection}>
-                    <View style={styles.detailHeader}>
-                      <Text style={styles.detailIcon}>🛡️</Text>
-                      <Text style={styles.detailTitle}>Injury Prevention</Text>
-                    </View>
-                    <Text style={styles.detailText}>
-                      Warm up properly before starting. Use proper form over heavy weight. Stop if you feel sharp pain.
-                    </Text>
-                  </View>
-
-                  {/* Targeted Muscles */}
-                  <View style={styles.detailSection}>
-                    <View style={styles.detailHeader}>
-                      <Text style={styles.detailIcon}>🎯</Text>
-                      <Text style={styles.detailTitle}>Muscles Targeted</Text>
-                    </View>
-                    <View style={styles.muscleTagRow}>
-                      {ex.muscle.split(', ').map((m, j) => (
-                        <View key={j} style={styles.muscleTag}>
-                          <Text style={styles.muscleTagText}>{m}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
+                  <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textMuted} />
                 </View>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        ))}
+
+                {open && !!ex.instructions && (
+                  <Text style={styles.exBody}>{ex.instructions}</Text>
+                )}
+              </TouchableOpacity>
+            );
+          })
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -149,49 +184,61 @@ const GymExerciseScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingBottom: 20 },
-  muscleScroll: { marginBottom: 20 },
-  muscleChip: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10,
-    backgroundColor: COLORS.darkCard, borderRadius: 24, marginRight: 10,
-    borderWidth: 1.5, borderColor: COLORS.darkBorder,
+  scroll: { paddingHorizontal: 16, paddingTop: 8 },
+  sectionTitle: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, marginBottom: 12, marginTop: 22 },
+
+  // detail
+  shots: { marginHorizontal: -16, marginBottom: 18 },
+  shot: { width: 300, height: 200, borderRadius: 20, marginLeft: 16, backgroundColor: COLORS.darkSurface },
+  statRow: { flexDirection: 'row', gap: 10 },
+  stat: {
+    flex: 1, paddingVertical: 14, borderRadius: 18, alignItems: 'center',
+    backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder,
   },
-  muscleIcon: { fontSize: 16, marginRight: 6 },
-  muscleText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium },
-  exCard: { marginBottom: 14, borderRadius: SIZES.radiusLg, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.darkBorder },
-  exGrad: { padding: 16, borderRadius: SIZES.radiusLg },
-  exHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  exTitleRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  exNum: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  exNumText: { fontSize: SIZES.fontLg, ...FONTS.bold },
-  exTitleInfo: { flex: 1 },
-  exName: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
-  exMuscle: { fontSize: SIZES.fontSm, color: COLORS.textMuted, marginTop: 2 },
-  quickStats: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
-  qStat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  qStatIcon: { fontSize: 14 },
-  qStatVal: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium },
-  diffTag: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3 },
-  diffTagText: { fontSize: SIZES.fontXs, ...FONTS.bold },
-  expanded: { marginTop: 12 },
-  divider: { height: 1, backgroundColor: COLORS.darkBorder, marginBottom: 16 },
-  animPlaceholder: { marginBottom: 16 },
-  animBox: {
-    height: 160, borderRadius: SIZES.radius,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: COLORS.darkBorder, borderStyle: 'dashed',
+  statValue: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.extraBold, textTransform: 'capitalize' },
+  statLabel: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: 3 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 12 },
+  tag: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: SIZES.radiusFull, backgroundColor: COLORS.darkSurface },
+  tagText: { fontSize: 11, color: COLORS.textSecondary, ...FONTS.semiBold },
+
+  card: {
+    padding: 16, borderRadius: 18,
+    backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder,
   },
-  animIcon: { fontSize: 36, marginBottom: 8 },
-  animText: { fontSize: SIZES.fontMd, color: COLORS.textSecondary, ...FONTS.semiBold },
-  animSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, marginTop: 4 },
-  detailSection: { marginBottom: 16 },
-  detailHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  detailIcon: { fontSize: 16, marginRight: 8 },
-  detailTitle: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.semiBold },
-  detailText: { fontSize: SIZES.fontMd, color: COLORS.textSecondary, ...FONTS.medium, lineHeight: 22, paddingLeft: 24 },
-  muscleTagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingLeft: 24 },
-  muscleTag: { backgroundColor: COLORS.primary + '15', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
-  muscleTagText: { fontSize: SIZES.fontSm, color: COLORS.primaryLight, ...FONTS.medium },
+  step: { flexDirection: 'row', gap: 11, marginBottom: 13 },
+  stepNum: {
+    width: 22, height: 22, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: COLORS.energySoft,
+  },
+  stepNumText: { fontSize: 11, color: COLORS.energy, ...FONTS.extraBold },
+  stepText: { flex: 1, fontSize: SIZES.fontSm, color: COLORS.textSecondary, lineHeight: 20 },
+  tipCard: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  tipText: { flex: 1, fontSize: SIZES.fontSm, color: COLORS.textSecondary, lineHeight: 20 },
+
+  // browse
+  railScroll: { marginHorizontal: -16, marginBottom: 20 },
+  rail: { paddingHorizontal: 16, gap: 9 },
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    paddingHorizontal: 14, paddingVertical: 10, borderRadius: SIZES.radiusFull,
+    backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  chipOn: { backgroundColor: COLORS.energy, borderColor: COLORS.energy },
+  chipIcon: { fontSize: 14 },
+  chipText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.bold },
+  loadingBox: { paddingVertical: 40, alignItems: 'center' },
+  emptyText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, textAlign: 'center' },
+
+  exCard: {
+    padding: 11, marginBottom: 10, borderRadius: 18,
+    backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  exTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  exThumb: { width: 56, height: 56, borderRadius: 14, backgroundColor: COLORS.darkSurface },
+  exThumbFallback: { alignItems: 'center', justifyContent: 'center' },
+  exName: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold, lineHeight: 19 },
+  exMeta: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: 3, textTransform: 'capitalize' },
+  exBody: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, lineHeight: 20, marginTop: 12 },
 });
 
 export default GymExerciseScreen;

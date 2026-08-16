@@ -54,8 +54,19 @@ const GymScanScreen = ({ navigation, route }) => {
           else if (gymCode.startsWith('FITAI-GYM:')) gymCode = gymCode.split(':')[1];
           payload = { gymCode };
         }
-        const res = await api.post(ENDPOINTS.GYM_MY_CHECKIN, payload);
-        if (res.success) {
+        // Tell the server this build can show the registration form. Without it
+        // the server keeps the old "first scan just joins the gym" behaviour, so
+        // installs that predate GymJoin are never sent to a screen they lack.
+        const res = await api.post(ENDPOINTS.GYM_MY_CHECKIN, { ...payload, canRegister: true });
+        if (res.success && res.data?.needsRegistration) {
+          // First scan at this gym → collect the gym's registration details once,
+          // then that form marks attendance. Members skip this on every later scan.
+          navigation.replace('GymJoin', {
+            gym: res.data.gym,
+            regToken: res.data.regToken,
+            prefill: res.data.prefill,
+          });
+        } else if (res.success) {
           // Closed (outside gym hours) = attendance NOT marked — show a cross, not a tick.
           const title = res.data?.closed ? '❌ Attendance NOT marked' : '✅ Checked in';
           Alert.alert(title, res.message, [{ text: 'OK', onPress: () => navigation.goBack() }]);

@@ -1,382 +1,397 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Vibration } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
+  ActivityIndicator, Vibration, RefreshControl, AppState,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
-import { WORKOUT_CATEGORIES, EXERCISES, WEEKLY_WORKOUT_PLAN, HOME_WORKOUT_CATEGORIES, HOME_EXERCISES, HOME_WEEKLY_PLAN } from '../constants/data';
+import { WEEKLY_WORKOUT_PLAN, HOME_WEEKLY_PLAN } from '../constants/data';
 import Header from '../components/Header';
-import GradientCard from '../components/GradientCard';
+import api, { ENDPOINTS } from '../config/api';
 
-const { width } = Dimensions.get('window');
+// Muscle ids come from the API; these are just the labels and icons we show.
+// Anything the API returns that isn't listed still renders, with a default icon.
+const MUSCLE_META = {
+  chest: { label: 'Chest', icon: '🏋️' },
+  back: { label: 'Back', icon: '🚣' },
+  legs: { label: 'Legs', icon: '🏃' },
+  shoulders: { label: 'Shoulders', icon: '💪' },
+  biceps: { label: 'Biceps', icon: '💪' },
+  triceps: { label: 'Triceps', icon: '🔥' },
+  abs: { label: 'Abs', icon: '⚡' },
+  glutes: { label: 'Glutes', icon: '🍑' },
+  forearms: { label: 'Forearms', icon: '✊' },
+};
+const metaFor = (id) => MUSCLE_META[id] || { label: id.charAt(0).toUpperCase() + id.slice(1), icon: '🏋️' };
+
+const DIFF_COLOR = {
+  beginner: COLORS.success,
+  intermediate: COLORS.warning,
+  advanced: COLORS.error,
+};
+
+const restOptions = [
+  { label: '30s', value: 30 },
+  { label: '60s', value: 60 },
+  { label: '90s', value: 90 },
+  { label: '2m', value: 120 },
+];
 
 const WorkoutScreen = ({ navigation }) => {
-  const [selectedCategory, setSelectedCategory] = useState('chest');
   const [workoutType, setWorkoutType] = useState('gym');
+  const [selectedMuscle, setSelectedMuscle] = useState('chest');
   const [selectedDay, setSelectedDay] = useState(0);
 
-  // ===== REST TIMER STATE =====
+  // Everything below now comes from the API rather than a bundled array.
+  const [muscles, setMuscles] = useState([]);
+  const [exercises, setExercises] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const isGym = workoutType === 'gym';
+  const weeklyPlan = isGym ? WEEKLY_WORKOUT_PLAN : HOME_WEEKLY_PLAN;
+
+  // ===== REST TIMER =====
   const [restTime, setRestTime] = useState(90);
   const [timeLeft, setTimeLeft] = useState(90);
   const [isRunning, setIsRunning] = useState(false);
-  const timerRef = useRef(null);
+  // The countdown reads the clock instead of counting ticks. You rest with the
+  // phone face-down, and Android stalls JS timers once the app is backgrounded
+  // — a counter would come back showing time that never passed.
+  const endAtRef = useRef(null);
+  const warnedRef = useRef(false);
 
-  // Map day focus text to category id
-  const focusToCategory = (focus, isGymMode) => {
-    const f = focus.toLowerCase();
-    if (isGymMode) {
-      if (f.includes('chest')) return 'chest';
-      if (f.includes('back')) return 'back';
-      if (f.includes('leg')) return 'legs';
-      if (f.includes('shoulder') || f.includes('arms')) return 'shoulders';
-      if (f.includes('cardio') || f.includes('abs')) return 'cardio';
-      if (f.includes('full')) return 'fullbody';
-      return 'chest';
-    } else {
-      if (f.includes('upper')) return 'upper';
-      if (f.includes('lower')) return 'lower';
-      if (f.includes('cardio') || f.includes('core')) return 'cardio';
-      if (f.includes('full') || f.includes('hiit')) return 'fullbody';
-      if (f.includes('yoga') || f.includes('stretch')) return 'yoga';
-      return 'upper';
+  // ── data ──────────────────────────────────────────────────────────────
+  const loadMuscles = useCallback(async () => {
+    try {
+      const res = await api.get(ENDPOINTS.EXERCISES_MUSCLES);
+      if (res.success && Array.isArray(res.data)) setMuscles(res.data);
+    } catch (e) { /* the exercise list below shows its own empty state */ }
+  }, []);
+
+  const loadExercises = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Home mode is the same catalogue filtered to what needs no equipment.
+      const params = { muscle: selectedMuscle, limit: 30 };
+      if (!isGym) params.equipment = 'bodyweight';
+      const res = await api.get(ENDPOINTS.EXERCISES, params);
+      setExercises(res.success && Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      setExercises([]);
+    } finally {
+      setLoading(false);
     }
+  }, [selectedMuscle, isGym]);
+
+  useEffect(() => { loadMuscles(); }, [loadMuscles]);
+  useEffect(() => { loadExercises(); }, [loadExercises]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadMuscles(), loadExercises()]);
+    setRefreshing(false);
   };
 
-  // Reset category & day when switching workout type
-  useEffect(() => {
-    setSelectedDay(0);
-    if (workoutType === 'gym') {
-      setSelectedCategory('chest');
-    } else {
-      setSelectedCategory('upper');
-    }
-  }, [workoutType]);
+  // Picking a day jumps to the muscle that day trains.
+  const focusToMuscle = (focus) => {
+    const f = (focus || '').toLowerCase();
+    if (f.includes('chest')) return 'chest';
+    if (f.includes('back')) return 'back';
+    if (f.includes('leg') || f.includes('lower')) return 'legs';
+    if (f.includes('shoulder') || f.includes('arm') || f.includes('upper')) return 'shoulders';
+    if (f.includes('ab') || f.includes('core') || f.includes('cardio')) return 'abs';
+    return null;
+  };
 
-  // When day is selected, update category to match that day's focus
   const handleDaySelect = (index) => {
     setSelectedDay(index);
-    const plan = workoutType === 'gym' ? WEEKLY_WORKOUT_PLAN : HOME_WEEKLY_PLAN;
-    const focus = plan[index].focus;
-    if (focus.toLowerCase().includes('rest')) return; // Rest day — keep current category
-    const cat = focusToCategory(focus, workoutType === 'gym');
-    setSelectedCategory(cat);
+    const m = focusToMuscle(weeklyPlan[index]?.focus);
+    if (m) setSelectedMuscle(m);
   };
 
-  // Timer countdown logic
+  useEffect(() => { setSelectedDay(0); }, [workoutType]);
+
+  // ── timer ─────────────────────────────────────────────────────────────
+  // Remaining time is always derived from the end timestamp, so a missed or
+  // throttled tick can never make the clock lie.
+  const remaining = () => Math.max(0, Math.round((endAtRef.current - Date.now()) / 1000));
+
   useEffect(() => {
-    if (isRunning && timeLeft > 0) {
-      timerRef.current = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current);
-            setIsRunning(false);
-            Vibration.vibrate([0, 500, 200, 500]);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+    if (!isRunning) return;
+    const tick = () => {
+      const left = remaining();
+      setTimeLeft(left);
+      // A short buzz before it ends, so you can get back to the bar in time.
+      if (left <= 3 && left > 0 && !warnedRef.current) {
+        warnedRef.current = true;
+        Vibration.vibrate(120);
+      }
+      if (left === 0) {
+        setIsRunning(false);
+        Vibration.vibrate([0, 500, 200, 500]);
+      }
     };
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
   }, [isRunning]);
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  // Coming back from the lock screen: resync immediately rather than waiting
+  // for the next tick, which may be a long time coming.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && isRunning && endAtRef.current) {
+        const left = remaining();
+        setTimeLeft(left);
+        if (left === 0) setIsRunning(false);
+      }
+    });
+    return () => sub.remove();
+  }, [isRunning]);
+
+  const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+  const startFrom = (seconds) => {
+    endAtRef.current = Date.now() + seconds * 1000;
+    warnedRef.current = false;
+    setTimeLeft(seconds);
+    setIsRunning(true);
   };
 
   const selectRestTime = (seconds) => {
-    if (isRunning) {
-      clearInterval(timerRef.current);
-      setIsRunning(false);
-    }
+    setIsRunning(false);
     setRestTime(seconds);
     setTimeLeft(seconds);
+    warnedRef.current = false;
   };
 
   const toggleTimer = () => {
-    if (timeLeft === 0) {
-      setTimeLeft(restTime);
-      setIsRunning(true);
+    if (isRunning) { setTimeLeft(remaining()); setIsRunning(false); return; } // pause
+    startFrom(timeLeft > 0 ? timeLeft : restTime);
+  };
+
+  // Needing a few more seconds mid-rest is the norm, not an edge case.
+  const addTime = (secs) => {
+    if (isRunning) {
+      endAtRef.current += secs * 1000;
+      setTimeLeft(remaining());
     } else {
-      setIsRunning(!isRunning);
+      setTimeLeft((t) => t + secs);
     }
+    warnedRef.current = false;
   };
 
-  const resetTimer = () => {
-    clearInterval(timerRef.current);
-    setIsRunning(false);
-    setTimeLeft(restTime);
-  };
-
-  // ===== DATA BASED ON WORKOUT TYPE =====
-  const isGym = workoutType === 'gym';
-  const categories = isGym ? WORKOUT_CATEGORIES : HOME_WORKOUT_CATEGORIES;
-  const exerciseData = isGym ? EXERCISES : HOME_EXERCISES;
-  const weeklyPlan = isGym ? WEEKLY_WORKOUT_PLAN : HOME_WEEKLY_PLAN;
-  const exercises = exerciseData[selectedCategory] || exerciseData[Object.keys(exerciseData)[0]];
-  const accentColor = isGym ? COLORS.primary : '#4CAF50';
-
-  const restOptions = [
-    { label: '30s', value: 30 },
-    { label: '60s', value: 60 },
-    { label: '90s', value: 90 },
-    { label: '120s', value: 120 },
-  ];
+  const resetTimer = () => { setIsRunning(false); setTimeLeft(restTime); warnedRef.current = false; };
 
   return (
     <LinearGradient colors={COLORS.gradientDark} style={styles.container}>
-      <Header
-        title={isGym ? 'Gym Workout' : 'Home Workout'}
-        subtitle={isGym ? 'Equipment-Based Training' : 'No Equipment Needed'}
-        onBack={() => navigation.goBack()}
-        backIcon={<Ionicons name="body-outline" size={22} color={COLORS.white} />}
-      />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-
-        {/* ===== WORKOUT TYPE TOGGLE ===== */}
-        <View style={styles.toggleRow}>
-          {['gym', 'home'].map((type) => {
-            const active = workoutType === type;
-            const color = type === 'gym' ? COLORS.primary : '#4CAF50';
+      <Header title="Workout" navigation={navigation} />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.energy} colors={[COLORS.energy]} />
+        }
+      >
+        {/* ===== GYM / HOME ===== */}
+        <View style={styles.toggle}>
+          {[
+            { key: 'gym', label: 'Gym', icon: 'barbell-outline' },
+            { key: 'home', label: 'Home', icon: 'home-outline' },
+          ].map((t) => {
+            const on = workoutType === t.key;
             return (
               <TouchableOpacity
-                key={type}
-                style={[
-                  styles.toggleBtn,
-                  active && { borderColor: color, backgroundColor: color, ...SHADOWS.glow(color) },
-                ]}
-                onPress={() => setWorkoutType(type)}
+                key={t.key}
+                style={[styles.toggleBtn, on && styles.toggleBtnOn]}
+                onPress={() => setWorkoutType(t.key)}
+                activeOpacity={0.85}
               >
-                <Ionicons
-                  name={type === 'gym' ? 'barbell-outline' : 'home-outline'}
-                  size={22}
-                  color={active ? COLORS.onAccent : COLORS.textMuted}
-                />
-                <Text style={[styles.toggleText, active && { color: COLORS.onAccent }]}>
-                  {type === 'gym' ? 'Gym Workout' : 'Home Workout'}
-                </Text>
+                <Ionicons name={t.icon} size={17} color={on ? COLORS.onEnergy : COLORS.textMuted} />
+                <Text style={[styles.toggleText, on && styles.toggleTextOn]}>{t.label}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* ===== MODE BANNER ===== */}
-        <LinearGradient
-          colors={isGym ? ['#6C63FF15', COLORS.darkCard] : ['#4CAF5015', COLORS.darkCard]}
-          style={styles.modeBanner}
-        >
-          <View style={styles.bannerContent}>
-            <View style={[styles.bannerIconWrap, { backgroundColor: accentColor + '20' }]}>
-              <Ionicons name={isGym ? 'barbell' : 'home'} size={24} color={accentColor} />
-            </View>
-            <View style={styles.bannerTextWrap}>
-              <Text style={[styles.bannerTitle, { color: accentColor }]}>
-                {isGym ? 'Gym Mode Active' : 'Home Mode Active'}
-              </Text>
-              <Text style={styles.bannerSub}>
-                {isGym ? 'Equipment & machine based exercises' : 'Bodyweight & minimal equipment exercises'}
-              </Text>
-            </View>
-          </View>
-        </LinearGradient>
-
         {/* ===== WEEKLY SCHEDULE ===== */}
-        <Text style={styles.sectionTitle}>📅 Weekly Schedule</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.weekScroll}>
+        <Text style={styles.sectionTitle}>Weekly schedule</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railScroll} contentContainerStyle={styles.rail}>
           {weeklyPlan.map((day, i) => {
-            const isSelected = i === selectedDay;
+            const on = i === selectedDay;
             return (
               <TouchableOpacity
                 key={i}
-                style={[styles.dayCard, isSelected && { borderColor: day.color, borderWidth: 1.5 }]}
+                style={[styles.dayCard, on && styles.dayCardOn]}
                 onPress={() => handleDaySelect(i)}
-                activeOpacity={0.7}
+                activeOpacity={0.85}
               >
-                <LinearGradient
-                  colors={isSelected ? [day.color, day.color + 'BB'] : [COLORS.darkCard, COLORS.darkSurface]}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                  style={styles.dayGrad}
-                >
-                  <Text style={styles.dayIcon}>{day.icon}</Text>
-                  <Text style={[styles.dayName, isSelected && { color: COLORS.onAccent }]}>{day.day.slice(0, 3)}</Text>
-                  <Text style={[styles.dayFocus, isSelected && { color: 'rgba(255,255,255,0.9)' }]}>{day.focus}</Text>
-                  {isSelected && (
-                    <View style={styles.todayBadge}>
-                      <Text style={[styles.todayText, { color: day.color }]}>{i === 0 ? 'Today' : 'Selected'}</Text>
+                <Text style={styles.dayIcon}>{day.icon}</Text>
+                <Text style={[styles.dayName, on && { color: COLORS.onEnergy }]}>{day.day.slice(0, 3)}</Text>
+                <Text style={[styles.dayFocus, on && { color: 'rgba(10,11,13,0.75)' }]} numberOfLines={2}>
+                  {day.focus}
+                </Text>
+                {/* Slot is always here so every card is the same height */}
+                <View style={styles.dayBadgeSlot}>
+                  {on && (
+                    <View style={styles.dayBadge}>
+                      <Text style={styles.dayBadgeText}>{i === 0 ? 'TODAY' : 'PICKED'}</Text>
                     </View>
                   )}
-                </LinearGradient>
+                </View>
               </TouchableOpacity>
             );
           })}
         </ScrollView>
 
-        {/* ===== CATEGORIES ===== */}
-        <Text style={styles.sectionTitle}>{isGym ? '💪 Muscle Groups' : '🏃 Body Areas'}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll}>
-          {categories.map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              style={[styles.catChip, selectedCategory === cat.id && { borderColor: cat.color, backgroundColor: cat.color, ...SHADOWS.glow(cat.color) }]}
-              onPress={() => setSelectedCategory(cat.id)}
-            >
-              <Text style={styles.catIcon}>{cat.icon}</Text>
-              <Text style={[styles.catText, selectedCategory === cat.id && { color: COLORS.onAccent }]}>{cat.name}</Text>
-            </TouchableOpacity>
-          ))}
+        {/* ===== MUSCLE GROUPS (from the API) ===== */}
+        <Text style={styles.sectionTitle}>Muscle groups</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railScroll} contentContainerStyle={styles.rail}>
+          {muscles.map((m) => {
+            const on = selectedMuscle === m.name;
+            const meta = metaFor(m.name);
+            return (
+              <TouchableOpacity
+                key={m.name}
+                style={[styles.chip, on && styles.chipOn]}
+                onPress={() => setSelectedMuscle(m.name)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.chipIcon}>{meta.icon}</Text>
+                <Text style={[styles.chipText, on && { color: COLORS.onEnergy }]}>{meta.label}</Text>
+                <Text style={[styles.chipCount, on && { color: 'rgba(10,11,13,0.65)' }]}>{m.count}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
-        {/* ===== EXERCISES LIST ===== */}
-        <Text style={styles.sectionTitle}>
-          {isGym ? '🏋️' : '🤸'} {categories.find(c => c.id === selectedCategory)?.name} Exercises
-        </Text>
+        {/* ===== EXERCISES ===== */}
+        <View style={styles.listHead}>
+          <Text style={styles.sectionTitle}>{metaFor(selectedMuscle).label} exercises</Text>
+          {!loading && <Text style={styles.listCount}>{exercises.length}</Text>}
+        </View>
 
-        {exercises.map((ex, i) => (
-          <TouchableOpacity
-            key={i}
-            style={[styles.exerciseCard, !isGym && { borderColor: '#4CAF5030' }]}
-            onPress={() => navigation.navigate('GymExercise')}
-          >
-            <LinearGradient
-              colors={isGym ? [COLORS.darkCard, COLORS.darkSurface] : [COLORS.darkCard, COLORS.darkSurface]}
-              style={styles.exerciseGrad}
+        {loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator color={COLORS.energy} />
+          </View>
+        ) : exercises.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyText}>
+              {isGym ? 'No exercises found for this muscle.' : 'No equipment-free exercises here — try another muscle.'}
+            </Text>
+          </View>
+        ) : (
+          exercises.map((ex) => (
+            <TouchableOpacity
+              key={ex.id}
+              style={styles.exCard}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('GymExercise', { exercise: ex })}
             >
-              {/* Exercise Header */}
-              <View style={styles.exerciseTop}>
-                <View style={styles.exerciseHeader}>
-                  <View style={styles.exerciseNameRow}>
-                    <View style={[styles.exNumberBadge, { backgroundColor: accentColor + '20' }]}>
-                      <Text style={[styles.exNumberText, { color: accentColor }]}>{i + 1}</Text>
-                    </View>
-                    <Text style={styles.exerciseName}>{ex.name}</Text>
-                  </View>
-                  <View style={[styles.diffBadge, {
-                    backgroundColor: ex.difficulty === 'Beginner' ? COLORS.success + '20' :
-                      ex.difficulty === 'Intermediate' ? COLORS.warning + '20' : COLORS.secondary + '20'
-                  }]}>
-                    <Text style={[styles.diffText, {
-                      color: ex.difficulty === 'Beginner' ? COLORS.success :
-                        ex.difficulty === 'Intermediate' ? COLORS.warning : COLORS.secondary
-                    }]}>{ex.difficulty}</Text>
-                  </View>
-                </View>
-                <Text style={styles.exerciseMuscle}>🎯 {ex.muscle}</Text>
-              </View>
-
-              {/* Exercise Stats */}
-              <View style={styles.exerciseStats}>
-                <View style={styles.statItem}>
-                  <Ionicons name="repeat-outline" size={14} color={accentColor} />
-                  <Text style={styles.statText}>{ex.sets} × {ex.reps}</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Ionicons name="time-outline" size={14} color={COLORS.accent} />
-                  <Text style={styles.statText}>{ex.duration}</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Ionicons name="flame-outline" size={14} color={COLORS.secondary} />
-                  <Text style={styles.statText}>{ex.calories} kcal</Text>
-                </View>
-              </View>
-
-              {/* Equipment Badge */}
-              {ex.equipment && (
-                <View style={[styles.equipmentRow, isGym ? styles.equipmentGym : styles.equipmentHome]}>
-                  <Ionicons
-                    name={isGym ? 'barbell-outline' : (ex.equipment === 'None' ? 'checkmark-circle' : 'construct-outline')}
-                    size={14}
-                    color={isGym ? COLORS.primary : '#4CAF50'}
-                  />
-                  <Text style={[styles.equipmentText, { color: isGym ? COLORS.primaryLight : '#81C784' }]}>
-                    {isGym ? `Equipment: ${ex.equipment}` : (ex.equipment === 'None' ? 'No Equipment Needed' : `Needs: ${ex.equipment}`)}
-                  </Text>
+              {/* Illustration comes from the API; falls back to an icon tile */}
+              {ex.images?.[0] ? (
+                <Image source={{ uri: ex.images[0] }} style={styles.exImage} resizeMode="cover" />
+              ) : (
+                <View style={[styles.exImage, styles.exImageFallback]}>
+                  <Text style={{ fontSize: 26 }}>{metaFor(ex.muscle).icon}</Text>
                 </View>
               )}
 
-              {/* Tips */}
-              <View style={styles.tipRow}>
-                <Ionicons name="bulb-outline" size={14} color={COLORS.warning} />
-                <Text style={styles.tipText}>{ex.tips}</Text>
+              <View style={styles.exBody}>
+                <Text style={styles.exName} numberOfLines={2}>{ex.name}</Text>
+
+                <View style={styles.exMetaRow}>
+                  <Text style={styles.exMeta}>{ex.sets} × {ex.reps}</Text>
+                  <View style={styles.exDot} />
+                  <Text style={styles.exMeta}>{ex.calories_per_set} kcal/set</Text>
+                </View>
+
+                <View style={styles.exTags}>
+                  <View style={styles.tag}>
+                    <Text style={styles.tagText}>{String(ex.equipment || 'other').replace(/_/g, ' ')}</Text>
+                  </View>
+                  <View style={[styles.tag, { backgroundColor: (DIFF_COLOR[ex.difficulty] || COLORS.textMuted) + '22' }]}>
+                    <Text style={[styles.tagText, { color: DIFF_COLOR[ex.difficulty] || COLORS.textMuted }]}>
+                      {ex.difficulty}
+                    </Text>
+                  </View>
+                </View>
               </View>
-            </LinearGradient>
-          </TouchableOpacity>
-        ))}
 
-        {/* ===== REST TIMER (FULLY FUNCTIONAL) ===== */}
-        <Text style={styles.sectionTitle}>⏱️ Rest Timer</Text>
-        <GradientCard colors={isGym ? ['#6C63FF15', COLORS.darkCard] : ['#4CAF5015', COLORS.darkCard]} style={styles.timerCard}>
-          <View style={styles.timerContent}>
-            {/* Timer Display */}
-            <Text style={[
-              styles.timerValue,
-              isRunning && { color: accentColor },
-              timeLeft === 0 && { color: COLORS.success },
-            ]}>
-              {formatTime(timeLeft)}
-            </Text>
-            <Text style={styles.timerLabel}>
-              {timeLeft === 0 ? '✅ Rest Complete!' : isRunning ? '⏳ Resting...' : 'Rest Between Sets'}
-            </Text>
-
-            {/* Progress Bar */}
-            {(isRunning || timeLeft !== restTime) && (
-              <View style={styles.progressBarBg}>
-                <View style={[styles.progressBarFill, {
-                  width: `${(timeLeft / restTime) * 100}%`,
-                  backgroundColor: timeLeft === 0 ? COLORS.success : accentColor,
-                }]} />
-              </View>
-            )}
-
-            {/* Duration Buttons */}
-            <View style={styles.timerBtns}>
-              {restOptions.map((opt) => (
-                <TouchableOpacity
-                  key={opt.value}
-                  style={[
-                    styles.timerBtn,
-                    restTime === opt.value && { backgroundColor: accentColor + '20', borderWidth: 1, borderColor: accentColor },
-                  ]}
-                  onPress={() => selectRestTime(opt.value)}
-                >
-                  <Text style={[styles.timerBtnText, restTime === opt.value && { color: accentColor }]}>
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Start / Pause / Restart Button */}
-            <TouchableOpacity style={styles.startTimerBtn} onPress={toggleTimer}>
-              <LinearGradient
-                colors={isGym ? COLORS.gradient1 : ['#4CAF50', '#2E7D32']}
-                style={styles.startTimerGrad}
-              >
-                <Ionicons
-                  name={timeLeft === 0 ? 'refresh' : isRunning ? 'pause' : 'play'}
-                  size={24}
-                  color={COLORS.white}
-                />
-                <Text style={styles.startTimerText}>
-                  {timeLeft === 0 ? 'Restart' : isRunning ? 'Pause' : 'Start Timer'}
-                </Text>
-              </LinearGradient>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
             </TouchableOpacity>
+          ))
+        )}
 
-            {/* Reset Button (shown when timer is modified) */}
+        {/* ===== REST TIMER ===== */}
+        <Text style={[styles.sectionTitle, { marginTop: 26 }]}>Rest timer</Text>
+        <View style={styles.timerCard}>
+          <Text style={[styles.timerValue, isRunning && { color: COLORS.energy }, timeLeft === 0 && { color: COLORS.success }]}>
+            {formatTime(timeLeft)}
+          </Text>
+          <Text style={styles.timerLabel}>
+            {timeLeft === 0 ? 'Rest complete' : isRunning ? 'Resting…' : 'Rest between sets'}
+          </Text>
+
+          {/* The bar only means something once the clock is moving — sitting
+              full while idle read as "done" at a glance. */}
+          <View style={styles.timerTrack}>
             {(isRunning || timeLeft !== restTime) && (
-              <TouchableOpacity style={styles.resetBtn} onPress={resetTimer}>
-                <Ionicons name="refresh-outline" size={18} color={COLORS.textMuted} />
-                <Text style={styles.resetText}>Reset Timer</Text>
-              </TouchableOpacity>
+              <View
+                style={[
+                  styles.timerFill,
+                  {
+                    width: `${Math.min(100, (timeLeft / Math.max(restTime, timeLeft)) * 100)}%`,
+                    backgroundColor: timeLeft === 0 ? COLORS.success : COLORS.energy,
+                  },
+                ]}
+              />
             )}
           </View>
-        </GradientCard>
 
-        <View style={{ height: 40 }} />
+          <View style={styles.timerBtns}>
+            {restOptions.map((opt) => {
+              const on = restTime === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.timerBtn, on && styles.timerBtnOn]}
+                  onPress={() => selectRestTime(opt.value)}
+                >
+                  <Text style={[styles.timerBtnText, on && { color: COLORS.onEnergy }]}>{opt.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* +15s sits with the running controls, not the presets — you reach
+              for it mid-rest, when the set took more out of you than planned. */}
+          <View style={styles.runRow}>
+            <TouchableOpacity style={styles.addBtn} onPress={() => addTime(15)} activeOpacity={0.85}>
+              <Text style={styles.addBtnText}>+15s</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.startBtn} onPress={toggleTimer} activeOpacity={0.85}>
+              <Ionicons name={timeLeft === 0 ? 'refresh' : isRunning ? 'pause' : 'play'} size={20} color={COLORS.onEnergy} />
+              <Text style={styles.startBtnText}>
+                {timeLeft === 0 ? 'Restart' : isRunning ? 'Pause' : 'Start timer'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {(isRunning || timeLeft !== restTime) && (
+            <TouchableOpacity style={styles.resetBtn} onPress={resetTimer}>
+              <Ionicons name="refresh-outline" size={16} color={COLORS.textMuted} />
+              <Text style={styles.resetText}>Reset</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* The tab bar is absolutely positioned and floats over the content,
+            so the last card needs room to clear it — 100 everywhere else too. */}
+        <View style={{ height: 100 }} />
       </ScrollView>
     </LinearGradient>
   );
@@ -384,103 +399,106 @@ const WorkoutScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingBottom: 20 },
+  scroll: { paddingHorizontal: 16, paddingTop: 8 },
 
-  // Toggle
-  toggleRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  toggleBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 14, backgroundColor: COLORS.darkCard, borderRadius: SIZES.radius,
-    borderWidth: 1.5, borderColor: COLORS.darkBorder, gap: 8,
-  },
-  toggleText: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.semiBold },
+  sectionTitle: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, marginBottom: 12, letterSpacing: -0.3 },
 
-  // Mode Banner
-  modeBanner: {
-    borderRadius: SIZES.radius, padding: 14, marginBottom: 20,
+  // Gym / Home
+  toggle: {
+    flexDirection: 'row', gap: 6, padding: 5, marginBottom: 24,
+    backgroundColor: COLORS.darkCard, borderRadius: 16,
     borderWidth: 1, borderColor: COLORS.darkBorder,
   },
-  bannerContent: { flexDirection: 'row', alignItems: 'center' },
-  bannerIconWrap: {
-    width: 44, height: 44, borderRadius: 22,
-    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+  toggleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 11, borderRadius: 12 },
+  toggleBtnOn: { backgroundColor: COLORS.energy },
+  toggleText: { fontSize: SIZES.fontMd, color: COLORS.textMuted, ...FONTS.bold },
+  toggleTextOn: { color: COLORS.onEnergy },
+
+  // Rails bleed past the page padding so a half-visible item hints at more
+  railScroll: { marginHorizontal: -16, marginBottom: 26 },
+  rail: { paddingHorizontal: 16, gap: 10 },
+
+  // Day cards — fixed height keeps every card identical
+  dayCard: {
+    width: 108, height: 132, borderRadius: 18, padding: 12, alignItems: 'center',
+    backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder,
   },
-  bannerTextWrap: { flex: 1 },
-  bannerTitle: { fontSize: SIZES.fontMd, ...FONTS.bold },
-  bannerSub: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
+  dayCardOn: { backgroundColor: COLORS.energy, borderColor: COLORS.energy },
+  dayIcon: { fontSize: 22 },
+  dayName: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold, marginTop: 5 },
+  dayFocus: { fontSize: SIZES.fontXs, color: COLORS.textMuted, textAlign: 'center', marginTop: 3, height: 26 },
+  dayBadgeSlot: { height: 18, marginTop: 4, justifyContent: 'center' },
+  dayBadge: { backgroundColor: COLORS.onEnergy, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  dayBadgeText: { fontSize: 9, color: COLORS.energy, ...FONTS.extraBold, letterSpacing: 0.5 },
 
-  // Section
-  sectionTitle: { fontSize: SIZES.fontXl, color: COLORS.white, ...FONTS.bold, marginBottom: 14, marginTop: 8 },
-
-  // Weekly Schedule
-  weekScroll: { marginBottom: 24 },
-  dayCard: { width: 110, marginRight: 10, borderRadius: SIZES.radius, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.darkBorder },
-  dayGrad: { padding: 14, alignItems: 'center', borderRadius: SIZES.radius },
-  dayIcon: { fontSize: 24, marginBottom: 6 },
-  dayName: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold },
-  dayFocus: { fontSize: SIZES.fontXs, color: COLORS.textMuted, textAlign: 'center', marginTop: 4 },
-  todayBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginTop: 8, backgroundColor: '#FFFFFF' },
-  todayText: { fontSize: SIZES.fontXs, ...FONTS.bold },
-
-  // Categories
-  catScroll: { marginBottom: 24 },
-  catChip: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10,
-    backgroundColor: COLORS.darkCard, borderRadius: 24, marginRight: 10,
-    borderWidth: 1, borderColor: COLORS.darkBorder,
+  // Muscle chips
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    paddingHorizontal: 14, paddingVertical: 10, borderRadius: SIZES.radiusFull,
+    backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder,
   },
-  catIcon: { fontSize: 18, marginRight: 6 },
-  catText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium },
+  chipOn: { backgroundColor: COLORS.energy, borderColor: COLORS.energy },
+  chipIcon: { fontSize: 14 },
+  chipText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.bold },
+  chipCount: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.semiBold },
 
-  // Exercise Card
-  exerciseCard: { marginBottom: 12, borderRadius: SIZES.radius, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.darkBorder },
-  exerciseGrad: { padding: 16, borderRadius: SIZES.radius },
-  exerciseTop: { marginBottom: 12 },
-  exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  exerciseNameRow: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
-  exNumberBadge: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  exNumberText: { fontSize: SIZES.fontSm, ...FONTS.bold },
-  exerciseName: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold, flex: 1 },
-  diffBadge: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
-  diffText: { fontSize: SIZES.fontXs, ...FONTS.bold },
-  exerciseMuscle: { fontSize: SIZES.fontSm, color: COLORS.textMuted, marginTop: 4, marginLeft: 38 },
-  exerciseStats: { flexDirection: 'row', gap: 16, marginBottom: 10 },
-  statItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.medium },
+  listHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  listCount: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.semiBold, marginBottom: 12 },
 
-  // Equipment Badge
-  equipmentRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderRadius: 8, padding: 8, marginBottom: 10,
+  loadingBox: { paddingVertical: 40, alignItems: 'center' },
+  emptyBox: {
+    padding: 22, borderRadius: 18, alignItems: 'center',
+    backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder,
   },
-  equipmentGym: { backgroundColor: COLORS.primary + '08' },
-  equipmentHome: { backgroundColor: '#4CAF5008' },
-  equipmentText: { fontSize: SIZES.fontSm, ...FONTS.medium },
+  emptyText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, textAlign: 'center' },
 
-  // Tips
-  tipRow: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.warning + '08', borderRadius: 8, padding: 8 },
-  tipText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, flex: 1 },
-
-  // Timer
-  timerCard: { alignItems: 'center' },
-  timerContent: { alignItems: 'center', width: '100%' },
-  timerValue: { fontSize: 52, color: COLORS.white, ...FONTS.bold, marginBottom: 4, letterSpacing: 2 },
-  timerLabel: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginBottom: 16 },
-  progressBarBg: {
-    width: '100%', height: 6, backgroundColor: COLORS.darkBorder, borderRadius: 3,
-    marginBottom: 16, overflow: 'hidden',
+  // Exercise row — one shape, repeated
+  exCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    padding: 10, marginBottom: 10, borderRadius: 18,
+    backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder,
   },
-  progressBarFill: { height: 6, borderRadius: 3 },
-  timerBtns: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  exImage: { width: 64, height: 64, borderRadius: 14, backgroundColor: COLORS.darkSurface },
+  exImageFallback: { alignItems: 'center', justifyContent: 'center' },
+  exBody: { flex: 1 },
+  exName: { fontSize: SIZES.fontMd, color: COLORS.white, ...FONTS.bold, lineHeight: 19 },
+  exMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4 },
+  exMeta: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium },
+  exDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: COLORS.textMuted },
+  exTags: { flexDirection: 'row', gap: 6, marginTop: 8 },
+  tag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: SIZES.radiusFull, backgroundColor: COLORS.darkSurface },
+  tagText: { fontSize: 10, color: COLORS.textSecondary, ...FONTS.semiBold, textTransform: 'capitalize' },
+
+  // Rest timer
+  timerCard: {
+    padding: 20, borderRadius: 22, alignItems: 'center',
+    backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  timerValue: { fontSize: 46, color: COLORS.white, ...FONTS.extraBold, letterSpacing: -1 },
+  timerLabel: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
+  timerTrack: { width: '100%', height: 6, borderRadius: SIZES.radiusFull, backgroundColor: COLORS.trackBg, marginTop: 16, overflow: 'hidden' },
+  timerFill: { height: '100%', borderRadius: SIZES.radiusFull },
+  timerBtns: { flexDirection: 'row', gap: 8, marginTop: 18 },
   timerBtn: {
-    paddingHorizontal: 16, paddingVertical: 8,
-    backgroundColor: COLORS.darkBorder + '40', borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 9, borderRadius: SIZES.radiusFull,
+    backgroundColor: COLORS.darkSurface, borderWidth: 1, borderColor: COLORS.darkBorder,
   },
-  timerBtnText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.semiBold },
-  startTimerBtn: { borderRadius: SIZES.radius, overflow: 'hidden', width: '100%' },
-  startTimerGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 8, borderRadius: SIZES.radius },
-  startTimerText: { fontSize: SIZES.fontLg, color: COLORS.white, ...FONTS.bold },
-  resetBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, paddingVertical: 8, paddingHorizontal: 16 },
+  timerBtnOn: { backgroundColor: COLORS.energy, borderColor: COLORS.energy },
+  timerBtnText: { fontSize: SIZES.fontSm, color: COLORS.textSecondary, ...FONTS.bold },
+  runRow: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 18 },
+  addBtn: {
+    paddingHorizontal: 18, justifyContent: 'center', borderRadius: 16,
+    backgroundColor: COLORS.darkSurface, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  addBtnText: { fontSize: SIZES.fontSm, color: COLORS.energy, ...FONTS.extraBold },
+  startBtn: {
+    flex: 1,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
+    paddingVertical: 15, borderRadius: 16,
+    backgroundColor: COLORS.energy, ...SHADOWS.small,
+  },
+  startBtnText: { fontSize: SIZES.fontMd, color: COLORS.onEnergy, ...FONTS.extraBold },
+  resetBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
   resetText: { fontSize: SIZES.fontSm, color: COLORS.textMuted, ...FONTS.medium },
 });
 

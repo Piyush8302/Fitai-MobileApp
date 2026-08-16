@@ -968,7 +968,7 @@ const TrackingScreen = ({ navigation }) => {
                       style={{
                         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
                         paddingVertical: 10, paddingHorizontal: 14,
-                        backgroundColor: COLORS.darkCard, borderBottomWidth: 1, borderBottomColor: COLORS.border,
+                        backgroundColor: COLORS.darkCard, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder,
                         borderRadius: 8, marginBottom: 4,
                       }}
                       onPress={() => addFoodItem(food)}

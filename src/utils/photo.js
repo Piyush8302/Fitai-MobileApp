@@ -30,3 +30,25 @@ export const pickSquarePhoto = async (source) => {
   const saved = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.6, base64: true });
   return saved.base64 ? `data:image/jpeg;base64,${saved.base64}` : null;
 };
+
+// Meal photo for calorie estimation. Unlike the profile picker this keeps the
+// full frame — a square crop cuts off half the plate — and goes a bit wider
+// (768px) because the model has to read what's actually on the plate.
+export const pickMealPhoto = async (source) => {
+  const perm = source === 'camera'
+    ? await ImagePicker.requestCameraPermissionsAsync()
+    : await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!perm.granted) {
+    Alert.alert('Permission needed', `Allow ${source === 'camera' ? 'camera' : 'photo'} access in Settings.`);
+    return null;
+  }
+  const fn = source === 'camera' ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
+  const result = await fn({ mediaTypes: ['images'], allowsEditing: false, quality: 0.8, exif: false });
+  const asset = !result.canceled && result.assets?.[0];
+  if (!asset?.uri) return null;
+  const context = ImageManipulator.manipulate(asset.uri);
+  context.resize({ width: 768 });
+  const rendered = await context.renderAsync();
+  const saved = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.7, base64: true });
+  return saved.base64 ? `data:image/jpeg;base64,${saved.base64}` : null;
+};

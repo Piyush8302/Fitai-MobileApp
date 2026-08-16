@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, AppState } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,6 +9,7 @@ import { registerForPushNotifications, addNotificationListeners } from './src/ut
 // Defines the gym geofence background task — must load at app entry so Android
 // can run it headlessly (auto check-in with the app closed).
 import './src/utils/autoCheckin';
+import { checkInOnAppOpen } from './src/utils/autoCheckin';
 import { routeFromNotificationData, navigationRef } from './src/navigation/navigationRef';
 
 class ErrorBoundary extends React.Component {
@@ -76,6 +77,14 @@ export default function App() {
     }, 500);
     const coldStop = setTimeout(() => clearInterval(coldStart), 6000); // give up after ~6s
     return () => { cleanup && cleanup(); clearInterval(coldStart); clearTimeout(coldStop); };
+  }, []);
+
+  // Opening the app AT the gym marks attendance, the same way the web check-in
+  // page does. Silent, throttled, and only when location is already allowed.
+  useEffect(() => {
+    checkInOnAppOpen();
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') checkInOnAppOpen(); });
+    return () => sub.remove();
   }, []);
 
   if (!themeReady) {

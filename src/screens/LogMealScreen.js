@@ -9,6 +9,7 @@ import { COLORS, SIZES, FONTS } from '../constants/theme';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DIET_MEAL_SUGGESTIONS } from '../constants/data';
+import { pickMealPhoto } from '../utils/photo';
 
 // Modern speech recognition (Expo, new-arch compatible). Lazy require so the
 // app never crashes in Expo Go where the native module isn't bundled.
@@ -62,19 +63,47 @@ const LogMealScreen = ({ navigation, route }) => {
   // Voice
   const [listening, setListening] = useState(false);
   const [voiceAvailable] = useState(!!SpeechModule);
+  const [voiceMsg, setVoiceMsg] = useState('');   // last error/status, shown under the search bar
   const pulse = useRef(new Animated.Value(1)).current;
   const searchTimer = useRef(null);
+  // Whether this listening session produced anything, so `end` can tell the
+  // difference between "heard nothing" and "already handled".
+  const heardRef = useRef(false);
 
   // Speech recognition events (no-op hook fallback when module unavailable / Expo Go)
   const useEvt = useSpeechEvent || (() => {});
   useEvt('result', (event) => {
     const transcript = event?.results?.[0]?.transcript;
-    if (transcript) handleVoiceText(transcript);
+    if (!transcript) return;
+    // Interim results stream in while the user is still speaking — show them so
+    // it's obvious the mic is live, but only parse once the result is final.
+    setSearch(transcript);
+    if (!event.isFinal) return;
+    heardRef.current = true;
+    handleVoiceText(transcript);
   });
-  useEvt('end', () => setListening(false));
+  useEvt('end', () => {
+    setListening(false);
+    if (!heardRef.current) setVoiceMsg("Didn't catch that — tap 🎤 and speak clearly.");
+  });
   useEvt('error', (event) => {
     setListening(false);
-    if (event?.error && event.error !== 'no-speech') console.log('Speech error:', event.error, event.message);
+    const code = event?.error;
+    if (!code || code === 'no-speech' || code === 'aborted') {
+      if (code === 'no-speech') setVoiceMsg("Didn't hear anything — tap 🎤 and try again.");
+      return;
+    }
+    // These used to be swallowed into console.log, so a mic that never worked
+    // just looked like a button that resets itself. Say what actually failed.
+    const FRIENDLY = {
+      'not-allowed': 'Microphone permission is off. Enable it for FitAI in Settings.',
+      'service-not-allowed': 'Speech recognition is unavailable on this phone. Install/enable the Google app, then try again.',
+      'language-not-supported': 'English (India) speech is not installed. Add it in Google app → Settings → Voice.',
+      network: 'Voice needs internet — check your connection.',
+      'audio-capture': 'Could not access the microphone. Close other apps using it and retry.',
+      busy: 'Speech recogniser is busy — wait a moment and tap 🎤 again.',
+    };
+    setVoiceMsg(FRIENDLY[code] || `Voice error: ${code}${event?.message ? ` — ${event.message}` : ''}`);
   });
 
   useEffect(() => {
@@ -111,16 +140,39 @@ const LogMealScreen = ({ navigation, route }) => {
       return;
     }
     try {
+      // Ask the module itself instead of assuming: a phone with no speech
+      // service would otherwise fail the moment start() runs, which looked
+      // like the button resetting itself.
+      let available = true;
+      try { available = SpeechModule.isRecognitionAvailable(); } catch (e) { available = true; }
+      if (!available) {
+        Alert.alert(
+          'Voice not available on this phone',
+          'No speech recognition service was found. Install or enable the Google app (and its Voice/offline language data), then try again.'
+        );
+        return;
+      }
+
       const perm = await SpeechModule.requestPermissionsAsync();
       if (!perm?.granted) {
         Alert.alert('Mic permission needed', 'Enable Microphone for FitAI in Settings to use voice.');
         return;
       }
-      setSearch('');
+      // Note: the search box is NOT cleared here — wiping what the user typed
+      // the instant they tapped the mic is what made a failed start look like
+      // a "reset". Interim results overwrite it only once speech arrives.
+      setVoiceMsg('');
+      heardRef.current = false;
       setListening(true);
-      SpeechModule.start({ lang: 'en-IN', interimResults: false, continuous: false });
+      SpeechModule.start({
+        lang: 'en-IN',
+        interimResults: true,     // live words = visible proof the mic is on
+        continuous: false,
+        maxAlternatives: 1,
+      });
     } catch (e) {
       setListening(false);
+      setVoiceMsg(String(e?.message || e || 'Could not start voice'));
       Alert.alert('Could not start voice', String(e?.message || e || 'unknown'));
     }
   };
@@ -159,6 +211,56 @@ const LogMealScreen = ({ navigation, route }) => {
     } else {
       setSearch('');
     }
+  };
+
+  // ===== PHOTO → CALORIES =====
+  // The backend sends the photo to Gemini (already configured for the AI chat,
+  // free tier) and matches whatever it recognises against our own food database,
+  // so the numbers are ours wherever we carry the dish. Everything lands in the
+  // normal item list, where quantities stay editable before logging.
+  const [scanning, setScanning] = useState(false);
+
+  const scanPhoto = (source) => async () => {
+    if (scanning) return;
+    try {
+      const image = await pickMealPhoto(source);
+      if (!image) return;
+      setScanning(true);
+      const res = await api.post(ENDPOINTS.FOOD_ANALYZE_PHOTO, { image });
+      if (!res.success) {
+        Alert.alert('Could not read the photo', res.message || 'Please try again.');
+        return;
+      }
+      const found = res.data || [];
+      if (!found.length) {
+        Alert.alert('No food found', res.message || 'Try a clearer, closer photo of the plate.');
+        return;
+      }
+      found.forEach((f) => {
+        addItem(
+          { name: f.name, calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat, serving: f.serving },
+          false,
+          f.quantity || 1,
+        );
+      });
+      const guessed = found.filter((f) => !f.matched).length;
+      Alert.alert(
+        `📸 Added ${found.length} item${found.length > 1 ? 's' : ''}`,
+        `${found.map((f) => `• ${f.name}${f.quantity !== 1 ? ` ×${f.quantity}` : ''}`).join('\n')}\n\n${
+          guessed ? 'Some values are estimates from the photo — ' : ''
+        }check the amounts before logging.`,
+      );
+    } catch (e) {
+      Alert.alert('Error', 'Could not scan that photo. Please try again.');
+    } finally { setScanning(false); }
+  };
+
+  const openPhotoScan = () => {
+    Alert.alert('📸 Scan meal photo', 'Get an instant calorie estimate from a photo of your plate.', [
+      { text: 'Take photo', onPress: scanPhoto('camera') },
+      { text: 'Choose from gallery', onPress: scanPhoto('gallery') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   // ===== SEARCH =====
@@ -273,6 +375,11 @@ const LogMealScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           )}
         </View>
+        <TouchableOpacity style={styles.camBtn} onPress={openPhotoScan} disabled={scanning}>
+          {scanning
+            ? <ActivityIndicator size="small" color={COLORS.primary} />
+            : <Ionicons name="camera" size={22} color={COLORS.primary} />}
+        </TouchableOpacity>
         <Animated.View style={{ transform: [{ scale: pulse }] }}>
           <TouchableOpacity
             style={[styles.micBtn, listening && styles.micBtnActive]}
@@ -282,10 +389,12 @@ const LogMealScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         </Animated.View>
       </View>
-      <Text style={styles.voiceHint}>
+      <Text style={[styles.voiceHint, !listening && voiceMsg && { color: COLORS.warning }]}>
         {listening ? '🎙 Listening… speak now (e.g. "two roti and one bowl rice")'
-          : voiceAvailable ? 'Tap 🎤 and speak — "do roti aur ek bowl rice"'
-            : 'Tip: type to search foods'}
+          : scanning ? '📸 Reading your plate…'
+            : voiceMsg ? voiceMsg
+              : voiceAvailable ? 'Tap 📷 for a photo estimate, or 🎤 and speak — "do roti aur ek bowl rice"'
+                : 'Tap 📷 to estimate calories from a photo, or type to search'}
       </Text>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 180 }}>
@@ -445,6 +554,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   micBtnActive: { backgroundColor: COLORS.error },
+  camBtn: {
+    width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: COLORS.darkCard, borderWidth: 1, borderColor: COLORS.primary + '55',
+  },
   voiceHint: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, paddingHorizontal: 18, marginTop: 8, marginBottom: 8 },
 
   resultsBox: { marginHorizontal: 16, marginTop: 4 },

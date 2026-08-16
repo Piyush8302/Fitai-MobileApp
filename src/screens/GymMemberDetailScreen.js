@@ -91,7 +91,9 @@ const GymMemberDetailScreen = ({ navigation, route }) => {
       } catch (e) { Alert.alert('Error', 'Could not update photo'); }
       finally { setPhotoBusy(false); }
     };
-    Alert.alert('Update member photo', 'Choose a source', [
+    // This is the GYM's copy of the photo — the member's own app profile picture
+    // is never touched by it.
+    Alert.alert('Update gym photo', "Used on your member list. The member's own app photo stays as it is.", [
       { text: 'Take photo', onPress: () => pick('camera') },
       { text: 'Choose from gallery', onPress: () => pick('gallery') },
       { text: 'Cancel', style: 'cancel' },

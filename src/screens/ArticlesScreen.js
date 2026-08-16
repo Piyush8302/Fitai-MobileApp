@@ -8,7 +8,7 @@ import api, { ENDPOINTS } from '../config/api';
 
 const CATEGORY_ICONS = {
   nutrition: '🥗', workout: '🏋️', wellness: '🧘', weight_loss: '⚖️',
-  weight_gain: '💪', yoga: '🧘‍♂️', mental_health: '🧠', indian_diet: '🇮🇳',
+  weight_gain: '💪', yoga: '🧘‍♂️', mental_health: '💭', indian_diet: '🇮🇳',
   international_diet: '🌍', supplements: '💊', disease_prevention: '🏥', home_remedies: '🌿',
 };
 

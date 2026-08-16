@@ -10,6 +10,23 @@ import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { enableAutoCheckin, disableAutoCheckin, isAutoCheckinEnabled } from '../utils/autoCheckin';
 
+// What the gym set as this membership's state. `active` is the quiet default;
+// the rest are shown loudly because they stop the member checking in and they
+// used to be invisible in the app until someone asked the gym why the QR failed.
+const STATUS_STYLE = {
+  active: { label: 'Active', color: COLORS.success, icon: 'checkmark-circle' },
+  inactive: { label: 'Deactivated', color: COLORS.warning, icon: 'pause-circle' },
+  blocked: { label: 'Blocked', color: COLORS.error, icon: 'ban' },
+  left: { label: 'Left', color: COLORS.textMuted, icon: 'exit-outline' },
+  expired: { label: 'Expired', color: COLORS.warning, icon: 'alert-circle' },
+  frozen: { label: 'Frozen', color: COLORS.warning, icon: 'snow-outline' },
+};
+const STATUS_NOTE = {
+  inactive: 'Your membership is deactivated — you can’t check in until the gym reactivates it.',
+  blocked: 'You are blocked at this gym and can’t check in. Please contact the gym team.',
+  left: 'You have left this gym. Contact the gym if you want to rejoin.',
+};
+
 const MyGymCardScreen = ({ navigation }) => {
   const [card, setCard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -17,6 +34,7 @@ const MyGymCardScreen = ({ navigation }) => {
   const [history, setHistory] = useState({});           // { gymId: [attendance] }
   const qrRef = useRef(null);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [showCode, setShowCode] = useState(false); // QR/barcode collapsed by default — saves card space
 
   const load = useCallback(async () => {
     try {
@@ -169,16 +187,39 @@ const MyGymCardScreen = ({ navigation }) => {
             <Ionicons name="barbell" size={28} color={COLORS.onAccent} />
           </View>
 
-          {/* QR */}
-          <View style={styles.qrWrap}>
-            <QRCode value={qrValue} size={150} backgroundColor="#FFFFFF" color="#000000" getRef={(c) => { qrRef.current = c; }} />
-          </View>
-          <Text style={styles.scanHint}>Show this at the gym counter to check in</Text>
+          {showCode ? (
+            <>
+              {/* QR */}
+              <View style={styles.qrWrap}>
+                <QRCode value={qrValue} size={150} backgroundColor="#FFFFFF" color="#000000" getRef={(c) => { qrRef.current = c; }} />
+              </View>
+              <Text style={styles.scanHint}>Show this at the gym counter to check in</Text>
 
-          {/* Barcode */}
-          <View style={styles.barcodeWrap}>
-            <Barcode value={barcodeValue} format="CODE128" height={48} singleBarWidth={1.6} backgroundColor="#FFFFFF" lineColor="#000000" />
-          </View>
+              {/* Barcode */}
+              <View style={styles.barcodeWrap}>
+                <Barcode value={barcodeValue} format="CODE128" height={48} singleBarWidth={1.6} backgroundColor="#FFFFFF" lineColor="#000000" />
+              </View>
+
+              <TouchableOpacity style={styles.hideCodeBtn} onPress={() => setShowCode(false)}>
+                <Ionicons name="chevron-up" size={16} color={COLORS.onAccent} />
+                <Text style={styles.hideCodeText}>Hide</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity style={styles.showCodeBtn} onPress={() => setShowCode(true)} activeOpacity={0.8}>
+              <Ionicons name="qr-code" size={22} color={COLORS.onAccent} />
+              <Text style={styles.showCodeText}>Tap to show QR &amp; barcode</Text>
+              <Ionicons name="chevron-down" size={18} color={COLORS.onAccent} />
+            </TouchableOpacity>
+          )}
+
+          {/* Kept mounted off-screen so the PDF download always has a QR to capture,
+              even if the member never taps "show" before downloading. */}
+          {!showCode && (
+            <View style={styles.qrHidden} pointerEvents="none">
+              <QRCode value={qrValue} size={150} backgroundColor="#FFFFFF" color="#000000" getRef={(c) => { qrRef.current = c; }} />
+            </View>
+          )}
         </LinearGradient>
 
         {/* ===== DOWNLOAD PDF ===== */}
@@ -227,7 +268,10 @@ const MyGymCardScreen = ({ navigation }) => {
             <Text style={styles.emptyText}>Not registered at any gym yet</Text>
             <Text style={styles.emptyHint}>Visit a gym & they'll add you, or scan their QR</Text>
           </View>
-        ) : card.gyms.map((g) => (
+        ) : card.gyms.map((g) => {
+          const st = STATUS_STYLE[g.status] || STATUS_STYLE.active;
+          const note = STATUS_NOTE[g.status];
+          return (
           <View key={g.membershipId} style={styles.gymCard}>
             <TouchableOpacity style={styles.gymRow} onPress={() => openHistory(g.gym?._id)}>
               <View style={styles.gymIcon}><Text style={{ fontSize: 20 }}>🏋️</Text></View>
@@ -236,15 +280,28 @@ const MyGymCardScreen = ({ navigation }) => {
                 <Text style={styles.gymMeta}>
                   {g.gym?.location || g.gym?.city || ''} • {g.plan}
                 </Text>
+                {/* Membership state as the gym set it — updates on every load */}
+                <View style={[styles.memberPill, { backgroundColor: st.color + '18', borderColor: st.color + '55' }]}>
+                  <Ionicons name={st.icon} size={11} color={st.color} />
+                  <Text style={[styles.memberPillText, { color: st.color }]}>{st.label}</Text>
+                </View>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <View style={[styles.statusDot, { backgroundColor: g.isDue ? COLORS.error : COLORS.success }]} />
                 <Text style={[styles.dueText, { color: g.isDue ? COLORS.error : COLORS.textMuted }]}>
                   {g.isDue ? 'Fee Due' : g.dueDate ? `Due ${new Date(g.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : 'Active'}
                 </Text>
+                {g.fee ? <Text style={styles.feeText}>₹{g.fee}</Text> : null}
               </View>
               <Ionicons name={expanded === g.gym?._id ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textMuted} />
             </TouchableOpacity>
+
+            {note ? (
+              <View style={[styles.noteBox, { borderTopColor: st.color + '35' }]}>
+                <Ionicons name="information-circle" size={14} color={st.color} />
+                <Text style={[styles.noteText, { color: st.color }]}>{note}</Text>
+              </View>
+            ) : null}
 
             {/* Attendance history */}
             {expanded === g.gym?._id && (
@@ -273,7 +330,8 @@ const MyGymCardScreen = ({ navigation }) => {
               </View>
             )}
           </View>
-        ))}
+          );
+        })}
       </ScrollView>
     </LinearGradient>
   );
@@ -294,6 +352,15 @@ const styles = StyleSheet.create({
   qrWrap: { backgroundColor: '#FFFFFF', padding: 14, borderRadius: 16 },
   scanHint: { fontSize: SIZES.fontXs, color: COLORS.onAccent, opacity: 0.9, marginTop: 10, ...FONTS.medium },
   barcodeWrap: { backgroundColor: '#FFFFFF', padding: 10, borderRadius: 10, marginTop: 14, alignItems: 'center' },
+  showCodeBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%',
+    paddingVertical: 14, borderRadius: SIZES.radius, backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
+  },
+  showCodeText: { fontSize: SIZES.fontMd, color: COLORS.onAccent, ...FONTS.bold },
+  hideCodeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, paddingVertical: 4, paddingHorizontal: 10 },
+  hideCodeText: { fontSize: SIZES.fontSm, color: COLORS.onAccent, opacity: 0.85, ...FONTS.semiBold },
+  qrHidden: { position: 'absolute', opacity: 0, width: 1, height: 1, overflow: 'hidden' },
 
   checkinBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -322,6 +389,11 @@ const styles = StyleSheet.create({
   gymMeta: { fontSize: SIZES.fontXs, color: COLORS.textMuted, marginTop: 2, textTransform: 'capitalize' },
   statusDot: { width: 8, height: 8, borderRadius: 4, alignSelf: 'flex-end', marginBottom: 3 },
   dueText: { fontSize: SIZES.fontXs, ...FONTS.medium },
+  feeText: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.medium, marginTop: 2 },
+  memberPill: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, borderWidth: 1 },
+  memberPillText: { fontSize: 10, ...FONTS.bold, letterSpacing: 0.3 },
+  noteBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1 },
+  noteText: { flex: 1, fontSize: SIZES.fontXs, ...FONTS.medium, lineHeight: 16 },
 
   historyBox: { paddingHorizontal: 14, paddingBottom: 12, borderTopWidth: 1, borderTopColor: COLORS.darkBorder },
   historyTitle: { fontSize: SIZES.fontXs, color: COLORS.textMuted, ...FONTS.bold, marginVertical: 8 },
