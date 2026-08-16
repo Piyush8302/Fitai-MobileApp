@@ -9,6 +9,7 @@ import GradientCard from '../components/GradientCard';
 import ProgressRing from '../components/ProgressRing';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getGoalAdjustedCalories } from '../utils/calorieGoal';
 
 const { width } = Dimensions.get('window');
 
@@ -121,15 +122,21 @@ const DIET_MEALS = {
 };
 
 // Goal-based calorie adjustments
+// Wording only — the target itself comes from utils/calorieGoal.js. These used
+// to carry their own multipliers (0.8 / 1.2 / 1.15) that the code below already
+// overrode, and the advice described those dead numbers rather than the real
+// rule: a weight-loss member was told "your target is your BMR" when the target
+// is actually 500 below maintenance, and a gaining member was told "eat 20%
+// more" when the surplus is a flat 400.
 const GOAL_ADJUSTMENTS = {
-  weight_loss: { calMult: 0.8, desc: 'BMR-based deficit', tip: 'Your target is your BMR — the minimum your body needs. This creates a safe calorie deficit for fat loss while protecting health.' },
-  fat_loss: { calMult: 0.8, desc: 'BMR-based deficit', tip: 'Target your BMR calories. High protein, moderate carbs, include cardio for maximum fat burn.' },
-  weight_gain: { calMult: 1.2, desc: 'Calorie surplus for weight gain', tip: 'Eat 20% more than your TDEE. Focus on clean calories.' },
-  muscle_building: { calMult: 1.15, desc: 'Slight surplus for muscle growth', tip: 'High protein (1.6-2g/kg), moderate surplus, strength training.' },
-  maintenance: { calMult: 1.0, desc: 'Maintain current weight', tip: 'Eat at your TDEE. Balance all macros equally.' },
-  height_growth: { calMult: 1.1, desc: 'Nutritious surplus for growth', tip: 'Calcium-rich foods, adequate protein, Vitamin D, good sleep.' },
-  home_workout: { calMult: 1.0, desc: 'Balanced nutrition', tip: 'Clean eating with enough protein for recovery.' },
-  gym_workout: { calMult: 1.1, desc: 'Fueling gym performance', tip: 'Pre & post workout nutrition, creatine, BCAAs.' },
+  weight_loss: { desc: '500 kcal below maintenance', tip: 'About 500 kcal under what you burn in a day — roughly 0.5 kg a week. It never drops below your BMR, so the deficit costs fat, not muscle.' },
+  fat_loss: { desc: '500 kcal below maintenance', tip: 'About 500 kcal under what you burn, held above your BMR. Keep protein high and add cardio for the rest.' },
+  weight_gain: { desc: '400 kcal surplus', tip: 'A flat 400 kcal above what you burn. Slow and clean beats fast and messy.' },
+  muscle_building: { desc: '300 kcal surplus', tip: 'A modest 300 kcal above maintenance, with 1.6–2 g protein per kg and strength training.' },
+  maintenance: { desc: 'Maintain current weight', tip: 'Eat at your TDEE. Balance all macros equally.' },
+  height_growth: { desc: 'Nutritious surplus for growth', tip: 'Calcium-rich foods, adequate protein, Vitamin D, good sleep.' },
+  home_workout: { desc: 'Balanced nutrition', tip: 'Clean eating with enough protein for recovery.' },
+  gym_workout: { desc: 'Fueling gym performance', tip: 'Pre & post workout nutrition, creatine, BCAAs.' },
 };
 
 const DietScreen = ({ navigation }) => {
@@ -229,12 +236,7 @@ const DietScreen = ({ navigation }) => {
   const goal = user?.fitnessGoal || 'maintenance';
   const adjustment = GOAL_ADJUSTMENTS[goal] || GOAL_ADJUSTMENTS.maintenance;
   const isWeightLoss = goal === 'weight_loss' || goal === 'fat_loss';
-  // Same goal-adjusted formula as Tracking/Home (single source of truth)
-  const targetCal = isWeightLoss
-    ? Math.max(bmr + 100, dailyCal - 500)
-    : goal === 'weight_gain' ? Math.round(dailyCal + 400)
-    : goal === 'muscle_building' ? Math.round(dailyCal + 300)
-    : Math.round(dailyCal * adjustment.calMult);
+  const targetCal = getGoalAdjustedCalories({ bmr, dailyCalories: dailyCal, fitnessGoal: goal });
   const proteinNeed = user?.proteinNeed || Math.round((user?.weight || 70) * 1.6);
   const carbsNeed = Math.round((targetCal * 0.45) / 4); // 45% carbs
   const fatNeed = Math.round((targetCal * 0.25) / 9); // 25% fat

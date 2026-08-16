@@ -22,6 +22,22 @@ export const numericText = (text, { decimals = false, maxLen = 6 } = {}) => {
   return clean.slice(0, maxLen);
 };
 
+/**
+ * Like numericText, but also refuses a keystroke that would take the value past
+ * `max` — it returns the previous text instead.
+ *
+ * A length cap alone is not enough: 5 characters still spell 99999 km, and the
+ * live preview underneath rendered "~134998650 steps" from it long before the
+ * save button had a chance to object. Stopping it at the field means the reader
+ * never sees a number the app was never going to accept.
+ */
+export const boundedText = (prev, next, { decimals = false, maxLen = 6, max = Infinity } = {}) => {
+  const clean = numericText(next, { decimals, maxLen });
+  if (clean === '' || clean === '.') return clean;
+  const n = Number(clean);
+  return Number.isFinite(n) && n > max ? String(prev ?? '') : clean;
+};
+
 /** Digits only — phone numbers, OTPs, ages, counts. */
 export const digitsOnly = (text, maxLen = 10) => numericText(text, { decimals: false, maxLen });
 

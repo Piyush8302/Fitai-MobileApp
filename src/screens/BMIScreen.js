@@ -8,11 +8,17 @@ import GradientButton from '../components/GradientButton';
 import ProgressRing from '../components/ProgressRing';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { calcBmr, calcTdee, calcBodyFat } from '../utils/calorieGoal';
 
 const BMIScreen = ({ navigation }) => {
   const [height, setHeight] = useState(170);
   const [weight, setWeight] = useState(70);
   const [apiData, setApiData] = useState(null);
+  // Age, gender and activity level were hardcoded here — 25, male, moderately
+  // active — for the local maths AND in the request sent to the server. Every
+  // woman was shown a BMR 166 kcal too high, and nobody's real age or activity
+  // level counted. Read the profile instead.
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -23,20 +29,24 @@ const BMIScreen = ({ navigation }) => {
         const u = JSON.parse(savedUser);
         if (u.height) setHeight(u.height);
         if (u.weight) setWeight(u.weight);
+        setProfile(u);
       }
     })();
   }, []);
 
   // Save BMI to backend when values change
   useEffect(() => {
+    if (!profile) return;   // wait for the real demographics
     const timer = setTimeout(async () => {
       try {
-        const res = await api.post(ENDPOINTS.CALCULATE_BMI, { height, weight, age: 25, gender: 'male' });
+        const res = await api.post(ENDPOINTS.CALCULATE_BMI, {
+          height, weight, age: profile.age, gender: profile.gender,
+        });
         if (res.success) setApiData(res.data);
       } catch (e) { /* offline - use local calc */ }
     }, 500);
     return () => clearTimeout(timer);
-  }, [height, weight]);
+  }, [height, weight, profile]);
   const bmi = (weight / ((height / 100) ** 2)).toFixed(1);
   const bmiPercent = Math.min((bmi / 40) * 100, 100);
 
@@ -48,12 +58,16 @@ const BMIScreen = ({ navigation }) => {
   };
 
   const category = getBmiCategory();
-  const bmr = Math.round(10 * weight + 6.25 * height - 5 * 25 + 5);
-  const dailyCal = Math.round(bmr * 1.55);
-  const proteinNeed = Math.round(weight * 1.6);
+  // Prefer what the server worked out; fall back to the same formulas locally so
+  // the screen still reads correctly offline, and reads the SAME numbers.
+  const age = profile?.age || 25;
+  const gender = profile?.gender;
+  const bmr = apiData?.bmr || calcBmr({ weight, height, age, gender }) || 0;
+  const dailyCal = apiData?.dailyCalories || calcTdee(bmr, profile?.activityLevel) || 0;
+  const proteinNeed = apiData?.proteinNeed || Math.round(weight * 1.6);
   const idealMin = (18.5 * ((height / 100) ** 2)).toFixed(1);
   const idealMax = (24.9 * ((height / 100) ** 2)).toFixed(1);
-  const bodyFat = (1.2 * bmi + 0.23 * 25 - 5.4).toFixed(1);
+  const bodyFat = apiData?.bodyFat ?? calcBodyFat(parseFloat(bmi), age, gender);
 
   const Slider = ({ value, onChange, min, max, label, unit }) => (
     <View style={styles.sliderContainer}>

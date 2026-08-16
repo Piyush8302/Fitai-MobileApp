@@ -9,7 +9,8 @@ import ProgressRing from '../components/ProgressRing';
 import api, { ENDPOINTS } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXERCISES, WORKOUT_CATEGORIES, MEAL_PLAN_SAMPLE, DIET_MEAL_SUGGESTIONS } from '../constants/data';
-import { numericText, LIMITS } from '../utils/numericInput';
+import { numericText, boundedText, LIMITS } from '../utils/numericInput';
+import { getGoalAdjustedCalories } from '../utils/calorieGoal';
 
 const { width } = Dimensions.get('window');
 
@@ -386,13 +387,16 @@ const TrackingScreen = ({ navigation }) => {
     // Research-based calorie & protein targets (ICMR 2020, ACSM, ISSN position papers)
     // Safe deficit: TDEE - 500 kcal (never below BMR) → ~0.5 kg/week loss
     // Surplus: +300-500 kcal for lean gain
-    const safeDeficit = Math.max(bmr + 100, dailyCal - 500);
+    // One shared formula for the number itself — utils/calorieGoal.js, mirrored
+    // from the backend. The per-goal copy below stays for the wording, protein
+    // split and tips, which do differ by goal.
+    const goalCalories = getGoalAdjustedCalories({ bmr, dailyCalories: dailyCal, fitnessGoal: goal });
     switch (goal) {
       case 'weight_loss':
         return {
           icon: '🔥', title: 'Weight Loss Mode', color: COLORS.secondary,
-          desc: `Target: lose ${diff > 0 ? diff : 5} kg. Eat ~${safeDeficit} kcal/day (500 kcal deficit, never below BMR ${bmr}).`,
-          targetCalories: safeDeficit, proteinTarget: Math.round(w * 1.6),
+          desc: `Target: lose ${diff > 0 ? diff : 5} kg. Eat ~${goalCalories} kcal/day (500 kcal deficit, never below BMR ${bmr}).`,
+          targetCalories: goalCalories, proteinTarget: Math.round(w * 1.6),
           tips: [
             `Eat ${Math.round(w * 1.6)}g protein/day to preserve muscle (ISSN)`,
             'Avoid sugary drinks, maida, fried snacks',
@@ -403,8 +407,8 @@ const TrackingScreen = ({ navigation }) => {
       case 'fat_loss':
         return {
           icon: '⚡', title: 'Fat Loss Mode', color: '#FF9800',
-          desc: `Reduce body fat while preserving muscle. Eat ~${safeDeficit} kcal/day with high protein.`,
-          targetCalories: safeDeficit, proteinTarget: Math.round(w * 2.0),
+          desc: `Reduce body fat while preserving muscle. Eat ~${goalCalories} kcal/day with high protein.`,
+          targetCalories: goalCalories, proteinTarget: Math.round(w * 2.0),
           tips: [
             `High protein: ${Math.round(w * 2.0)}g/day (ISSN recommendation)`,
             'Combine strength training + HIIT cardio',
@@ -416,7 +420,7 @@ const TrackingScreen = ({ navigation }) => {
         return {
           icon: '💪', title: 'Weight Gain Mode', color: '#4CAF50',
           desc: `Target: gain ${diff > 0 ? diff : 5} kg. Eat ~${Math.round(dailyCal + 400)} kcal/day (+400 surplus for lean gain).`,
-          targetCalories: Math.round(dailyCal + 400), proteinTarget: Math.round(w * 1.6),
+          targetCalories: goalCalories, proteinTarget: Math.round(w * 1.6),
           tips: [
             'Eat 5-6 meals per day — don\'t skip breakfast',
             'Include banana shake, peanut butter, ghee, dry fruits',
@@ -428,7 +432,7 @@ const TrackingScreen = ({ navigation }) => {
         return {
           icon: '🏋️', title: 'Muscle Building Mode', color: COLORS.primary,
           desc: `Lean muscle gain. Eat ~${Math.round(dailyCal + 300)} kcal/day (+300 surplus) with ${Math.round(w * 1.8)}g protein.`,
-          targetCalories: Math.round(dailyCal + 300), proteinTarget: Math.round(w * 1.8),
+          targetCalories: goalCalories, proteinTarget: Math.round(w * 1.8),
           tips: [
             `${Math.round(w * 1.8)}g protein/day — split across 4-5 meals (ISSN)`,
             'Progressive overload: increase weight/reps weekly',
@@ -440,7 +444,7 @@ const TrackingScreen = ({ navigation }) => {
         return {
           icon: '📏', title: 'Growth & Posture Focus', color: COLORS.accent,
           desc: `Nutrition for growth. Eat ~${Math.round(dailyCal * 1.1)} kcal/day with calcium & vitamin D.`,
-          targetCalories: Math.round(dailyCal * 1.1), proteinTarget: Math.round(w * 1.4),
+          targetCalories: goalCalories, proteinTarget: Math.round(w * 1.4),
           tips: [
             'Sleep 8-10 hours — growth hormone peaks during deep sleep',
             'Eat calcium-rich: milk, curd, ragi, paneer (1000mg/day)',
@@ -452,7 +456,7 @@ const TrackingScreen = ({ navigation }) => {
         return {
           icon: '🏋️', title: 'Gym Performance', color: COLORS.primary,
           desc: `Fuel workouts. Eat ~${Math.round(dailyCal * 1.1)} kcal/day with adequate protein & carbs.`,
-          targetCalories: Math.round(dailyCal * 1.1), proteinTarget: Math.round(w * 1.6),
+          targetCalories: goalCalories, proteinTarget: Math.round(w * 1.6),
           tips: [
             'Pre-workout: banana + oats 30-60 min before',
             'Post-workout: protein shake/eggs within 1-2 hours',
@@ -464,7 +468,7 @@ const TrackingScreen = ({ navigation }) => {
         return {
           icon: '🏠', title: 'Home Workout Mode', color: COLORS.success,
           desc: `Balanced nutrition at ~${dailyCal} kcal/day with bodyweight training.`,
-          targetCalories: dailyCal, proteinTarget: Math.round(w * 1.4),
+          targetCalories: goalCalories, proteinTarget: Math.round(w * 1.4),
           tips: [
             'Be consistent: 4-5 sessions per week, 30-45 min',
             'Focus on push-ups, squats, lunges, planks',
@@ -476,7 +480,7 @@ const TrackingScreen = ({ navigation }) => {
         return {
           icon: '🧘', title: 'Maintain & Stay Fit', color: COLORS.success,
           desc: `Eat ~${dailyCal} kcal/day to maintain weight with balanced nutrition.`,
-          targetCalories: dailyCal, proteinTarget: protein,
+          targetCalories: goalCalories, proteinTarget: protein,
           tips: [
             'Balanced plate: 50% veggies, 25% protein, 25% carbs',
             'Walk 7000-10000 steps daily',
@@ -883,15 +887,15 @@ const TrackingScreen = ({ navigation }) => {
                   ))}
                 </View>
 
-                <Text style={styles.inputLabel}>Distance (km)</Text>
+                <Text style={styles.inputLabel}>Distance (km) — up to {MAX_KM}</Text>
                 <TextInput
                   style={styles.modalInput}
                   placeholder="e.g., 2.5"
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="decimal-pad"
                   value={walkKm}
-                  maxLength={5}
-                  onChangeText={(t) => setWalkKm(numericText(t, { decimals: true, maxLen: 5 }))}
+                  maxLength={6}
+                  onChangeText={(t) => setWalkKm(boundedText(walkKm, t, { decimals: true, maxLen: 6, max: MAX_KM }))}
                 />
 
                 <Text style={styles.inputLabel}>Duration (minutes) - Optional</Text>
@@ -902,7 +906,7 @@ const TrackingScreen = ({ navigation }) => {
                   keyboardType="number-pad"
                   value={walkMin}
                   maxLength={4}
-                  onChangeText={(t) => setWalkMin(numericText(t, { decimals: false, maxLen: 4 }))}
+                  onChangeText={(t) => setWalkMin(boundedText(walkMin, t, { maxLen: 4, max: MAX_MINUTES }))}
                 />
 
                 {walkKm > 0 && (() => {
@@ -1296,7 +1300,7 @@ const TrackingScreen = ({ navigation }) => {
                 keyboardType="decimal-pad"
                 value={weightInput}
                 maxLength={5}
-                onChangeText={(t) => setWeightInput(numericText(t, { decimals: true, maxLen: 5 }))}
+                onChangeText={(t) => setWeightInput(boundedText(weightInput, t, { decimals: true, maxLen: 5, max: LIMITS.weightKg.max }))}
               />
 
               {weightInput && userProfile?.weight && (
