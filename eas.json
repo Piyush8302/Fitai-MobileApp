@@ -17,6 +17,15 @@
         "buildType": "apk"
       },
       "env": {
+        "EXPO_PUBLIC_API_URL": "https://fitai-backend-icbh.onrender.com"
+      }
+    },
+    "preview-staging": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
         "EXPO_PUBLIC_API_URL": "https://fitai-backend-staging.onrender.com"
       }
     },
