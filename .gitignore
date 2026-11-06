@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Google Play service account for `eas submit` — a credential, never commit it
+play-service-account.json
